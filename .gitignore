@@ -23,6 +23,10 @@
 # subida local de desarrollo (fallback sin Vercel Blob, ver T11.6)
 /public/uploads
 
+# Serwist (service worker generado, ver T16)
+/public/sw*
+/public/swe-worker*
+
 # misc
 .DS_Store
 *.pem

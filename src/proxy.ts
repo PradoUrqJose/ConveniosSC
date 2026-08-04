@@ -4,7 +4,8 @@ import { NextResponse, type NextRequest } from "next/server";
  * Proxy de redirección (06-BACKLOG.md T05). Solo redirige a nivel de
  * navegación; la autorización real vive en cada Server Action (`requireSession`
  * / `requireRol`). No aplica a peticiones no-GET ni a `/api`, `/_next`, `/login`
- * ni assets estáticos.
+ * ni assets estáticos. Tampoco a `/sw.js` (el service worker se precachea y
+ * se sirve sin sesión) ni a `/~offline` (el fallback offline debe cargar sin red).
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (request.method !== "GET") {
@@ -48,6 +49,6 @@ function redirigirAlLogin(request: NextRequest): NextResponse {
 
 export const config = {
   matcher: [
-    "/((?!api|_next|login|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)",
+    "/((?!api|_next|login|~offline|sw\\.js|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)",
   ],
 };
