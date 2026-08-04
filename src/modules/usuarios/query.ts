@@ -20,6 +20,8 @@ export type FilaUsuario = {
   sedePorDefectoId: string | null;
   ultimoAccesoAt: string | null;
   debeCambiarPassword: boolean;
+  /** `true` mientras `bloqueado_hasta` siga en el futuro (5 intentos fallidos). */
+  bloqueado: boolean;
   ventas30d: number;
 };
 
@@ -47,7 +49,7 @@ export async function listarUsuarios(
     cursor?: string;
   },
 ): Promise<Pagina<FilaUsuario>> {
-  requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+  requireRol(ctx, ["SUPERADMIN"]);
 
   const { empresaId, rol, activo, q, cursor } = entrada;
   const empresaFiltro =
@@ -74,6 +76,7 @@ export async function listarUsuarios(
       SELECT u.id, u.username, u.nombres, u.apellidos, u.rol, u.empresa_id,
         e.nombre_comercial AS empresa_nombre, u.activo, u.ultimo_acceso_at,
         u.debe_cambiar_password, u.empleado_id, u.sede_por_defecto_id,
+        (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > now()) AS bloqueado,
         (SELECT count(*)::int FROM ventas v
            WHERE v.vendedor_usuario_id = u.id AND v.estado = 'REGISTRADA'
              AND v.fecha_venta >= ${sumarDias(HOY, -29)}) AS ventas_30d
@@ -119,6 +122,7 @@ export async function listarUsuarios(
       ultimoAccesoAt:
         f.ultimo_acceso_at === null ? null : String(f.ultimo_acceso_at),
       debeCambiarPassword: Boolean(f.debe_cambiar_password),
+      bloqueado: Boolean(f.bloqueado),
       ventas30d: Number(f.ventas_30d ?? 0),
     })),
     cursor: haySiguiente && ultimo ? codificarCursor(ultimo) : null,

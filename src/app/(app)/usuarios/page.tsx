@@ -27,7 +27,7 @@ export default async function UsuariosPage({
 
   let sinPermiso = false;
   try {
-    requireRol(sesion, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+    requireRol(sesion, ["SUPERADMIN"]);
   } catch (error) {
     if (error instanceof ErrorAuth) {
       sinPermiso = true;
@@ -48,11 +48,9 @@ export default async function UsuariosPage({
   }
 
   const { q, cursor } = await searchParams;
-  const esSuperadmin = sesion.rol === "SUPERADMIN";
-
   const [pagina, empresas, empleados, sedes] = await Promise.all([
     listarUsuarios(sesion, { q, cursor }),
-    esSuperadmin ? listarEmpresasOpciones(sesion) : Promise.resolve([]),
+    listarEmpresasOpciones(sesion),
     listarEmpleadosOpciones(sesion),
     listarSedesOpciones(sesion),
   ]);
@@ -64,7 +62,7 @@ export default async function UsuariosPage({
       empresas={empresas}
       empleados={empleados}
       sedes={sedes}
-      esSuperadmin={esSuperadmin}
+      esSuperadmin={true}
       yoUsuarioId={sesion.usuarioId}
     />
   );

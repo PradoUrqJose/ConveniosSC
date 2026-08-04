@@ -73,6 +73,7 @@ export function FormEmpleado({
     estado: string;
     nombres: string;
     apellidos: string;
+    empresaId: string;
   }) => void;
 }) {
   const esCrear = !empleado;
@@ -82,6 +83,7 @@ export function FormEmpleado({
       empleado?.estado === "RECHAZADO",
   );
   const [activo, setActivo] = useState(true);
+  const [empresaId, setEmpresaId] = useState(miEmpresaId ?? "");
   const ultimosDatosRef = useRef<{ nombres: string; apellidos: string }>({
     nombres: "",
     apellidos: "",
@@ -123,6 +125,7 @@ export function FormEmpleado({
         estado: estado.data.estado,
         nombres: ultimosDatosRef.current.nombres,
         apellidos: ultimosDatosRef.current.apellidos,
+        empresaId,
       });
     }
     onCerrar();
@@ -168,12 +171,18 @@ export function FormEmpleado({
             </>
           ) : esCrear ? (
             <Select
-              name="empresaId"
-              defaultValue={miEmpresaId ?? undefined}
+              value={empresaId}
+              onValueChange={(valor) => setEmpresaId(valor ?? "")}
               required
             >
+              <input type="hidden" name="empresaId" value={empresaId} />
               <SelectTrigger id="empresa">
-                <SelectValue placeholder="Selecciona la empresa" />
+                <SelectValue placeholder="Selecciona la empresa">
+                  {(valor) =>
+                    empresas.find((empresa) => empresa.id === valor)
+                      ?.nombreComercial ?? "Selecciona la empresa"
+                  }
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {empresas.map((e) => (

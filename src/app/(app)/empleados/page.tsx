@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import {
-  contarPendientesVerificacion,
   listarEmpresasParaEmpleado,
   listarEmpleados,
+  resumirEmpleados,
   type EstadoEmpleado,
 } from "@/modules/empleados/query";
 import { EmpleadosClient } from "./empleados-client";
@@ -62,10 +62,10 @@ export default async function EmpleadosPage({
     tab === "rechazados";
   const estado = tabValido ? ESTADOS_POR_TAB[tab!] : undefined;
 
-  const [pagina, empresas, pendientes] = await Promise.all([
+  const [pagina, empresas, resumen] = await Promise.all([
     listarEmpleados(sesion, { estado, q, cursor }),
     listarEmpresasParaEmpleado(sesion),
-    contarPendientesVerificacion(sesion),
+    resumirEmpleados(sesion),
   ]);
 
   return (
@@ -74,7 +74,7 @@ export default async function EmpleadosPage({
       tab={tabValido ? tab! : "todos"}
       q={q}
       empresas={empresas}
-      pendientesTotal={pendientes.total}
+      resumen={resumen}
       esSuperadmin={sesion.rol === "SUPERADMIN"}
       miEmpresaId={sesion.empresaId ?? null}
     />

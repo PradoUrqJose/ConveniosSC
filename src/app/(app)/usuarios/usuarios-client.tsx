@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Users } from "lucide-react";
+import { KeyRound, Pencil, Plus, Search, UserCog, Users } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,8 @@ import { FormUsuario } from "./form-usuario";
 import { DialogoResetear } from "./dialogo-resetear";
 import { DialogoDesactivar } from "./dialogo-desactivar";
 import { DialogoPassword } from "./dialogo-password";
+import { BotonDesbloquear } from "./boton-desbloquear";
+import { CabeceraPagina, EstadoVacio } from "@/components/shell/pagina-ui";
 
 type Dialogo =
   | { tipo: "crear" }
@@ -29,9 +31,15 @@ type Dialogo =
   | { tipo: "desactivar"; usuario: FilaUsuario };
 
 const COLOR_ROL: Record<FilaUsuario["rol"], string> = {
-  SUPERADMIN: "bg-fuchsia-100 text-fuchsia-800",
-  ADMIN_EMPRESA: "bg-sky-100 text-sky-800",
-  VENDEDOR: "bg-emerald-100 text-emerald-800",
+  SUPERADMIN: "bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300",
+  ADMIN_EMPRESA: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  VENDEDOR: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+};
+
+const NOMBRE_ROL: Record<FilaUsuario["rol"], string> = {
+  SUPERADMIN: "Admin. general",
+  ADMIN_EMPRESA: "Administrador",
+  VENDEDOR: "Vendedor",
 };
 
 function RolBadge({ rol }: { rol: FilaUsuario["rol"] }) {
@@ -39,7 +47,7 @@ function RolBadge({ rol }: { rol: FilaUsuario["rol"] }) {
     <span
       className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${COLOR_ROL[rol]}`}
     >
-      {rol}
+      {NOMBRE_ROL[rol]}
     </span>
   );
 }
@@ -75,26 +83,32 @@ export function UsuariosClient({
   };
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Usuarios</h1>
-          {typeof pagina.total === "number" ? (
-            <p className="text-muted-foreground text-sm">
+    <section className="page-shell">
+      <CabeceraPagina
+        kicker="Accesos y permisos"
+        titulo="Usuarios"
+        descripcion={
+          typeof pagina.total === "number" ? (
+            <>
               {pagina.total} usuario{pagina.total === 1 ? "" : "s"} en total
-            </p>
-          ) : null}
-        </div>
-        <Button onClick={() => setDialogo({ tipo: "crear" })}>
-          <Plus className="size-4" />
-          Crear usuario
-        </Button>
-      </div>
+            </>
+          ) : (
+            "Gestiona las cuentas y roles que pueden ingresar al sistema."
+          )
+        }
+        icono={<UserCog className="size-5" />}
+        acciones={
+          <Button onClick={() => setDialogo({ tipo: "crear" })}>
+            <Plus className="size-4" />
+            Crear usuario
+          </Button>
+        }
+      />
 
       <form
         role="search"
         action="/usuarios"
-        className="flex items-center gap-2"
+        className="control-bar flex items-center gap-2"
       >
         <div className="relative flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
@@ -102,7 +116,7 @@ export function UsuariosClient({
             name="q"
             defaultValue={q ?? ""}
             placeholder="Buscar por username o nombre"
-            className="pl-8"
+            className="bg-muted/70 h-11 rounded-xl border-0 pl-9"
           />
         </div>
         <Button type="submit" variant="secondary">
@@ -111,75 +125,97 @@ export function UsuariosClient({
       </form>
 
       {pagina.items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-16 text-center">
-          <Users className="text-muted-foreground size-8" />
-          <p className="text-muted-foreground text-sm">
-            {q
+        <EstadoVacio
+          icono={<Users className="size-6" />}
+          titulo={q ? "No encontramos usuarios" : "Aún no hay usuarios"}
+          descripcion={
+            q
               ? "No encontramos usuarios que coincidan con la búsqueda."
-              : "Aún no hay usuarios. Crea el primero."}
-          </p>
-        </div>
+              : "Crea una cuenta y asígnale el acceso adecuado para comenzar."
+          }
+        />
       ) : (
-        <div className="flex flex-col gap-2">
+        <div className="grid gap-4 xl:grid-cols-2">
           {pagina.items.map((u) => {
             const esUnoMismo = u.id === yoUsuarioId;
             return (
-              <Card key={u.id} className="p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-semibold">
-                        {u.nombres} {u.apellidos}
-                      </span>
-                      <span className="text-muted-foreground text-sm">
-                        @{u.username}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 text-sm">
-                      <RolBadge rol={u.rol} />
-                      {u.empresaNombre ? (
-                        <span className="text-muted-foreground">
-                          {u.empresaNombre}
+              <Card
+                key={u.id}
+                className="bg-card/90 rounded-[1.35rem] p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
+                    <span className="from-primary/15 text-primary grid size-11 shrink-0 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 text-xs font-extrabold">
+                      {`${u.nombres[0] ?? ""}${u.apellidos[0] ?? ""}`.toUpperCase()}
+                    </span>
+                    <div className="flex min-w-0 flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate font-bold">
+                          {u.nombres} {u.apellidos}
                         </span>
-                      ) : null}
-                      {u.debeCambiarPassword ? (
-                        <Badge variant="secondary">cambiar password</Badge>
-                      ) : null}
+                        <span className="text-muted-foreground text-sm">
+                          @{u.username}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-sm">
+                        <RolBadge rol={u.rol} />
+                        {u.empresaNombre ? (
+                          <span className="text-muted-foreground">
+                            {u.empresaNombre}
+                          </span>
+                        ) : null}
+                        {u.debeCambiarPassword ? (
+                          <Badge variant="secondary">cambiar password</Badge>
+                        ) : null}
+                        {u.bloqueado ? (
+                          <Badge variant="destructive">Bloqueado</Badge>
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 
-                  <div className="flex flex-col items-end gap-1 text-sm">
+                  <div className="flex shrink-0 flex-col items-end gap-1 text-sm">
                     {u.activo ? (
                       <Badge>Activo</Badge>
                     ) : (
                       <Badge variant="secondary">Inactivo</Badge>
                     )}
-                    <span className="text-muted-foreground">
-                      {u.ultimoAccesoAt
-                        ? formatearFechaHoraLima(u.ultimoAccesoAt)
-                        : "Nunca ingresó"}
-                    </span>
-                    <span className="text-muted-foreground">
-                      {u.ventas30d} ventas (30d)
-                    </span>
                   </div>
                 </div>
 
-                <div className="mt-3 flex flex-wrap gap-2">
+                <div className="text-muted-foreground mt-4 grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-muted/60 rounded-xl px-3 py-2.5">
+                    <span className="block">Último acceso</span>
+                    <strong className="text-foreground mt-0.5 block truncate font-semibold">
+                      {u.ultimoAccesoAt
+                        ? formatearFechaHoraLima(u.ultimoAccesoAt)
+                        : "Nunca ingresó"}
+                    </strong>
+                  </div>
+                  <div className="bg-muted/60 rounded-xl px-3 py-2.5">
+                    <span className="block">Actividad</span>
+                    <strong className="text-foreground mt-0.5 block font-semibold">
+                      {u.ventas30d} ventas · 30 días
+                    </strong>
+                  </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-2 border-t pt-4">
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setDialogo({ tipo: "editar", usuario: u })}
                   >
-                    Editar
+                    <Pencil className="size-3.5" /> Editar
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setDialogo({ tipo: "reset", usuario: u })}
                   >
-                    Restablecer contraseña
+                    <KeyRound className="size-3.5" /> Restablecer
                   </Button>
+                  {u.bloqueado ? <BotonDesbloquear usuario={u} /> : null}
                   {!esUnoMismo ? (
                     <Button
                       variant={u.activo ? "ghost" : "secondary"}

@@ -17,6 +17,12 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // En móvil los toasts deben quedar por encima de la barra inferior.
+      mobileOffset={{
+        bottom: "calc(4.4rem + env(safe-area-inset-bottom))",
+        left: "0.75rem",
+        right: "0.75rem",
+      }}
       icons={{
         success: <CircleCheckIcon className="size-4" />,
         info: <InfoIcon className="size-4" />,

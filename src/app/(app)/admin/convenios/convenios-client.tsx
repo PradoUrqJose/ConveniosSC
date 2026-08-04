@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, Handshake, Plus } from "lucide-react";
+import { ArrowRight, BadgePercent, Handshake, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import {
   DialogoCambiarTermino,
   bpsAPorcentaje,
 } from "./dialogo-cambiar-termino";
+import { CabeceraPagina, EstadoVacio } from "@/components/shell/pagina-ui";
 
 type Dialogo =
   | { tipo: "crear" }
@@ -48,39 +49,47 @@ export function ConveniosClient({
   const [dialogo, setDialogo] = useState<Dialogo | null>(null);
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Convenios</h1>
-          <p className="text-muted-foreground text-sm">
+    <section className="page-shell">
+      <CabeceraPagina
+        kicker="Red de beneficios"
+        titulo="Convenios"
+        descripcion={
+          <>
             {convenios.length} convenio{convenios.length === 1 ? "" : "s"} entre
-            empresas
-          </p>
-        </div>
-        <Button onClick={() => setDialogo({ tipo: "crear" })}>
-          <Plus className="size-4" />
-          Crear convenio
-        </Button>
-      </div>
+            empresas.
+          </>
+        }
+        icono={<Handshake className="size-5" />}
+        acciones={
+          <Button onClick={() => setDialogo({ tipo: "crear" })}>
+            <Plus className="size-4" />
+            Crear convenio
+          </Button>
+        }
+      />
 
       {convenios.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-16 text-center">
-          <Handshake className="text-muted-foreground size-8" />
-          <p className="text-muted-foreground text-sm">
-            Aún no hay convenios. Crea el primero entre dos empresas.
-          </p>
-        </div>
+        <EstadoVacio
+          icono={<Handshake className="size-6" />}
+          titulo="Aún no hay convenios"
+          descripcion="Conecta dos empresas y define los beneficios que ofrecerán a sus equipos."
+        />
       ) : (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {convenios.map((c) => (
-            <Card key={c.id}>
-              <CardContent className="flex flex-col gap-3 p-5">
+            <Card
+              key={c.id}
+              className="bg-card/90 rounded-[1.4rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+            >
+              <CardContent className="flex flex-col gap-4 p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h2 className="flex items-center gap-2 font-semibold">
-                      {c.empresaA.nombre}
-                      <ArrowRight className="text-muted-foreground size-4" />
-                      {c.empresaB.nombre}
+                    <h2 className="flex items-center gap-2 font-bold">
+                      <span className="truncate">{c.empresaA.nombre}</span>
+                      <span className="bg-primary/10 text-primary grid size-7 shrink-0 place-items-center rounded-full">
+                        <ArrowRight className="size-3.5" />
+                      </span>
+                      <span className="truncate">{c.empresaB.nombre}</span>
                     </h2>
                     <p className="text-muted-foreground text-sm">
                       {etiquetaVigencia(c)}
@@ -90,21 +99,23 @@ export function ConveniosClient({
                 </div>
 
                 <div className="flex flex-col gap-2 text-sm">
-                  <div className="bg-muted/60 flex items-center justify-between gap-3 rounded-lg px-3 py-2">
+                  <div className="bg-muted/65 flex items-center justify-between gap-3 rounded-xl px-3.5 py-3">
                     <span className="min-w-0 truncate">
                       {c.empresaA.nombre} → empleados de {c.empresaB.nombre}
                     </span>
-                    <strong>
+                    <strong className="text-primary flex shrink-0 items-center gap-1">
+                      <BadgePercent className="size-3.5" />
                       {c.terminoAotorga
                         ? `${bpsAPorcentaje(c.terminoAotorga.bps)}%`
                         : "—"}
                     </strong>
                   </div>
-                  <div className="bg-muted/60 flex items-center justify-between gap-3 rounded-lg px-3 py-2">
+                  <div className="bg-muted/65 flex items-center justify-between gap-3 rounded-xl px-3.5 py-3">
                     <span className="min-w-0 truncate">
                       {c.empresaB.nombre} → empleados de {c.empresaA.nombre}
                     </span>
-                    <strong>
+                    <strong className="text-primary flex shrink-0 items-center gap-1">
+                      <BadgePercent className="size-3.5" />
                       {c.terminoBotorga
                         ? `${bpsAPorcentaje(c.terminoBotorga.bps)}%`
                         : "—"}

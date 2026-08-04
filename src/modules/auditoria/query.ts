@@ -43,10 +43,8 @@ export async function listarAuditoria(
   entrada: FiltroAuditoria,
   ejecutor: TransaccionAuditada = db,
 ): Promise<Pagina<FilaAuditoria>> {
-  requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+  requireRol(ctx, ["SUPERADMIN"]);
   const filtros: SQL[] = [];
-  if (ctx.rol === "ADMIN_EMPRESA")
-    filtros.push(sql`a.actor_empresa_id = ${ctx.empresaId}`);
   if (entrada.desde) filtros.push(sql`a.ts >= ${entrada.desde}::date`);
   if (entrada.hasta)
     filtros.push(sql`a.ts < (${entrada.hasta}::date + interval '1 day')`);

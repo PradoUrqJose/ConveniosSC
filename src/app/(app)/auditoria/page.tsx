@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
+import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import {
   listarAuditoria,
   type FiltroAuditoria,
@@ -18,7 +18,11 @@ export default async function AuditoriaPage({
     if (e instanceof ErrorAuth) redirect("/login");
     throw e;
   }
-  if (sesion.rol === "VENDEDOR") redirect("/");
+  try {
+    requireRol(sesion, ["SUPERADMIN"]);
+  } catch {
+    redirect("/");
+  }
   const sp = await searchParams;
   const filtros: FiltroAuditoria = {
     desde: sp.desde,

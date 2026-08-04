@@ -32,6 +32,16 @@ export type FilaEmpleado = {
 
 export type EmpresaOpcion = { id: string; nombreComercial: string };
 
+export type ResumenEmpleados = {
+  total: number;
+  activos: number;
+  pendientes: number;
+  inactivos: number;
+  rechazados: number;
+  ventasUltimos30d: number;
+  montoUltimos30d: number;
+};
+
 const POR_PAGINA = 20;
 const HOY = hoyLima();
 
@@ -395,6 +405,56 @@ export async function contarPendientesVerificacion(
     ),
   )[0];
   return { total: Number(conteo?.n ?? 0) };
+}
+
+/** Resumen del padrón visible para la cabecera de gestión de empleados. */
+export async function resumirEmpleados(
+  ctx: SessionContext,
+): Promise<ResumenEmpleados> {
+  requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+
+  const condicion =
+    ctx.rol === "ADMIN_EMPRESA"
+      ? sql`WHERE em.empresa_id = ${ctx.empresaId}`
+      : sql``;
+  const fila = obtenerFilas(
+    await db.execute(sql`
+      SELECT
+        count(*)::int AS total,
+        count(*) FILTER (WHERE em.estado = 'ACTIVO')::int AS activos,
+        count(*) FILTER (WHERE em.estado = 'PENDIENTE_VERIFICACION')::int AS pendientes,
+        count(*) FILTER (WHERE em.estado = 'INACTIVO')::int AS inactivos,
+        count(*) FILTER (WHERE em.estado = 'RECHAZADO')::int AS rechazados,
+        COALESCE((
+          SELECT count(*)::int
+          FROM ventas v
+          JOIN empleados comprador ON comprador.id = v.empleado_comprador_id
+          WHERE v.estado = 'REGISTRADA'
+            AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+            ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND comprador.empresa_id = ${ctx.empresaId}` : sql``}
+        ), 0)::int AS ventas_30d,
+        COALESCE((
+          SELECT sum(v.monto_bruto_centimos)::bigint
+          FROM ventas v
+          JOIN empleados comprador ON comprador.id = v.empleado_comprador_id
+          WHERE v.estado = 'REGISTRADA'
+            AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+            ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND comprador.empresa_id = ${ctx.empresaId}` : sql``}
+        ), 0)::bigint AS monto_30d
+      FROM empleados em
+      ${condicion}
+    `),
+  )[0];
+
+  return {
+    total: Number(fila?.total ?? 0),
+    activos: Number(fila?.activos ?? 0),
+    pendientes: Number(fila?.pendientes ?? 0),
+    inactivos: Number(fila?.inactivos ?? 0),
+    rechazados: Number(fila?.rechazados ?? 0),
+    ventasUltimos30d: Number(fila?.ventas_30d ?? 0),
+    montoUltimos30d: Number(fila?.monto_30d ?? 0),
+  };
 }
 
 /**

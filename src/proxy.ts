@@ -36,6 +36,6 @@ function redirigirAlLogin(request: NextRequest): NextResponse {
 
 export const config = {
   matcher: [
-    "/((?!api|_next|login|~offline|sw\\.js|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)",
+    "/((?!api|_next|login|~offline|serwist|sw\\.js|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|.*\\.(?:png|jpg|jpeg|gif|svg|webp|ico)$).*)",
   ],
 };

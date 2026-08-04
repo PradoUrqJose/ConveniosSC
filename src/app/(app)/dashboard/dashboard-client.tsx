@@ -8,8 +8,17 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import {
+  BadgePercent,
+  CalendarRange,
+  ChartNoAxesCombined,
+  LayoutDashboard,
+  ReceiptText,
+  WalletCards,
+} from "lucide-react";
 import { formatearSoles } from "@/lib/dinero";
 import type { Dashboard } from "@/modules/metricas/query";
+import { CabeceraPagina, Metrica } from "@/components/shell/pagina-ui";
 
 export function DashboardClient({
   datos,
@@ -28,43 +37,56 @@ export function DashboardClient({
     `/dashboard?${new URLSearchParams({ desde, hasta, ...c })}`;
   const vacio = datos.totales.cantidad === 0;
   return (
-    <section className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm">
-            {desde} — {hasta}
-          </p>
-        </div>
-        <form className="flex gap-2">
-          <input
-            name="desde"
-            type="date"
-            defaultValue={desde}
-            className="border-input bg-background rounded-md border px-2 text-sm"
-          />
-          <input
-            name="hasta"
-            type="date"
-            defaultValue={hasta}
-            className="border-input bg-background rounded-md border px-2 text-sm"
-          />
-          <button className="border-input rounded-md border px-3 text-sm">
-            Aplicar
+    <section className="page-shell animate-in fade-in-0 duration-500">
+      {/* Título y filtro de fechas comparten línea desde md. */}
+      <div className="flex flex-col gap-3.5 md:flex-row md:items-end md:justify-between md:gap-6">
+        <CabeceraPagina
+          kicker="Visión general"
+          titulo="Dashboard"
+          descripcion="Sigue el rendimiento, los descuentos entregados y la adopción de los beneficios."
+          icono={<LayoutDashboard className="size-5" />}
+          className="hidden min-w-0 md:flex"
+        />
+
+        <form className="control-bar grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 sm:gap-3 md:w-fit md:shrink-0 md:grid-cols-[minmax(0,10rem)_minmax(0,10rem)_auto]">
+          <label className="flex min-w-0 flex-col">
+            <span className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[10px] font-bold tracking-wide uppercase sm:mb-1.5 sm:text-[11px]">
+              <CalendarRange className="size-3.5 shrink-0" /> Desde
+            </span>
+            <input
+              name="desde"
+              type="date"
+              defaultValue={desde}
+              className="border-input bg-background focus:ring-ring/30 h-10 w-full min-w-0 appearance-none rounded-xl border px-2.5 text-sm outline-none focus:ring-3 sm:px-3"
+            />
+          </label>
+          <label className="flex min-w-0 flex-col">
+            <span className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[10px] font-bold tracking-wide uppercase sm:mb-1.5 sm:text-[11px]">
+              <CalendarRange className="size-3.5 shrink-0" /> Hasta
+            </span>
+            <input
+              name="hasta"
+              type="date"
+              defaultValue={hasta}
+              className="border-input bg-background focus:ring-ring/30 h-10 w-full min-w-0 appearance-none rounded-xl border px-2.5 text-sm outline-none focus:ring-3 sm:px-3"
+            />
+          </label>
+          <button className="bg-primary text-primary-foreground hover:bg-primary/90 col-span-2 mt-auto h-10 rounded-xl px-5 text-sm font-bold shadow-sm transition md:col-span-1">
+            Actualizar
           </button>
         </form>
       </div>
       {esAdmin && (
-        <div className="flex gap-2">
+        <div className="bg-muted/80 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl p-1.5">
           <Link
             href={url({ dir: "vendidas" })}
-            className={`rounded-full px-3 py-1.5 text-sm ${direccion === "vendidas" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${direccion === "vendidas" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             Vendí
           </Link>
           <Link
             href={url({ dir: "compradas" })}
-            className={`rounded-full px-3 py-1.5 text-sm ${direccion === "compradas" ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${direccion === "compradas" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
           >
             Compraron mis empleados
           </Link>
@@ -75,18 +97,44 @@ export function DashboardClient({
       ) : (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat etiqueta="Ventas" valor={String(datos.totales.cantidad)} />
-            <Stat
+            <Metrica
+              etiqueta="Ventas"
+              valor={String(datos.totales.cantidad)}
+              detalle="Operaciones registradas"
+              icono={<ReceiptText className="size-4.5" />}
+            />
+            <Metrica
               etiqueta="Bruto"
-              valor={formatearSoles(datos.totales.sumaBrutoCentimos)}
+              valor={
+                <span className="money">
+                  {formatearSoles(datos.totales.sumaBrutoCentimos)}
+                </span>
+              }
+              detalle="Monto antes del beneficio"
+              icono={<WalletCards className="size-4.5" />}
+              tono="success"
             />
-            <Stat
+            <Metrica
               etiqueta="Descuento"
-              valor={formatearSoles(datos.totales.sumaDescuentoCentimos)}
+              valor={
+                <span className="money">
+                  {formatearSoles(datos.totales.sumaDescuentoCentimos)}
+                </span>
+              }
+              detalle="Beneficios entregados"
+              icono={<BadgePercent className="size-4.5" />}
+              tono="warning"
             />
-            <Stat
+            <Metrica
               etiqueta="Ticket promedio"
-              valor={formatearSoles(datos.totales.ticketPromedioCentimos)}
+              valor={
+                <span className="money">
+                  {formatearSoles(datos.totales.ticketPromedioCentimos)}
+                </span>
+              }
+              detalle="Promedio por operación"
+              icono={<ChartNoAxesCombined className="size-4.5" />}
+              tono="neutral"
             />
           </div>
           {datos.anuladas.cantidad > 0 && (
@@ -100,8 +148,21 @@ export function DashboardClient({
           )}
           <Bloque titulo="Ventas por periodo">
             {datos.serie.length ? (
-              <div className="h-64" aria-label="Gráfico de ventas por periodo">
-                <ResponsiveContainer width="100%" height="100%">
+              <div
+                className="h-52 sm:h-64"
+                aria-label="Gráfico de ventas por periodo"
+              >
+                {/*
+                  En el render del servidor no hay layout que medir y
+                  ResponsiveContainer avisa de un tamaño -1×-1. `initialDimension`
+                  le da un tamaño de partida hasta que el cliente mide de verdad.
+                */}
+                <ResponsiveContainer
+                  width="100%"
+                  height="100%"
+                  minWidth={0}
+                  initialDimension={{ width: 600, height: 208 }}
+                >
                   <BarChart data={datos.serie}>
                     <XAxis dataKey="periodo" tick={{ fontSize: 12 }} />
                     <YAxis
@@ -121,52 +182,71 @@ export function DashboardClient({
               <EstadoVacio texto="Sin ventas para graficar." />
             )}
           </Bloque>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
             <Lista
               titulo="Por convenio"
-              filas={datos.porConvenio.map((x) => [
-                x.empresaNombre,
-                formatearSoles(x.brutoCentimos),
-              ])}
+              filas={datos.porConvenio.map((x) => ({
+                clave: x.empresaNombre,
+                etiqueta: x.empresaNombre,
+                valor: formatearSoles(x.brutoCentimos),
+                peso: x.brutoCentimos,
+              }))}
             />
             <Lista
               titulo="Por sede"
-              filas={datos.porSede.map((x) => [x.nombre, String(x.cantidad)])}
+              filas={datos.porSede.map((x) => ({
+                clave: x.nombre,
+                etiqueta: x.nombre,
+                valor: `${x.cantidad}`,
+                sufijo: x.cantidad === 1 ? "venta" : "ventas",
+                peso: x.cantidad,
+              }))}
             />
             <Lista
               titulo="Top vendedores"
-              filas={datos.topVendedores.map((x) => [
-                x.nombre,
-                `${x.cantidad} · ${formatearSoles(x.brutoCentimos)}`,
-              ])}
+              filas={datos.topVendedores.map((x) => ({
+                clave: x.nombre,
+                etiqueta: x.nombre,
+                detalle: `${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
+                valor: formatearSoles(x.brutoCentimos),
+                peso: x.brutoCentimos,
+              }))}
             />
             <Lista
               titulo="Top empleados beneficiarios"
-              filas={datos.topEmpleados.map((x) => [
-                `${x.nombre} · ${x.dni}`,
-                `${x.cantidad} · ${formatearSoles(x.brutoCentimos)}`,
-              ])}
+              filas={datos.topEmpleados.map((x) => ({
+                clave: x.dni,
+                etiqueta: x.nombre,
+                detalle: `DNI ${x.dni} · ${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
+                valor: formatearSoles(x.brutoCentimos),
+                peso: x.brutoCentimos,
+              }))}
             />
           </div>
           <Bloque titulo="Adopción">
-            <p className="text-3xl font-semibold">{datos.adopcion.tasa}%</p>
-            <p className="text-muted-foreground text-sm">
-              {datos.adopcion.empleadosQueCompraron} de{" "}
-              {datos.adopcion.empleadosActivos} empleados activos usaron el
-              beneficio.
-            </p>
+            <div className="flex items-end gap-4">
+              <p className="text-4xl leading-none font-bold tracking-tight">
+                {datos.adopcion.tasa}
+                <span className="text-muted-foreground text-2xl">%</span>
+              </p>
+              <p className="text-muted-foreground pb-0.5 text-sm leading-5">
+                {datos.adopcion.empleadosQueCompraron} de{" "}
+                {datos.adopcion.empleadosActivos} empleados activos usaron el
+                beneficio.
+              </p>
+            </div>
+            <div className="bg-muted mt-4 h-2 overflow-hidden rounded-full">
+              <div
+                className="bg-primary h-full rounded-full"
+                style={{
+                  width: `${Math.min(100, Math.max(0, datos.adopcion.tasa))}%`,
+                }}
+              />
+            </div>
           </Bloque>
         </>
       )}
     </section>
-  );
-}
-function Stat({ etiqueta, valor }: { etiqueta: string; valor: string }) {
-  return (
-    <div className="rounded-lg border p-4">
-      <p className="text-muted-foreground text-sm">{etiqueta}</p>
-      <p className="mt-1 text-xl font-semibold">{valor}</p>
-    </div>
   );
 }
 function Bloque({
@@ -177,31 +257,78 @@ function Bloque({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-lg border p-4">
-      <h2 className="mb-3 font-medium">{titulo}</h2>
+    <section className="surface-panel p-4 sm:p-6">
+      <h2 className="mb-3.5 text-[0.9rem] font-bold tracking-tight sm:mb-5 sm:text-base">
+        {titulo}
+      </h2>
       {children}
     </section>
   );
 }
 function EstadoVacio({ texto }: { texto: string }) {
   return (
-    <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+    <div className="text-muted-foreground rounded-2xl border border-dashed p-6 text-center text-sm sm:p-8">
       {texto}
     </div>
   );
 }
-function Lista({ titulo, filas }: { titulo: string; filas: string[][] }) {
+
+type FilaLista = {
+  clave: string;
+  etiqueta: string;
+  detalle?: string;
+  valor: string;
+  sufijo?: string;
+  peso: number;
+};
+
+/**
+ * Ranking legible: posición, nombre (con detalle secundario), importe alineado
+ * a la derecha y una barra de proporción respecto al primero de la lista.
+ */
+function Lista({ titulo, filas }: { titulo: string; filas: FilaLista[] }) {
+  const maximo = filas.reduce((max, fila) => Math.max(max, fila.peso), 0);
+
   return (
     <Bloque titulo={titulo}>
       {filas.length ? (
-        <ul className="divide-y">
-          {filas.map(([a, b]) => (
-            <li key={a} className="flex justify-between gap-3 py-2 text-sm">
-              <span>{a}</span>
-              <span className="text-muted-foreground text-right">{b}</span>
+        <ol className="flex flex-col gap-2.5">
+          {filas.map((fila, indice) => (
+            <li key={fila.clave} className="flex items-center gap-3">
+              <span className="bg-muted text-muted-foreground grid size-6 shrink-0 place-items-center rounded-lg text-[0.7rem] font-bold tabular-nums">
+                {indice + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="truncate text-sm font-medium">
+                    {fila.etiqueta}
+                  </span>
+                  <span className="money shrink-0 text-sm font-semibold">
+                    {fila.valor}
+                    {fila.sufijo ? (
+                      <span className="text-muted-foreground ml-1 font-sans text-xs font-normal">
+                        {fila.sufijo}
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                {fila.detalle ? (
+                  <p className="text-muted-foreground truncate text-xs">
+                    {fila.detalle}
+                  </p>
+                ) : null}
+                <div className="bg-muted mt-1.5 h-1 overflow-hidden rounded-full">
+                  <div
+                    className="bg-primary/70 h-full rounded-full"
+                    style={{
+                      width: `${maximo > 0 ? Math.max(3, (fila.peso / maximo) * 100) : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
             </li>
           ))}
-        </ul>
+        </ol>
       ) : (
         <EstadoVacio texto="Sin datos en este periodo." />
       )}

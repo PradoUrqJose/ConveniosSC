@@ -17,6 +17,14 @@ import { crearSesion, generarTokenSesion, type RolUsuario } from "./sesion";
 const VENTANA_LOGIN_MS = 15 * 60 * 1000;
 const LIMITE_LOGIN_IP = 30;
 const MAX_INTENTOS = 5;
+/**
+ * Duración del bloqueo tras `MAX_INTENTOS` fallos. Es deliberadamente más corta
+ * que la ventana del rate limit por IP: el mensaje de error no revela el
+ * bloqueo (02 §6), así que una espera larga es indistinguible de una
+ * contraseña mal recordada. Un administrador puede desbloquear antes desde
+ * `/usuarios`.
+ */
+const BLOQUEO_MS = 5 * 60 * 1000;
 
 /** Mínimo común de Drizzle (neon-http y node-postgres) que usa el login. */
 export type BaseDatos = {
@@ -169,9 +177,7 @@ async function registrarIntentoFallido(
       UPDATE usuarios SET
         intentos_fallidos = ${bloquear ? 0 : nuevos},
         bloqueado_hasta = ${
-          bloquear
-            ? new Date(Date.now() + VENTANA_LOGIN_MS).toISOString()
-            : null
+          bloquear ? new Date(Date.now() + BLOQUEO_MS).toISOString() : null
         }
       WHERE id = ${id}
     `);

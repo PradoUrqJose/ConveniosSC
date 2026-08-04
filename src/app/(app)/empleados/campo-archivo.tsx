@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { upload } from "@vercel/blob/client";
-import { Camera, FileText, ImagePlus, Trash2 } from "lucide-react";
+import { Camera, FileText, ImagePlus, Trash2, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { subirArchivoLocal } from "@/modules/empleados/actions";
@@ -131,12 +131,14 @@ export function CampoArchivo({
   prefijo = "archivo",
   etiqueta = "Archivo",
   tipo,
+  variante = "predeterminada",
   onEliminar,
   onCambio,
 }: {
   prefijo?: string;
   etiqueta?: string;
   tipo: TipoArchivo;
+  variante?: "predeterminada" | "venta";
   onEliminar?: () => void;
   /** Notifica al padre cuando la subida termina (o se elimina el archivo). */
   onCambio?: (datos: DatosSubida | null) => void;
@@ -166,6 +168,115 @@ export function CampoArchivo({
 
   const esImagen =
     datos !== null && MIME_IMAGEN.includes(datos.mime as MimePermitido);
+
+  if (variante === "venta") {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="lg:grid lg:min-h-[154px] lg:place-items-center lg:rounded-[14px] lg:border-[1.5px] lg:border-dashed lg:border-[#c8d2df] lg:bg-gradient-to-b lg:from-[rgba(247,250,253,0.8)] lg:to-white lg:p-5 lg:text-center lg:transition lg:hover:border-[#0f62ad] lg:hover:bg-[#f5f9ff]">
+          {preview ? (
+            <div className="flex w-full items-center gap-3 rounded-xl border p-3 lg:max-w-[500px] lg:border-[#d7e9fb] lg:bg-[#f2f8ff] lg:px-3 lg:py-2.5 lg:text-left">
+              {esImagen ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={preview}
+                  alt="Vista previa del archivo"
+                  className="size-16 rounded-lg border object-cover lg:hidden"
+                />
+              ) : null}
+              <FileText className="text-primary hidden size-[18px] shrink-0 lg:block" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-[#344054] lg:text-xs lg:font-semibold">
+                  {datos
+                    ? datos.blobPath.split("/").pop()
+                    : "Procesando archivo…"}
+                </p>
+                <p className="text-muted-foreground text-xs lg:hidden">
+                  {subiendo
+                    ? progreso > 0
+                      ? `Subiendo ${etiqueta.toLowerCase()}… ${progreso}%`
+                      : "Comprimiendo…"
+                    : datos
+                      ? `${(datos.sizeBytes / 1024).toFixed(1)} KB · subido`
+                      : ""}
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Eliminar archivo"
+                onClick={alEliminar}
+                disabled={subiendo}
+                className="lg:size-7 lg:rounded-md lg:text-[#98a2b3] lg:hover:bg-white lg:hover:text-[#d92d20]"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center lg:max-w-[500px]">
+              <div className="bg-primary/10 text-primary mx-auto mb-2.5 hidden size-[42px] place-items-center rounded-xl lg:grid lg:bg-[#eaf4ff] lg:text-[#0f62ad]">
+                <Upload className="size-[21px]" />
+              </div>
+              <p className="hidden text-sm font-semibold text-[#172033] lg:block">
+                Arrastra el comprobante aquí
+              </p>
+              <p className="text-muted-foreground mb-3.5 text-xs lg:mt-1 lg:text-[#98a2b3]">
+                Formatos JPG, PNG o PDF. Tamaño máximo de 10 MB.
+              </p>
+              <div className="flex flex-col gap-2 sm:flex-row lg:justify-center">
+                <Button
+                  type="button"
+                  disabled={subiendo}
+                  onClick={() => inputRef.current?.click()}
+                  className="lg:min-h-10 lg:rounded-[10px] lg:bg-[#0f62ad] lg:px-[15px] lg:shadow-[0_5px_12px_rgba(15,98,173,0.18)] lg:hover:bg-[#094d8c]"
+                >
+                  <ImagePlus className="size-4 lg:size-[17px]" />
+                  Elegir archivo
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={subiendo}
+                  onClick={() => {
+                    const camara = document.createElement("input");
+                    camara.type = "file";
+                    camara.accept = "image/jpeg,image/png,image/webp";
+                    camara.capture = "environment";
+                    camara.onchange = () => {
+                      const f = camara.files?.[0];
+                      if (f) void alProcesar(f);
+                    };
+                    camara.click();
+                  }}
+                  className="lg:min-h-10 lg:rounded-[10px] lg:border-[#d0d7e2] lg:px-[15px] lg:text-[#344054] lg:hover:border-[#aeb8c5] lg:hover:bg-[#f8fafc]"
+                >
+                  <Camera className="size-4 lg:size-[17px]" />
+                  Tomar foto
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void alProcesar(f);
+          }}
+        />
+        {error ? (
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+        ) : null}
+        {datos ? <InputsArchivo prefijo={prefijo} datos={datos} /> : null}
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -258,23 +369,29 @@ export function CampoArchivo({
         </p>
       ) : null}
 
-      {datos ? (
-        <>
-          <input
-            type="hidden"
-            name={`${prefijo}BlobPath`}
-            value={datos.blobPath}
-          />
-          <input type="hidden" name={`${prefijo}Sha256`} value={datos.sha256} />
-          <input type="hidden" name={`${prefijo}Mime`} value={datos.mime} />
-          <input
-            type="hidden"
-            name={`${prefijo}SizeBytes`}
-            value={String(datos.sizeBytes)}
-          />
-        </>
-      ) : null}
+      {datos ? <InputsArchivo prefijo={prefijo} datos={datos} /> : null}
     </div>
+  );
+}
+
+function InputsArchivo({
+  prefijo,
+  datos,
+}: {
+  prefijo: string;
+  datos: DatosSubida;
+}) {
+  return (
+    <>
+      <input type="hidden" name={`${prefijo}BlobPath`} value={datos.blobPath} />
+      <input type="hidden" name={`${prefijo}Sha256`} value={datos.sha256} />
+      <input type="hidden" name={`${prefijo}Mime`} value={datos.mime} />
+      <input
+        type="hidden"
+        name={`${prefijo}SizeBytes`}
+        value={String(datos.sizeBytes)}
+      />
+    </>
   );
 }
 

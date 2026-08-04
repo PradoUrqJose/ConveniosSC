@@ -11,6 +11,7 @@ import type { RolUsuario } from "@/lib/auth/sesion";
 import {
   actualizarUsuarioCore,
   crearUsuarioCore,
+  desbloquearUsuarioCore,
   resetearPasswordCore,
   type DatosActualizarUsuario,
   type DatosCrearUsuario,
@@ -39,6 +40,7 @@ const zActualizarUsuario = z.object({
 });
 
 const zResetearPassword = z.object({ usuarioId: zUuid });
+const zDesbloquearUsuario = z.object({ usuarioId: zUuid });
 
 async function capturarErrores<T>(
   fn: () => Promise<Resultado<T>>,
@@ -76,7 +78,7 @@ export async function crearUsuario(
 ): Promise<Resultado<{ usuarioId: string; passwordTemporal: string }>> {
   return capturarErrores(async () => {
     const ctx = await requireSession();
-    requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+    requireRol(ctx, ["SUPERADMIN"]);
 
     const parse = zCrearUsuario.safeParse({
       empresaId: uuidNulo(formData.get("empresaId")),
@@ -145,7 +147,7 @@ export async function actualizarUsuario(
 ): Promise<Resultado<Record<string, never>>> {
   return capturarErrores(async () => {
     const ctx = await requireSession();
-    requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+    requireRol(ctx, ["SUPERADMIN"]);
 
     const parse = zActualizarUsuario.safeParse({
       usuarioId: formData.get("usuarioId"),
@@ -198,13 +200,40 @@ export async function actualizarUsuario(
   });
 }
 
+export async function desbloquearUsuario(
+  _estadoAnterior: Resultado<Record<string, never>>,
+  formData: FormData,
+): Promise<Resultado<Record<string, never>>> {
+  return capturarErrores(async () => {
+    const ctx = await requireSession();
+    requireRol(ctx, ["SUPERADMIN"]);
+
+    const parse = zDesbloquearUsuario.safeParse({
+      usuarioId: formData.get("usuarioId"),
+    });
+    if (!parse.success) {
+      return { ok: false, codigo: "VALIDACION", mensaje: "Datos inválidos" };
+    }
+
+    const res = await dbTx().transaction((tx) =>
+      desbloquearUsuarioCore(tx, ctx, parse.data.usuarioId),
+    );
+    if (!res.ok) {
+      return { ok: false, codigo: res.codigo, mensaje: res.mensaje };
+    }
+
+    revalidatePath("/usuarios");
+    return { ok: true, data: {} };
+  });
+}
+
 export async function resetearPassword(
   _estadoAnterior: Resultado<{ passwordTemporal: string }>,
   formData: FormData,
 ): Promise<Resultado<{ passwordTemporal: string }>> {
   return capturarErrores(async () => {
     const ctx = await requireSession();
-    requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+    requireRol(ctx, ["SUPERADMIN"]);
 
     const parse = zResetearPassword.safeParse({
       usuarioId: formData.get("usuarioId"),

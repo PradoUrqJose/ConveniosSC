@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Eye, EyeOff, X } from "lucide-react";
+import { Check, Eye, EyeOff, KeyRound, ShieldCheck, X } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -51,11 +51,17 @@ export function CambiarPasswordForm() {
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <main className="flex flex-1 items-center justify-center px-4">
-      <Card className="w-full max-w-[400px]">
-        <CardContent className="flex flex-col gap-6 pt-6">
+    <main className="relative flex flex-1 items-center justify-center overflow-hidden px-4 py-10">
+      <div className="bg-primary/10 pointer-events-none absolute -top-32 -right-24 size-96 rounded-full blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-24 size-80 rounded-full bg-cyan-400/10 blur-3xl" />
+      <Card className="bg-card/95 relative w-full max-w-[460px] rounded-[1.6rem] shadow-[0_24px_70px_rgba(15,23,42,.12)]">
+        <CardContent className="flex flex-col gap-6 px-6 pt-7 pb-6 sm:px-8">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
+            <span className="from-primary/15 text-primary ring-primary/10 mb-5 grid size-12 place-items-center rounded-2xl bg-linear-to-br to-cyan-400/15 ring-1">
+              <KeyRound className="size-5" />
+            </span>
+            <p className="page-kicker">Seguridad de la cuenta</p>
+            <h1 className="text-2xl font-bold tracking-[-0.035em]">
               Cambia tu contraseña
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -123,7 +129,10 @@ export function CambiarPasswordForm() {
               />
             </div>
 
-            <ul className="flex flex-col gap-1 text-sm" aria-live="polite">
+            <ul
+              className="bg-muted/60 flex flex-col gap-2 rounded-xl p-3 text-sm"
+              aria-live="polite"
+            >
               {requisitos.map((r) => (
                 <li
                   key={r.texto}
@@ -145,7 +154,12 @@ export function CambiarPasswordForm() {
               ))}
             </ul>
 
-            <Button type="submit" disabled={pendiente} className="h-12">
+            <Button
+              type="submit"
+              disabled={pendiente}
+              className="h-12 rounded-xl font-bold"
+            >
+              {!pendiente ? <ShieldCheck className="size-4" /> : null}
               {pendiente ? "Guardando…" : "Guardar y continuar"}
             </Button>
 

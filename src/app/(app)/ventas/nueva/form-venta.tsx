@@ -5,10 +5,13 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlertTriangle,
+  Building2,
   CheckCircle2,
+  FileImage,
   Loader2,
   Plus,
   Search,
+  UserRound,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,6 +21,20 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Dialog } from "@/components/ui/dialog";
+import { DatePicker } from "@/components/ui/date-picker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import {
   CampoArchivo,
   type DatosSubida,
@@ -78,15 +95,14 @@ export function FormVenta({
   const [confirmacion, setConfirmacion] = useState<VentaCreada | null>(null);
   const [ventaId, setVentaId] = useState(() => crypto.randomUUID());
 
-  const [empresaConvenioId, setEmpresaConvenioId] = useState(
-    convenios.length === 1 ? convenios[0]!.empresaId : "",
-  );
+  const [empresaConvenioId, setEmpresaConvenioId] = useState("");
   const [dni, setDni] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [resultadoBusqueda, setResultadoBusqueda] =
     useState<ResultadoBusquedaDni | null>(null);
   const [empleado, setEmpleado] = useState<EmpleadoResuelto | null>(null);
   const [mostrarCrearEmpleado, setMostrarCrearEmpleado] = useState(false);
+  const [resumenAbierto, setResumenAbierto] = useState(false);
 
   const [sedeId, setSedeId] = useState(sedePorDefectoId ?? sedes[0]?.id ?? "");
   const [fechaVenta, setFechaVenta] = useState(hoy);
@@ -207,6 +223,7 @@ export function FormVenta({
       // eslint-disable-next-line react-hooks/set-state-in-effect -- limpia el resultado anterior al borrar dígitos del DNI
       setResultadoBusqueda(null);
       if (empleado) setEmpleado(null);
+      if (empresaConvenioId) setEmpresaConvenioId("");
       return;
     }
     const idActual = ++busquedaIdRef.current;
@@ -331,6 +348,7 @@ export function FormVenta({
     setDni("");
     setResultadoBusqueda(null);
     setEmpleado(null);
+    setEmpresaConvenioId("");
     setFechaVenta(hoy);
     setMontoBrutoTexto("");
     setObservacion("");
@@ -354,9 +372,25 @@ export function FormVenta({
   }
 
   return (
-    <section className="flex flex-col gap-6 pb-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Nueva venta</h1>
-
+    <section className="flex flex-col gap-7 pb-6 lg:gap-6">
+      <div className="hidden lg:flex lg:items-start lg:justify-between lg:gap-6">
+        <div>
+          <div className="text-primary mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-[0.04em] uppercase">
+            <Plus className="size-3.5" /> Registro de operación
+          </div>
+          {/* <h1 className="text-[28px] font-bold tracking-[-0.035em]">
+            Nueva venta
+          </h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Registra la venta asociada a un empleado, adjunta el comprobante y
+            valida el importe antes de guardar.
+          </p> */}
+        </div>
+        <span className="border-primary/15 bg-primary/5 text-primary inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold">
+          <span className="bg-primary ring-primary/10 size-1.5 rounded-full ring-4" />
+          Borrador sin guardar
+        </span>
+      </div>
       {borrador ? (
         <Alert>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
@@ -373,7 +407,11 @@ export function FormVenta({
         </Alert>
       ) : null}
 
-      <form action={formAction} className="flex flex-col gap-6">
+      <form
+        id="form-venta"
+        action={formAction}
+        className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6"
+      >
         <input type="hidden" name="ventaId" value={ventaId} />
         <input
           type="hidden"
@@ -381,315 +419,493 @@ export function FormVenta({
           value={empleado?.id ?? ""}
         />
 
-        {/* ① Empleado */}
-        <div className="flex flex-col gap-4">
-          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-            ① Empleado
-          </h2>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="empresaConvenio">Empresa convenio</Label>
-            {convenios.length === 1 ? (
-              <Input
-                id="empresaConvenio"
-                value={convenios[0]!.empresaNombre}
-                disabled
-                readOnly
-              />
-            ) : (
-              <select
-                id="empresaConvenio"
-                className="border-input bg-background text-foreground h-9 w-full rounded-md border px-2 text-sm"
-                value={empresaConvenioId}
-                onChange={(e) => {
-                  setEmpresaConvenioId(e.target.value);
-                  setDni("");
-                  setEmpleado(null);
-                  setResultadoBusqueda(null);
-                }}
-              >
-                <option value="">Selecciona la empresa</option>
-                {convenios.map((c) => (
-                  <option key={c.convenioId} value={c.empresaId}>
-                    {c.empresaNombre}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="dni">DNI del empleado</Label>
-            <div className="relative">
-              <Input
-                id="dni"
-                value={dni}
-                onChange={(e) =>
-                  setDni(e.target.value.replace(/\D/g, "").slice(0, 8))
-                }
-                inputMode="numeric"
-                maxLength={8}
-                autoFocus={convenios.length === 1}
-                placeholder="8 dígitos"
-                autoComplete="off"
-              />
-              {buscando ? (
-                <Loader2 className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />
-              ) : (
-                <Search className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2" />
-              )}
+        <div className="flex flex-col gap-5">
+          {/* ① Empleado */}
+          <section className="bg-card flex flex-col gap-5 rounded-[18px] border p-5 shadow-sm lg:p-[22px]">
+            <div className="flex items-center gap-3">
+              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-[10px]">
+                <UserRound className="size-[18px]" />
+              </span>
+              <div>
+                <h2 className="text-[15px] font-bold">
+                  Información del empleado
+                </h2>
+                <p className="text-muted-foreground hidden text-xs lg:block">
+                  Identifica al empleado y su empresa de convenio.
+                </p>
+              </div>
+              <span className="bg-muted text-muted-foreground ml-auto shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold">
+                Paso 1<span className="hidden lg:inline"> de 3</span>
+              </span>
             </div>
-          </div>
 
-          {buscando ? (
-            <div className="bg-muted h-9 animate-pulse rounded-md" />
-          ) : empleado ? (
             <div className="flex flex-col gap-2">
-              <Label htmlFor="nombreEmpleado">Nombre del empleado</Label>
+              <Label htmlFor="empresaConvenio">Empresa convenio</Label>
               <Input
-                id="nombreEmpleado"
-                value={`${empleado.nombres.toUpperCase()} ${empleado.apellidos.toUpperCase()}`}
+                id="empresaConvenio"
+                value={empleado?.empresaNombre ?? ""}
+                placeholder="Se mostrará al identificar al empleado"
                 disabled
                 readOnly
-                className="bg-muted"
+                className="bg-muted/45 h-14 rounded-2xl px-4"
               />
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="bg-success/10 text-success border-success/20 border">
-                  {bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}% de
-                  descuento
-                </Badge>
-                {empleado.estado === "PENDIENTE_VERIFICACION" ? (
-                  <Badge className="bg-warning/10 text-warning border-warning/20 border">
-                    Pendiente de verificación
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="dni">DNI del empleado</Label>
+              <div className="relative">
+                <Input
+                  id="dni"
+                  value={dni}
+                  onChange={(e) =>
+                    setDni(e.target.value.replace(/\D/g, "").slice(0, 8))
+                  }
+                  inputMode="numeric"
+                  maxLength={8}
+                  autoFocus={convenios.length === 1}
+                  placeholder="8 dígitos"
+                  autoComplete="off"
+                  className="h-14 rounded-2xl px-4 text-base"
+                />
+                {buscando ? (
+                  <Loader2 className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />
+                ) : (
+                  <Search className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2" />
+                )}
+              </div>
+            </div>
+
+            {buscando ? (
+              <div className="bg-muted h-9 animate-pulse rounded-md" />
+            ) : empleado ? (
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="nombreEmpleado">Nombre del empleado</Label>
+                <Input
+                  id="nombreEmpleado"
+                  value={`${empleado.nombres.toUpperCase()} ${empleado.apellidos.toUpperCase()}`}
+                  disabled
+                  readOnly
+                  className="bg-muted/45 h-14 rounded-2xl px-4"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-success/10 text-success border-success/20 border">
+                    {bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}% de
+                    descuento
                   </Badge>
+                  {empleado.estado === "PENDIENTE_VERIFICACION" ? (
+                    <Badge className="bg-warning/10 text-warning border-warning/20 border">
+                      Pendiente de verificación
+                    </Badge>
+                  ) : null}
+                </div>
+                {empleado.estado === "PENDIENTE_VERIFICACION" ? (
+                  <p className="text-muted-foreground text-xs">
+                    Puedes registrar la venta; el administrador de{" "}
+                    {empleado.empresaNombre} confirmará los datos.
+                  </p>
+                ) : null}
+                {previaBps !== null && previaBps !== empleado.descuentoBps ? (
+                  <p className="text-muted-foreground text-xs">
+                    En esa fecha el descuento era {bpsAPorcentaje(previaBps)}%.
+                  </p>
                 ) : null}
               </div>
-              {empleado.estado === "PENDIENTE_VERIFICACION" ? (
-                <p className="text-muted-foreground text-xs">
-                  Puedes registrar la venta; el administrador de{" "}
-                  {empleado.empresaNombre} confirmará los datos.
+            ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
+              <ResultadoNegativo
+                resultado={resultadoBusqueda}
+                onCrear={() => setMostrarCrearEmpleado(true)}
+              />
+            ) : null}
+          </section>
+
+          <div className="border-border/70 border-t lg:hidden" />
+
+          {/* ② Venta */}
+          <section className="bg-card flex flex-col gap-5 rounded-[18px] border p-5 shadow-sm lg:p-[22px]">
+            <div className="flex items-center gap-3">
+              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-[10px]">
+                <Building2 className="size-[18px]" />
+              </span>
+              <div>
+                <h2 className="text-[15px] font-bold">Detalle de venta</h2>
+                <p className="text-muted-foreground hidden text-xs lg:block">
+                  Define la sede, fecha e importe de la operación.
                 </p>
-              ) : null}
-              {previaBps !== null && previaBps !== empleado.descuentoBps ? (
-                <p className="text-muted-foreground text-xs">
-                  En esa fecha el descuento era {bpsAPorcentaje(previaBps)}%.
-                </p>
-              ) : null}
+              </div>
+              <span className="bg-muted text-muted-foreground ml-auto shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold">
+                Paso 2<span className="hidden lg:inline"> de 3</span>
+              </span>
             </div>
-          ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
-            <ResultadoNegativo
-              resultado={resultadoBusqueda}
-              onCrear={() => setMostrarCrearEmpleado(true)}
-            />
+
+            <div className="grid gap-5 lg:grid-cols-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="sedeId">Sede</Label>
+                <Select
+                  value={sedeId}
+                  onValueChange={(valor) => setSedeId(valor ?? "")}
+                >
+                  <input type="hidden" name="sedeId" value={sedeId} />
+                  <SelectTrigger
+                    id="sedeId"
+                    className="h-11 w-full rounded-xl px-3"
+                  >
+                    <SelectValue placeholder="Selecciona la sede">
+                      {(valor) =>
+                        sedes.find((sede) => sede.id === valor)?.nombre ??
+                        "Selecciona la sede"
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl">
+                    {sedes.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="fechaVenta">Fecha</Label>
+                <DatePicker
+                  id="fechaVenta"
+                  name="fechaVenta"
+                  value={fechaVenta}
+                  min={minFecha}
+                  max={hoy}
+                  onChange={setFechaVenta}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="montoBruto">Monto de venta (S/)</Label>
+                <Input
+                  id="montoBruto"
+                  name="montoBruto"
+                  value={montoBrutoTexto}
+                  onChange={(e) => setMontoBrutoTexto(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="S/. 0.00"
+                  aria-invalid={superaTope}
+                  className={
+                    superaTope
+                      ? "border-destructive h-14 rounded-2xl px-4 text-lg font-semibold"
+                      : "h-14 rounded-2xl px-4 text-lg font-semibold"
+                  }
+                />
+                {superaTope ? (
+                  <p className="text-destructive text-sm">
+                    El monto no puede superar{" "}
+                    {formatearSoles(config.topeMontoVentaCentimos)}.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="montoFinal">Total con descuento (S/)</Label>
+                <Input
+                  id="montoFinal"
+                  value={preview ? formatearSoles(preview.final) : ""}
+                  disabled
+                  readOnly
+                  className="bg-muted/45 h-14 rounded-2xl px-4 text-lg font-semibold"
+                  placeholder="S/. 0.00"
+                />
+                {preview ? (
+                  <p className="text-muted-foreground text-xs">
+                    Descuento aplicado: {formatearSoles(preview.descuento)}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </section>
+
+          <div className="border-border/70 border-t lg:hidden" />
+
+          {/* ③ Evidencia */}
+          <section className="bg-card flex flex-col gap-5 rounded-[18px] border p-5 shadow-sm lg:gap-0 lg:overflow-hidden lg:border-[#e3e8ef] lg:p-0 lg:shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]">
+            <div className="flex items-center gap-3 lg:min-h-[68px] lg:border-b lg:border-[#e3e8ef] lg:px-[22px] lg:py-[17px]">
+              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-[10px] lg:bg-[#eaf4ff] lg:text-[#0f62ad]">
+                <FileImage className="size-[18px]" />
+              </span>
+              <div>
+                <h2 className="text-[15px] font-bold lg:font-semibold">
+                  Comprobante y evidencia
+                </h2>
+                <p className="text-muted-foreground hidden text-xs lg:block">
+                  Adjunta el documento de venta y evidencia adicional.
+                </p>
+              </div>
+              <span className="bg-muted text-muted-foreground ml-auto shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold lg:bg-[#f8fafc] lg:px-2.5 lg:text-[#98a2b3]">
+                Paso 3<span className="hidden lg:inline"> de 3</span>
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-5 lg:p-[22px]">
+              {notaArchivosRestaurados ? (
+                <Alert>
+                  <AlertDescription>{notaArchivosRestaurados}</AlertDescription>
+                </Alert>
+              ) : null}
+
+              <div className="flex flex-col gap-2 lg:gap-[7px]">
+                <Label className="lg:text-[13px] lg:font-semibold lg:text-[#344054]">
+                  Documento de venta <span className="text-destructive">*</span>
+                </Label>
+                <CampoArchivo
+                  key={documentoKey}
+                  prefijo="documento"
+                  etiqueta="documento"
+                  tipo="documento"
+                  variante="venta"
+                  onCambio={(datos) => {
+                    setDocumento(datos);
+                    setNotaArchivosRestaurados(null);
+                  }}
+                />
+              </div>
+
+              <CampoEvidencias
+                key={evidenciasKey}
+                onCambio={(items) => {
+                  setEvidencias(items);
+                  setNotaArchivosRestaurados(null);
+                }}
+              />
+              <input
+                type="hidden"
+                name="evidenciasJson"
+                value={JSON.stringify(evidencias)}
+              />
+              {config.requiereEvidenciaEnVenta && !evidenciaOk ? (
+                <p className="text-destructive text-sm">
+                  Esta empresa exige al menos una evidencia adicional.
+                </p>
+              ) : null}
+
+              <div className="flex flex-col gap-2 lg:gap-[7px]">
+                <Label
+                  htmlFor="observacion"
+                  className="lg:text-[13px] lg:font-semibold lg:text-[#344054]"
+                >
+                  Observación{" "}
+                  <span className="text-muted-foreground text-[11px] font-medium">
+                    Opcional
+                  </span>
+                </Label>
+                <Textarea
+                  id="observacion"
+                  name="observacion"
+                  value={observacion}
+                  onChange={(e) => setObservacion(e.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder="Añade información relevante sobre la venta, el empleado o el comprobante..."
+                  className="rounded-2xl px-4 py-3 lg:min-h-[108px] lg:rounded-xl lg:border-[#d0d7e2] lg:px-3.5 lg:placeholder:text-[#a7b0bd]"
+                />
+              </div>
+            </div>
+          </section>
+
+          {errorEnvio ? (
+            <p role="alert" className="text-destructive text-sm">
+              {errorEnvio}
+            </p>
           ) : null}
         </div>
 
-        <div className="border-t" />
-
-        {/* ② Venta */}
-        <div className="flex flex-col gap-4">
-          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-            ② Venta
-          </h2>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="sedeId">Sede</Label>
-            <select
-              id="sedeId"
-              name="sedeId"
-              className="border-input bg-background text-foreground h-9 w-full rounded-md border px-2 text-sm"
-              value={sedeId}
-              onChange={(e) => setSedeId(e.target.value)}
+        <aside className="lg:bg-card hidden lg:sticky lg:top-[96px] lg:block lg:overflow-hidden lg:rounded-[18px] lg:border lg:shadow-lg">
+          <div className="border-border border-b p-5">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-bold">Resumen de venta</h2>
+              <span className="bg-muted text-muted-foreground rounded-md px-2 py-1 text-[10px] font-bold">
+                NUEVA
+              </span>
+            </div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              Verifica los datos antes de registrar.
+            </p>
+          </div>
+          <div className="space-y-3.5 p-5 text-xs">
+            <ResumenFila
+              etiqueta="Empresa"
+              valor={empresaSeleccionada?.empresaNombre ?? "Sin seleccionar"}
+            />
+            <ResumenFila
+              etiqueta="Empleado"
+              valor={
+                empleado
+                  ? `${empleado.nombres} ${empleado.apellidos}`
+                  : "Sin identificar"
+              }
+            />
+            <ResumenFila
+              etiqueta="Sede"
+              valor={
+                sedes.find((s) => s.id === sedeId)?.nombre ?? "Sin seleccionar"
+              }
+            />
+            <ResumenFila
+              etiqueta="Fecha"
+              valor={
+                fechaVenta ? formatearFechaUI(fechaVenta) : "Sin seleccionar"
+              }
+            />
+            <ResumenFila
+              etiqueta="Comprobante"
+              valor={documento ? "Adjunto" : "Pendiente"}
+            />
+            <div className="from-primary/10 to-primary/5 mt-5 rounded-[13px] bg-gradient-to-br p-4">
+              <ResumenFila
+                etiqueta="Monto original"
+                valor={
+                  montoBrutoCentimos === null
+                    ? "S/ 0.00"
+                    : formatearSoles(montoBrutoCentimos)
+                }
+              />
+              <div className="mt-2">
+                <ResumenFila
+                  etiqueta="Descuento convenio"
+                  valor={
+                    preview
+                      ? `− ${formatearSoles(preview.descuento)}`
+                      : "− S/ 0.00"
+                  }
+                />
+              </div>
+              <div className="border-primary/15 mt-3 flex items-end justify-between border-t pt-3">
+                <span className="text-primary font-semibold">Total final</span>
+                <span className="text-primary text-2xl font-extrabold tracking-tight">
+                  {preview ? formatearSoles(preview.final) : "S/ 0.00"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="border-border border-t p-5">
+            <Button
+              type="submit"
+              disabled={!puedeGuardar}
+              className="h-12 w-full rounded-xl"
             >
-              <option value="">Selecciona la sede</option>
-              {sedes.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="fechaVenta">Fecha</Label>
-            <Input
-              id="fechaVenta"
-              name="fechaVenta"
-              type="date"
-              value={fechaVenta}
-              min={minFecha}
-              max={hoy}
-              onChange={(e) => setFechaVenta(e.target.value || hoy)}
-            />
-            <p className="text-muted-foreground text-xs">
-              {formatearFechaUI(fechaVenta)}
+              {pendiente ? "Guardando…" : "Guardar venta"}
+            </Button>
+            <p className="text-muted-foreground mt-2.5 text-[10px] leading-relaxed">
+              Al guardar confirmas que la información y los archivos adjuntos
+              son correctos.
             </p>
           </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="montoBruto">Monto de venta (S/)</Label>
-            <Input
-              id="montoBruto"
-              name="montoBruto"
-              value={montoBrutoTexto}
-              onChange={(e) => setMontoBrutoTexto(e.target.value)}
-              inputMode="decimal"
-              placeholder="0.00"
-              aria-invalid={superaTope}
-              className={superaTope ? "border-destructive" : undefined}
-            />
-            {superaTope ? (
-              <p className="text-destructive text-sm">
-                El monto no puede superar{" "}
-                {formatearSoles(config.topeMontoVentaCentimos)}.
-              </p>
-            ) : null}
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="montoFinal">Total con descuento (S/)</Label>
-            <Input
-              id="montoFinal"
-              value={preview ? formatearSoles(preview.final) : ""}
-              disabled
-              readOnly
-              className="bg-muted"
-            />
-            {preview ? (
-              <p className="text-muted-foreground text-xs">
-                Descuento aplicado: {formatearSoles(preview.descuento)}
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="border-t" />
-
-        {/* ③ Evidencia */}
-        <div className="flex flex-col gap-4">
-          <h2 className="text-muted-foreground text-sm font-semibold tracking-wide uppercase">
-            ③ Evidencia
-          </h2>
-
-          {notaArchivosRestaurados ? (
-            <Alert>
-              <AlertDescription>{notaArchivosRestaurados}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <div className="flex flex-col gap-2">
-            <Label>Documento de venta *</Label>
-            <CampoArchivo
-              key={documentoKey}
-              prefijo="documento"
-              etiqueta="documento"
-              tipo="documento"
-              onCambio={(datos) => {
-                setDocumento(datos);
-                setNotaArchivosRestaurados(null);
-              }}
-            />
-            {documento ? (
-              <>
-                <input
-                  type="hidden"
-                  name="documentoBlobPath"
-                  value={documento.blobPath}
-                />
-                <input
-                  type="hidden"
-                  name="documentoSha256"
-                  value={documento.sha256}
-                />
-                <input
-                  type="hidden"
-                  name="documentoMime"
-                  value={documento.mime}
-                />
-                <input
-                  type="hidden"
-                  name="documentoSizeBytes"
-                  value={String(documento.sizeBytes)}
-                />
-              </>
-            ) : null}
-          </div>
-
-          <CampoEvidencias
-            key={evidenciasKey}
-            onCambio={(items) => {
-              setEvidencias(items);
-              setNotaArchivosRestaurados(null);
-            }}
-          />
-          <input
-            type="hidden"
-            name="evidenciasJson"
-            value={JSON.stringify(evidencias)}
-          />
-          {config.requiereEvidenciaEnVenta && !evidenciaOk ? (
-            <p className="text-destructive text-sm">
-              Esta empresa exige al menos una evidencia adicional.
-            </p>
-          ) : null}
-
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="observacion">Observación (opcional)</Label>
-            <Textarea
-              id="observacion"
-              name="observacion"
-              value={observacion}
-              onChange={(e) => setObservacion(e.target.value)}
-              maxLength={500}
-              rows={2}
-            />
-          </div>
-        </div>
-
-        {errorEnvio ? (
-          <p role="alert" className="text-destructive text-sm">
-            {errorEnvio}
-          </p>
-        ) : null}
-
-        <Button
-          type="submit"
-          size="lg"
-          disabled={!puedeGuardar}
-          className="h-14 text-base"
-        >
-          {pendiente ? "Guardando…" : "Guardar venta"}
-        </Button>
+        </aside>
       </form>
 
-      {mostrarCrearEmpleado && empresaSeleccionada ? (
+      <div className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+        <Button
+          type="button"
+          size="lg"
+          disabled={!puedeGuardar}
+          onClick={() => setResumenAbierto(true)}
+          className="shadow-primary/20 h-13 w-full rounded-2xl text-base shadow-lg"
+        >
+          Revisar venta
+        </Button>
+      </div>
+
+      <Sheet open={resumenAbierto} onOpenChange={setResumenAbierto}>
+        <SheetContent
+          side="bottom"
+          showCloseButton={false}
+          className="gap-0 rounded-t-3xl px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        >
+          <SheetHeader className="p-0 text-left">
+            <SheetTitle className="text-xl font-semibold">
+              Revisa la venta
+            </SheetTitle>
+            <p className="text-muted-foreground text-sm">
+              Confirma los datos antes de registrarla.
+            </p>
+          </SheetHeader>
+          <div className="bg-muted/50 my-5 space-y-3 rounded-2xl p-4 text-sm">
+            <ResumenFila
+              etiqueta="Empleado"
+              valor={
+                empleado ? `${empleado.nombres} ${empleado.apellidos}` : "—"
+              }
+            />
+            <ResumenFila
+              etiqueta="Sede"
+              valor={sedes.find((s) => s.id === sedeId)?.nombre ?? "—"}
+            />
+            <ResumenFila
+              etiqueta="Monto"
+              valor={
+                montoBrutoCentimos === null
+                  ? "—"
+                  : formatearSoles(montoBrutoCentimos)
+              }
+            />
+            <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
+              <span>Total</span>
+              <span className="text-primary">
+                {preview ? formatearSoles(preview.final) : "—"}
+              </span>
+            </div>
+          </div>
+          <Button
+            type="submit"
+            form="form-venta"
+            size="lg"
+            disabled={!puedeGuardar}
+            className="h-13 w-full rounded-2xl text-base"
+          >
+            {pendiente ? "Guardando…" : "Confirmar y guardar"}
+          </Button>
+        </SheetContent>
+      </Sheet>
+
+      {mostrarCrearEmpleado ? (
         <Dialog open onOpenChange={(a) => !a && setMostrarCrearEmpleado(false)}>
           <FormEmpleado
-            empresas={[]}
+            empresas={convenios.map((convenio) => ({
+              id: convenio.empresaId,
+              nombreComercial: convenio.empresaNombre,
+            }))}
             miEmpresaId={null}
             dniInicial={dni}
-            empresaBloqueada={{
-              id: empresaSeleccionada.empresaId,
-              nombre: empresaSeleccionada.empresaNombre,
-            }}
             onCerrar={() => setMostrarCrearEmpleado(false)}
             onExito={(resultado) => {
+              const empresa = convenios.find(
+                (convenio) => convenio.empresaId === resultado.empresaId,
+              );
+              if (!empresa) return;
               setEmpleado({
                 id: resultado.empleadoId,
                 dni,
                 nombres: resultado.nombres,
                 apellidos: resultado.apellidos,
-                empresaId: empresaSeleccionada.empresaId,
-                empresaNombre: empresaSeleccionada.empresaNombre,
+                empresaId: empresa.empresaId,
+                empresaNombre: empresa.empresaNombre,
                 estado: resultado.estado as EmpleadoResuelto["estado"],
-                descuentoBps: empresaSeleccionada.descuentoBps,
+                descuentoBps: empresa.descuentoBps,
               });
+              setEmpresaConvenioId(empresa.empresaId);
               setResultadoBusqueda(null);
             }}
           />
         </Dialog>
       ) : null}
     </section>
+  );
+}
+
+function ResumenFila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-muted-foreground">{etiqueta}</span>
+      <span className="max-w-[65%] truncate text-right font-medium">
+        {valor}
+      </span>
+    </div>
   );
 }
 

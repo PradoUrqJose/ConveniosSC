@@ -8,8 +8,11 @@ import { describe, expect, it } from "vitest";
 import {
   actualizarUsuarioCore,
   crearUsuarioCore,
+  desbloquearUsuarioCore,
+  resetearPasswordCore,
 } from "@/modules/usuarios/acciones";
-import { verificarPassword } from "@/lib/auth/password";
+import { autenticar } from "@/lib/auth/login";
+import { hashPassword, verificarPassword } from "@/lib/auth/password";
 import type { RolUsuario } from "@/lib/auth/sesion";
 import type { SessionContext } from "@/lib/auth/guardas";
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
@@ -36,6 +39,21 @@ function adaptador(c: pg.Client): TransaccionAuditada {
     async execute(query: SQL) {
       const { sql: texto, params } = dialect.sqlToQuery(query);
       return c.query(texto, params);
+    },
+  };
+}
+
+/**
+ * `autenticar` espera un `BaseDatos` con `transaction`. Dentro del test ya
+ * estamos en un `BEGIN` que se revierte al final, así que la «transacción»
+ * anidada reutiliza el mismo cliente y no abre otra.
+ */
+function adaptadorTx(c: pg.Client) {
+  const ejecutor = adaptador(c);
+  return {
+    execute: ejecutor.execute,
+    async transaction<T>(cb: (tx: TransaccionAuditada) => Promise<T>) {
+      return cb(ejecutor);
     },
   };
 }
@@ -204,6 +222,162 @@ describe.skipIf(!ACTIVO)("Aceptación T10 — usuarios", () => {
           passwordTemporal,
         );
       }
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+  });
+
+  it("5 intentos fallidos bloquean, y restablecer la contraseña levanta el bloqueo", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const empresaId = await crearEmpresa(c, "20100088700");
+      const adminId = await crearUsuario(c, "SUPERADMIN", null);
+      const victimaId = await crearUsuario(c, "VENDEDOR", empresaId);
+
+      const username = `bloq${Math.random().toString(36).slice(2, 8)}`;
+      await c.query(
+        `UPDATE usuarios SET username = $1, password_hash = $2 WHERE id = $3`,
+        [username, await hashPassword("ClaveBuena123"), victimaId],
+      );
+
+      const db = adaptadorTx(c);
+      for (let i = 0; i < 5; i++) {
+        const res = await autenticar(db, {
+          username,
+          password: "ClaveMala999",
+          ip: `10.0.0.${i}`, // IPs distintas: aislamos el bloqueo del rate limit
+          userAgent: null,
+        });
+        expect(res.ok).toBe(false);
+      }
+
+      const bloqueado = await c.query(
+        `SELECT bloqueado_hasta FROM usuarios WHERE id = $1`,
+        [victimaId],
+      );
+      expect(bloqueado.rows[0].bloqueado_hasta).not.toBeNull();
+
+      // Con la contraseña correcta sigue sin entrar: está bloqueado.
+      const durante = await autenticar(db, {
+        username,
+        password: "ClaveBuena123",
+        ip: "10.0.0.99",
+        userAgent: null,
+      });
+      expect(durante.ok).toBe(false);
+
+      // Restablecer la contraseña debe levantar el bloqueo, no solo cambiarla.
+      const reset = await resetearPasswordCore(
+        adaptador(c),
+        ctxSesion({ usuarioId: adminId }),
+        victimaId,
+      );
+      expect(reset.ok).toBe(true);
+
+      const tras = await c.query(
+        `SELECT intentos_fallidos, bloqueado_hasta FROM usuarios WHERE id = $1`,
+        [victimaId],
+      );
+      expect(tras.rows[0].bloqueado_hasta).toBeNull();
+      expect(tras.rows[0].intentos_fallidos).toBe(0);
+
+      // Y la temporal entra de inmediato, sin esperar a que expire el bloqueo.
+      const despues = await autenticar(db, {
+        username,
+        password: reset.ok ? reset.passwordTemporal! : "",
+        ip: "10.0.0.100",
+        userAgent: null,
+      });
+      expect(despues.ok).toBe(true);
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+    // El caso encadena 7 operaciones argon2id (19 MiB cada una), muy por
+    // encima de los 5 s por defecto de vitest.
+  }, 30_000);
+
+  it("desbloquearUsuario levanta el bloqueo sin tocar la contraseña", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const empresaId = await crearEmpresa(c, "20100088800");
+      const adminId = await crearUsuario(c, "SUPERADMIN", null);
+      const victimaId = await crearUsuario(c, "VENDEDOR", empresaId);
+
+      const username = `desb${Math.random().toString(36).slice(2, 8)}`;
+      const hash = await hashPassword("ClaveBuena123");
+      await c.query(
+        `UPDATE usuarios SET username = $1, password_hash = $2,
+           intentos_fallidos = 5, bloqueado_hasta = now() + interval '5 minutes'
+         WHERE id = $3`,
+        [username, hash, victimaId],
+      );
+
+      const res = await desbloquearUsuarioCore(
+        adaptador(c),
+        ctxSesion({ usuarioId: adminId }),
+        victimaId,
+      );
+      expect(res.ok).toBe(true);
+
+      const fila = await c.query(
+        `SELECT intentos_fallidos, bloqueado_hasta, password_hash
+         FROM usuarios WHERE id = $1`,
+        [victimaId],
+      );
+      expect(fila.rows[0].bloqueado_hasta).toBeNull();
+      expect(fila.rows[0].intentos_fallidos).toBe(0);
+      // La contraseña no se toca: el usuario sigue con la suya.
+      expect(fila.rows[0].password_hash).toBe(hash);
+
+      const login = await autenticar(adaptadorTx(c), {
+        username,
+        password: "ClaveBuena123",
+        ip: "10.0.1.1",
+        userAgent: null,
+      });
+      expect(login.ok).toBe(true);
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+  });
+
+  it("un ADMIN_EMPRESA no puede desbloquear a un usuario de otra empresa", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const idA = await crearEmpresa(c, "20100088900");
+      const idB = await crearEmpresa(c, "20100089000");
+      const adminA = await crearUsuario(c, "ADMIN_EMPRESA", idA);
+      const ajenoB = await crearUsuario(c, "VENDEDOR", idB);
+
+      await c.query(
+        `UPDATE usuarios SET intentos_fallidos = 5,
+           bloqueado_hasta = now() + interval '5 minutes' WHERE id = $1`,
+        [ajenoB],
+      );
+
+      await expect(
+        desbloquearUsuarioCore(
+          adaptador(c),
+          ctxSesion({
+            usuarioId: adminA,
+            rol: "ADMIN_EMPRESA",
+            empresaId: idA,
+          }),
+          ajenoB,
+        ),
+      ).rejects.toThrow();
+
+      const fila = await c.query(
+        `SELECT bloqueado_hasta FROM usuarios WHERE id = $1`,
+        [ajenoB],
+      );
+      expect(fila.rows[0].bloqueado_hasta).not.toBeNull();
     } finally {
       await c.query("ROLLBACK").catch(() => undefined);
       await c.end();

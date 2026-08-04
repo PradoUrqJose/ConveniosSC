@@ -3,7 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Filter, Receipt, Search } from "lucide-react";
+import {
+  BadgePercent,
+  Filter,
+  Plus,
+  Receipt,
+  Search,
+  WalletCards,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +53,11 @@ import type {
   VendedorOpcion,
 } from "@/modules/ventas/query";
 import type { SearchParamsVentas } from "./page";
+import {
+  CabeceraPagina,
+  EstadoVacio,
+  Metrica,
+} from "@/components/shell/pagina-ui";
 
 const OPCIONES_ORDEN: { value: string; label: string }[] = [
   { value: "fecha_desc", label: "Más recientes primero" },
@@ -80,6 +92,7 @@ export function VentasClient({
   empresas,
   vendedores,
   sedes,
+  puedeCrear,
 }: {
   pagina: Pagina<FilaVenta> & { resumen: ResumenVentas };
   sp: SearchParamsVentas;
@@ -87,6 +100,7 @@ export function VentasClient({
   empresas: EmpresaOpcion[];
   vendedores: VendedorOpcion[];
   sedes: SedeOpcion[];
+  puedeCrear: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -141,18 +155,31 @@ export function VentasClient({
   const conCursor = urlDe({ cursor: pagina.cursor });
 
   return (
-    <section className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {esAdmin ? "Ventas" : "Mis ventas"}
-          </h1>
-          <p className="text-muted-foreground text-sm">Historial de ventas</p>
-        </div>
-      </div>
+    <section className="page-shell">
+      <CabeceraPagina
+        kicker="Operaciones"
+        titulo={esAdmin ? "Ventas" : "Mis ventas"}
+        descripcion={
+          esAdmin
+            ? "Consulta y controla las operaciones realizadas por tu equipo."
+            : "Consulta tus operaciones, montos y descuentos entregados."
+        }
+        icono={<Receipt className="size-5" />}
+        acciones={
+          puedeCrear ? (
+            <Link
+              href="/ventas/nueva"
+              // En móvil el botón central de la barra inferior ya cubre esta acción.
+              className="bg-primary text-primary-foreground shadow-primary/20 hover:bg-primary/90 hidden h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold shadow-lg transition hover:-translate-y-0.5 lg:inline-flex"
+            >
+              <Plus className="size-4" /> Nueva venta
+            </Link>
+          ) : null
+        }
+      />
 
       {esAdmin ? (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="bg-muted/80 flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl p-1.5">
           {(
             [
               { id: "vendidas", label: "Vendidas" },
@@ -162,10 +189,10 @@ export function VentasClient({
             <Link
               key={t.id}
               href={urlDe({ dir: t.id === "vendidas" ? null : t.id })}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap ${
+              className={`rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition ${
                 direccion === t.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
               }`}
             >
               {t.label}
@@ -174,14 +201,14 @@ export function VentasClient({
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2">
+      <div className="control-bar flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder="DNI o nombre del empleado"
-            className="pl-9"
+            className="bg-muted/70 focus-visible:bg-background h-11 rounded-xl border-0 pl-10 shadow-none"
           />
         </div>
 
@@ -265,37 +292,68 @@ export function VentasClient({
         </div>
       ) : null}
 
-      <div>
-        <p className="font-medium">
-          {pagina.resumen.cantidad} venta
-          {pagina.resumen.cantidad === 1 ? "" : "s"} ·{" "}
-          {formatearSoles(pagina.resumen.sumaBruto)} bruto
-        </p>
-        <p className="text-muted-foreground text-sm">
-          {formatearSoles(pagina.resumen.sumaDescuento)} en descuentos
-        </p>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+        <Metrica
+          etiqueta="Operaciones"
+          valor={pagina.resumen.cantidad}
+          detalle="Según los filtros actuales"
+          icono={<Receipt className="size-4.5" />}
+        />
+        <Metrica
+          etiqueta="Monto bruto"
+          valor={
+            <span className="money">
+              {formatearSoles(pagina.resumen.sumaBruto)}
+            </span>
+          }
+          detalle="Antes de descuentos"
+          icono={<WalletCards className="size-4.5" />}
+          tono="success"
+        />
+        <div className="col-span-2 lg:col-span-1">
+          <Metrica
+            etiqueta="Descuentos"
+            valor={
+              <span className="money">
+                {formatearSoles(pagina.resumen.sumaDescuento)}
+              </span>
+            }
+            detalle="Beneficios aplicados"
+            icono={<BadgePercent className="size-4.5" />}
+            tono="warning"
+          />
+        </div>
       </div>
 
       {pagina.items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-16 text-center">
-          <Receipt className="text-muted-foreground size-8" />
-          <p className="text-muted-foreground text-sm">
-            {filtrosActivos.length > 0 || sp.q
-              ? "Ninguna venta coincide con los filtros."
-              : "Aún no hay ventas registradas."}
-          </p>
-          {filtrosActivos.length > 0 || sp.q ? (
-            <Link
-              href={urlDe({
-                ...Object.fromEntries(CAMPOS_FILTRO_CHIP.map((c) => [c, null])),
-                q: null,
-              })}
-              className="rounded-full border px-4 py-2 text-sm font-medium"
-            >
-              Limpiar filtros
-            </Link>
-          ) : null}
-        </div>
+        <EstadoVacio
+          icono={<Receipt className="size-6" />}
+          titulo={
+            filtrosActivos.length > 0 || sp.q
+              ? "No encontramos coincidencias"
+              : "Aún no hay ventas registradas"
+          }
+          descripcion={
+            filtrosActivos.length > 0 || sp.q
+              ? "Prueba con otros términos o limpia los filtros para ver más resultados."
+              : "Cuando registres una operación, aparecerá aquí con su monto y estado."
+          }
+          accion={
+            filtrosActivos.length > 0 || sp.q ? (
+              <Link
+                href={urlDe({
+                  ...Object.fromEntries(
+                    CAMPOS_FILTRO_CHIP.map((c) => [c, null]),
+                  ),
+                  q: null,
+                })}
+                className="bg-primary text-primary-foreground rounded-xl px-4 py-2.5 text-sm font-bold"
+              >
+                Limpiar filtros
+              </Link>
+            ) : null
+          }
+        />
       ) : (
         <>
           {/* Móvil: tarjetas agrupadas por día */}
@@ -633,10 +691,8 @@ function TarjetaVenta({
   return (
     <Link
       href={`/ventas/${venta.id}`}
-      className={`bg-card hover:bg-accent/50 flex flex-col gap-1 rounded-xl border p-4 transition-colors ${
-        venta.requiereRevision && !anulada
-          ? "border-warning/40 bg-warning/5"
-          : ""
+      className={`bg-card/90 ring-foreground/7 hover:bg-card flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-lg ${
+        venta.requiereRevision && !anulada ? "ring-warning/35 bg-warning/5" : ""
       }`}
     >
       {venta.requiereRevision && !anulada ? (
@@ -664,11 +720,13 @@ function TarjetaVenta({
           ? ` · ${venta.vendedor.nombres} ${venta.vendedor.apellidos.split(" ")[0]}`
           : ""}
       </p>
-      <div className="mt-1 flex items-center justify-end gap-3">
-        <span className={anulada ? "text-muted-foreground line-through" : ""}>
+      <div className="mt-2 flex items-center justify-end gap-3 border-t pt-3">
+        <span
+          className={`money font-bold ${anulada ? "text-muted-foreground line-through" : ""}`}
+        >
           {formatearSoles(venta.montoBrutoCentimos)}
         </span>
-        <span className="text-muted-foreground text-sm">
+        <span className="money text-muted-foreground text-xs">
           −{formatearSoles(venta.montoDescuentoCentimos)}
         </span>
       </div>
@@ -691,9 +749,9 @@ function TablaVentas({
 }) {
   const router = useRouter();
   return (
-    <div className="rounded-xl border">
+    <div className="surface-panel">
       <Table>
-        <TableHeader>
+        <TableHeader className="bg-muted/45">
           <TableRow>
             <TableHead>
               <EncabezadoOrdenable

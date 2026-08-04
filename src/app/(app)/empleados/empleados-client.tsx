@@ -1,14 +1,30 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronRight, Plus, Search, Users } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Clock3,
+  Download,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  Phone,
+  Plus,
+  ReceiptText,
+  RefreshCw,
+  Search,
+  Users,
+  UsersRound,
+  X,
+} from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -17,20 +33,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatearSoles } from "@/lib/dinero";
 import { fechaRelativa } from "@/lib/fechas";
 import type { Pagina, Resultado } from "@/lib/tipos";
 import { verificarEmpleado } from "@/modules/empleados/actions";
-import type { FilaEmpleado, EmpresaOpcion } from "@/modules/empleados/query";
+import type {
+  EmpresaOpcion,
+  FilaEmpleado,
+  ResumenEmpleados,
+} from "@/modules/empleados/query";
 import { FormEmpleado } from "./form-empleado";
 import { DialogoRechazo } from "./dialogo-rechazo";
 
 const TABS = [
-  { id: "todos", label: "Todos" },
-  { id: "pendientes", label: "Pendientes" },
-  { id: "activos", label: "Activos" },
-  { id: "inactivos", label: "Inactivos" },
-  { id: "rechazados", label: "Rechazados" },
+  { id: "todos", label: "Todos", resumen: "total" },
+  { id: "pendientes", label: "Pendientes", resumen: "pendientes" },
+  { id: "activos", label: "Activos", resumen: "activos" },
+  { id: "inactivos", label: "Inactivos", resumen: "inactivos" },
+  { id: "rechazados", label: "Rechazados", resumen: "rechazados" },
 ] as const;
 
 type Dialogo =
@@ -57,12 +83,19 @@ const TEXTO_ESTADO: Record<FilaEmpleado["estado"], string> = {
   INACTIVO: "Inactivo",
 };
 
+const CLASE_ESTADO: Record<FilaEmpleado["estado"], string> = {
+  ACTIVO: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  PENDIENTE_VERIFICACION: "border-amber-200 bg-amber-50 text-amber-700",
+  RECHAZADO: "border-red-200 bg-red-50 text-red-700",
+  INACTIVO: "border-slate-200 bg-slate-100 text-slate-600",
+};
+
 export function EmpleadosClient({
   pagina,
   tab,
   q,
   empresas,
-  pendientesTotal,
+  resumen,
   esSuperadmin,
   miEmpresaId,
 }: {
@@ -70,7 +103,7 @@ export function EmpleadosClient({
   tab: string;
   q?: string;
   empresas: EmpresaOpcion[];
-  pendientesTotal: number;
+  resumen: ResumenEmpleados;
   esSuperadmin: boolean;
   miEmpresaId: string | null;
 }) {
@@ -78,23 +111,24 @@ export function EmpleadosClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [texto, setTexto] = useState(q ?? "");
+  const [actividad, setActividad] = useState("all");
+  const [orden, setOrden] = useState("name-asc");
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [dialogo, setDialogo] = useState<Dialogo>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("cursor");
-      if (texto) {
-        params.set("q", texto);
-      } else {
-        params.delete("q");
-      }
+      if (texto) params.set("q", texto);
+      else params.delete("q");
       const target = `${pathname}?${params.toString()}`;
       if (target !== `${pathname}?${searchParams.toString()}`) {
         router.replace(target);
       }
     }, 300);
     return () => clearTimeout(timer);
+    // El cambio de URL se deriva exclusivamente del texto ya sincronizado.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texto]);
 
@@ -102,130 +136,353 @@ export function EmpleadosClient({
     const params = new URLSearchParams(searchParams.toString());
     params.delete("cursor");
     for (const [clave, valor] of Object.entries(cambios)) {
-      if (valor === null) {
-        params.delete(clave);
-      } else {
-        params.set(clave, valor);
-      }
+      if (valor === null) params.delete(clave);
+      else params.set(clave, valor);
     }
     return `${pathname}?${params.toString()}`;
   };
 
-  const conCursor = urlDe({
-    tab,
-    q: q ?? null,
-    cursor: pagina.cursor,
-  });
+  const empleados = useMemo(() => {
+    const filtrados = pagina.items.filter((empleado) =>
+      actividad === "with-sales"
+        ? empleado.comprasUltimos30d > 0
+        : actividad === "without-sales"
+          ? empleado.comprasUltimos30d === 0
+          : true,
+    );
+    return [...filtrados].sort((a, b) => {
+      const nombreA = `${a.apellidos} ${a.nombres}`;
+      const nombreB = `${b.apellidos} ${b.nombres}`;
+      if (orden === "name-desc") return nombreB.localeCompare(nombreA, "es");
+      if (orden === "sales-desc") return b.montoUltimos30d - a.montoUltimos30d;
+      if (orden === "recent")
+        return (
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      return nombreA.localeCompare(nombreB, "es");
+    });
+  }, [actividad, orden, pagina.items]);
+
+  const todosSeleccionados =
+    empleados.length > 0 &&
+    empleados.every((empleado) => seleccionados.has(empleado.id));
+  const algunSeleccionado = empleados.some((empleado) =>
+    seleccionados.has(empleado.id),
+  );
+
+  const alternarSeleccion = (id: string) => {
+    setSeleccionados((actuales) => {
+      const siguiente = new Set(actuales);
+      if (siguiente.has(id)) siguiente.delete(id);
+      else siguiente.add(id);
+      return siguiente;
+    });
+  };
+
+  const exportar = () => {
+    const filas = [
+      ["Nombre", "DNI", "Teléfono", "Compras", "Monto", "Estado"],
+      ...empleados.map((empleado) => [
+        `${empleado.nombres} ${empleado.apellidos}`,
+        empleado.dni,
+        empleado.telefono ?? "",
+        empleado.comprasUltimos30d,
+        (empleado.montoUltimos30d / 100).toFixed(2),
+        TEXTO_ESTADO[empleado.estado],
+      ]),
+    ];
+    const csv = filas
+      .map((fila) =>
+        fila
+          .map((celda) => `"${String(celda).replaceAll('"', '""')}"`)
+          .join(","),
+      )
+      .join("\n");
+    const enlace = document.createElement("a");
+    enlace.href = URL.createObjectURL(
+      new Blob([csv], { type: "text/csv;charset=utf-8" }),
+    );
+    enlace.download = "empleados.csv";
+    enlace.click();
+    URL.revokeObjectURL(enlace.href);
+  };
 
   return (
-    <section className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <section className="page-shell">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Empleados</h1>
-          <p className="text-muted-foreground text-sm">
-            {pagina.total ?? pagina.items.length} empleado
-            {(pagina.total ?? pagina.items.length) === 1 ? "" : "s"}
+          <p className="text-primary flex items-center gap-2 text-xs font-bold tracking-[0.06em] uppercase">
+            <UsersRound className="size-4" /> Gestión de convenios
+          </p>
+          <h1 className="mt-2 text-3xl font-bold tracking-tight">Empleados</h1>
+          <p className="text-muted-foreground mt-2 text-sm">
+            Administra los empleados afiliados, revisa su actividad y controla
+            el estado de cada registro.
           </p>
         </div>
-        <Button onClick={() => setDialogo({ tipo: "crear" })}>
-          <Plus className="size-4" />
-          Nuevo empleado
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={exportar}>
+            <Download className="size-4" /> Exportar
+          </Button>
+          <Button onClick={() => setDialogo({ tipo: "crear" })}>
+            <Plus className="size-4" /> Nuevo empleado
+          </Button>
+        </div>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Estadistica
+          etiqueta="Total de empleados"
+          valor={resumen.total}
+          nota="Registros encontrados"
+          icono={<Users className="size-5" />}
+        />
+        <Estadistica
+          etiqueta="Empleados activos"
+          valor={resumen.activos}
+          nota={`${resumen.total ? Math.round((resumen.activos / resumen.total) * 100) : 0}% del total`}
+          tono="success"
+          icono={<Check className="size-5" />}
+        />
+        <Estadistica
+          etiqueta="Pendientes"
+          valor={resumen.pendientes}
+          nota="Requieren validación"
+          tono="warning"
+          icono={<Clock3 className="size-5" />}
+        />
+        <Estadistica
+          etiqueta="Ventas últimos 30 días"
+          valor={resumen.ventasUltimos30d}
+          nota={`${formatearSoles(resumen.montoUltimos30d)} acumulado`}
+          tono="neutral"
+          icono={<ReceiptText className="size-5" />}
+        />
       </div>
 
-      <div className="flex flex-col gap-3">
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {TABS.map((t) => (
-            <Link
-              key={t.id}
-              href={urlDe({ tab: t.id === "todos" ? null : t.id })}
-              className={`rounded-full px-3 py-1.5 text-sm font-medium whitespace-nowrap ${
-                tab === t.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
-            >
-              {t.label}
-              {t.id === "pendientes" && pendientesTotal > 0 ? (
-                <span className="ml-1.5">({pendientesTotal})</span>
+      <div className="bg-card overflow-hidden rounded-2xl border shadow-[0_12px_30px_rgba(16,24,40,0.07)]">
+        <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-2 md:flex-row">
+            <div className="relative min-w-0 md:w-[360px]">
+              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+              <input
+                value={texto}
+                onChange={(e) => setTexto(e.target.value)}
+                placeholder="Buscar por nombre o DNI"
+                className="border-input bg-background focus:border-primary focus:ring-primary/15 h-10 w-full rounded-lg border pr-9 pl-9 text-sm outline-none focus:ring-4"
+              />
+              {texto ? (
+                <button
+                  type="button"
+                  aria-label="Limpiar búsqueda"
+                  onClick={() => setTexto("")}
+                  className="text-muted-foreground hover:bg-muted absolute top-1/2 right-1 grid size-8 -translate-y-1/2 place-items-center rounded-md"
+                >
+                  <X className="size-4" />
+                </button>
               ) : null}
-            </Link>
-          ))}
-        </div>
-
-        <div className="relative">
-          <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-          <Input
-            value={texto}
-            onChange={(e) => setTexto(e.target.value)}
-            placeholder="DNI o nombre"
-            className="pl-9"
-            inputMode="numeric"
-          />
-        </div>
-      </div>
-
-      {pagina.items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed py-16 text-center">
-          <Users className="text-muted-foreground size-8" />
-          <p className="text-muted-foreground text-sm">
-            {q || tab !== "todos"
-              ? "Ningún empleado coincide con los filtros."
-              : "Aún no hay empleados registrados."}
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-3">
-          {pagina.items.map((empleado) => (
-            <button
-              key={empleado.id}
-              type="button"
-              onClick={() => setDialogo({ tipo: "detalle", empleado })}
-              className="bg-card hover:bg-accent/50 flex items-center gap-3 rounded-xl border p-4 text-left transition-colors"
+            </div>
+            <select
+              value={actividad}
+              onChange={(e) => setActividad(e.target.value)}
+              className="border-input bg-background focus:ring-primary/15 h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4"
             >
-              <div className="bg-muted flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
-                {empleado.nombres[0]}
-                {empleado.apellidos[0]}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold">
-                  {empleado.nombres.toUpperCase()}{" "}
-                  {empleado.apellidos.toUpperCase()}
-                </p>
-                <p className="text-muted-foreground truncate text-sm">
-                  {empleado.dni}
-                  {empleado.telefono ? ` · 📞 ${empleado.telefono}` : ""}
-                  {esSuperadmin ? ` · ${empleado.empresaNombre}` : ""}
-                </p>
-                <p className="text-muted-foreground text-xs">
-                  {empleado.comprasUltimos30d} compra
-                  {empleado.comprasUltimos30d === 1 ? "" : "s"} ·{" "}
-                  {formatearSoles(empleado.montoUltimos30d)} (30 días)
-                </p>
-              </div>
-              <Badge
-                variant={VARIANTE_ESTADO[empleado.estado]}
-                className="shrink-0"
-              >
-                {TEXTO_ESTADO[empleado.estado]}
-              </Badge>
-              <ChevronRight className="text-muted-foreground size-4 shrink-0" />
-            </button>
-          ))}
+              <option value="all">Toda la actividad</option>
+              <option value="with-sales">Con compras</option>
+              <option value="without-sales">Sin compras</option>
+            </select>
+            <select
+              value={orden}
+              onChange={(e) => setOrden(e.target.value)}
+              className="border-input bg-background focus:ring-primary/15 h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4"
+            >
+              <option value="name-asc">Nombre A–Z</option>
+              <option value="name-desc">Nombre Z–A</option>
+              <option value="sales-desc">Mayor compra</option>
+              <option value="recent">Más recientes</option>
+            </select>
+          </div>
+          <div className="text-muted-foreground flex items-center gap-3 text-xs">
+            <span>
+              <strong className="text-foreground">{empleados.length}</strong>{" "}
+              resultados
+            </span>
+            <Button
+              variant="outline"
+              size="icon-sm"
+              aria-label="Actualizar listado"
+              onClick={() => router.refresh()}
+            >
+              <RefreshCw className="size-4" />
+            </Button>
+          </div>
+        </div>
 
-          {pagina.cursor ? (
+        <nav
+          aria-label="Estados de empleados"
+          className="flex overflow-x-auto border-b px-4"
+        >
+          {TABS.map((item) => (
             <Link
-              href={conCursor}
-              className="mx-auto rounded-full border px-4 py-2 text-sm font-medium"
+              key={item.id}
+              href={urlDe({ tab: item.id === "todos" ? null : item.id })}
+              className={`relative flex h-12 items-center gap-2 px-3 text-sm font-semibold whitespace-nowrap after:absolute after:right-3 after:bottom-0 after:left-3 after:h-0.5 ${tab === item.id ? "text-primary after:bg-primary" : "text-muted-foreground hover:text-foreground after:bg-transparent"}`}
             >
-              Cargar más
+              <span>{item.label}</span>
+              <span
+                className={`rounded-full px-2 py-0.5 text-[10px] ${tab === item.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+              >
+                {resumen[item.resumen]}
+              </span>
             </Link>
-          ) : null}
-        </div>
-      )}
+          ))}
+        </nav>
+
+        {seleccionados.size ? (
+          <div className="bg-primary/5 border-primary/15 flex min-h-13 items-center justify-between gap-3 border-b px-5 py-2 text-sm">
+            <span className="flex items-center gap-2 font-medium">
+              <span className="bg-primary/10 text-primary grid size-7 place-items-center rounded-md">
+                <Check className="size-4" />
+              </span>
+              {seleccionados.size} empleado{seleccionados.size === 1 ? "" : "s"}{" "}
+              seleccionado{seleccionados.size === 1 ? "" : "s"}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSeleccionados(new Set())}
+            >
+              Limpiar selección
+            </Button>
+          </div>
+        ) : null}
+
+        {empleados.length === 0 ? (
+          <div className="grid min-h-80 place-items-center px-5 text-center">
+            <div>
+              <span className="bg-primary/10 text-primary mx-auto grid size-14 place-items-center rounded-2xl">
+                <Search className="size-6" />
+              </span>
+              <h2 className="mt-4 font-semibold">No encontramos empleados</h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Revisa el texto ingresado o cambia los filtros aplicados.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="divide-y lg:hidden">
+              {empleados.map((empleado) => (
+                <TarjetaEmpleado
+                  key={empleado.id}
+                  empleado={empleado}
+                  esSuperadmin={esSuperadmin}
+                  alVer={() => setDialogo({ tipo: "detalle", empleado })}
+                  alEditar={() => setDialogo({ tipo: "editar", empleado })}
+                />
+              ))}
+            </div>
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full min-w-[1040px] table-fixed text-left">
+                <thead className="bg-muted/45 text-muted-foreground text-[11px] tracking-[0.035em] uppercase">
+                  <tr>
+                    <th className="w-13 px-5 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        aria-label="Seleccionar todos"
+                        checked={todosSeleccionados}
+                        ref={(input) => {
+                          if (input)
+                            input.indeterminate =
+                              algunSeleccionado && !todosSeleccionados;
+                        }}
+                        onChange={() =>
+                          setSeleccionados(
+                            todosSeleccionados
+                              ? new Set()
+                              : new Set(
+                                  empleados.map((empleado) => empleado.id),
+                                ),
+                          )
+                        }
+                        className="accent-primary size-4"
+                      />
+                    </th>
+                    <th className="w-[31%] px-3 py-4">Empleado</th>
+                    <th className="w-[14%] px-3 py-4">Actividad</th>
+                    <th className="w-[15%] px-3 py-4">Consumo</th>
+                    <th className="w-[14%] px-3 py-4">Estado</th>
+                    <th className="w-[16%] px-3 py-4">Registro</th>
+                    <th className="w-14 px-4 py-4" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {empleados.map((empleado) => (
+                    <FilaEmpleadoTabla
+                      key={empleado.id}
+                      empleado={empleado}
+                      seleccionado={seleccionados.has(empleado.id)}
+                      esSuperadmin={esSuperadmin}
+                      alSeleccionar={() => alternarSeleccion(empleado.id)}
+                      alVer={() => setDialogo({ tipo: "detalle", empleado })}
+                      alEditar={() => setDialogo({ tipo: "editar", empleado })}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        <footer className="flex min-h-16 items-center justify-between gap-3 border-t px-5 py-3 text-xs">
+          <span className="text-muted-foreground">
+            Mostrando{" "}
+            <strong className="text-foreground">
+              {empleados.length ? 1 : 0}
+            </strong>{" "}
+            a <strong className="text-foreground">{empleados.length}</strong>
+            {pagina.total !== undefined ? (
+              <>
+                {" "}
+                de <strong className="text-foreground">
+                  {pagina.total}
+                </strong>{" "}
+                empleados
+              </>
+            ) : null}
+          </span>
+          <div className="flex gap-1">
+            <Button
+              variant="outline"
+              size="icon-sm"
+              disabled
+              aria-label="Página anterior"
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            {pagina.cursor ? (
+              <Link
+                href={urlDe({ cursor: pagina.cursor })}
+                className="border-input hover:bg-muted grid h-8 items-center rounded-md border px-3 font-semibold"
+              >
+                Cargar más <ChevronRight className="ml-1 size-4" />
+              </Link>
+            ) : (
+              <Button
+                variant="outline"
+                size="icon-sm"
+                disabled
+                aria-label="Página siguiente"
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            )}
+          </div>
+        </footer>
+      </div>
 
       {dialogo?.tipo === "crear" ? (
-        <Dialog open onOpenChange={(a) => !a && setDialogo(null)}>
+        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
           <FormEmpleado
             empresas={empresas}
             miEmpresaId={miEmpresaId}
@@ -233,9 +490,8 @@ export function EmpleadosClient({
           />
         </Dialog>
       ) : null}
-
       {dialogo?.tipo === "detalle" ? (
-        <Dialog open onOpenChange={(a) => !a && setDialogo(null)}>
+        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
           <DetalleEmpleado
             empleado={dialogo.empleado}
             puedeGestionar={
@@ -251,9 +507,8 @@ export function EmpleadosClient({
           />
         </Dialog>
       ) : null}
-
       {dialogo?.tipo === "editar" ? (
-        <Dialog open onOpenChange={(a) => !a && setDialogo(null)}>
+        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
           <FormEmpleado
             empleado={dialogo.empleado}
             empresas={empresas}
@@ -262,9 +517,8 @@ export function EmpleadosClient({
           />
         </Dialog>
       ) : null}
-
       {dialogo?.tipo === "rechazar" ? (
-        <Dialog open onOpenChange={(a) => !a && setDialogo(null)}>
+        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
           <DialogoRechazo
             empleado={dialogo.empleado}
             onCerrar={() => setDialogo(null)}
@@ -272,6 +526,224 @@ export function EmpleadosClient({
         </Dialog>
       ) : null}
     </section>
+  );
+}
+
+function Estadistica({
+  etiqueta,
+  valor,
+  nota,
+  icono,
+  tono = "primary",
+}: {
+  etiqueta: string;
+  valor: number;
+  nota: string;
+  icono: React.ReactNode;
+  tono?: "primary" | "success" | "warning" | "neutral";
+}) {
+  const tonos = {
+    primary: "bg-primary/10 text-primary",
+    success: "bg-emerald-50 text-emerald-700",
+    warning: "bg-amber-50 text-amber-700",
+    neutral: "bg-muted text-muted-foreground",
+  };
+  return (
+    <article className="bg-card flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-sm">
+      <div>
+        <p className="text-muted-foreground text-xs font-semibold">
+          {etiqueta}
+        </p>
+        <p className="mt-1 text-2xl leading-none font-bold tracking-tight">
+          {valor}
+        </p>
+        <p className="text-muted-foreground mt-2 text-[11px]">{nota}</p>
+      </div>
+      <span
+        className={`grid size-11 place-items-center rounded-xl ${tonos[tono]}`}
+      >
+        {icono}
+      </span>
+    </article>
+  );
+}
+
+function FilaEmpleadoTabla({
+  empleado,
+  seleccionado,
+  esSuperadmin,
+  alSeleccionar,
+  alVer,
+  alEditar,
+}: {
+  empleado: FilaEmpleado;
+  seleccionado: boolean;
+  esSuperadmin: boolean;
+  alSeleccionar: () => void;
+  alVer: () => void;
+  alEditar: () => void;
+}) {
+  const nombre = `${empleado.nombres} ${empleado.apellidos}`;
+  const iniciales = `${empleado.nombres[0] ?? ""}${empleado.apellidos[0] ?? ""}`;
+  return (
+    <tr
+      className={`hover:bg-primary/[0.025] border-b last:border-0 ${seleccionado ? "bg-primary/[0.045]" : ""}`}
+    >
+      <td className="px-5 py-3 text-center">
+        <input
+          type="checkbox"
+          checked={seleccionado}
+          onChange={alSeleccionar}
+          aria-label={`Seleccionar ${nombre}`}
+          className="accent-primary size-4"
+        />
+      </td>
+      <td className="px-3 py-3">
+        <div className="flex items-center gap-3">
+          <span className="bg-muted grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold">
+            {iniciales}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold uppercase">{nombre}</p>
+            <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
+              DNI {empleado.dni}
+              {empleado.telefono ? (
+                <>
+                  <span>·</span>
+                  <a
+                    href={`tel:${empleado.telefono}`}
+                    className="hover:text-primary inline-flex items-center gap-1"
+                  >
+                    <Phone className="size-3" />
+                    {empleado.telefono}
+                  </a>
+                </>
+              ) : null}
+              {esSuperadmin ? (
+                <>
+                  <span>·</span>
+                  <span className="truncate">{empleado.empresaNombre}</span>
+                </>
+              ) : null}
+            </p>
+          </div>
+        </div>
+      </td>
+      <td className="px-3 py-3">
+        <p className="text-sm font-semibold">
+          {empleado.comprasUltimos30d} compra
+          {empleado.comprasUltimos30d === 1 ? "" : "s"}
+        </p>
+        <p className="text-muted-foreground text-[10px]">Últimos 30 días</p>
+      </td>
+      <td className="px-3 py-3">
+        <p className="text-sm font-semibold">
+          {formatearSoles(empleado.montoUltimos30d)}
+        </p>
+        <p className="text-muted-foreground text-[10px]">
+          Acumulado del período
+        </p>
+      </td>
+      <td className="px-3 py-3">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${CLASE_ESTADO[empleado.estado]}`}
+        >
+          <span className="size-1.5 rounded-full bg-current" />
+          {TEXTO_ESTADO[empleado.estado]}
+        </span>
+      </td>
+      <td className="px-3 py-3">
+        <p className="text-sm font-semibold">
+          {fechaRelativa(empleado.createdAt)}
+        </p>
+        <p className="text-muted-foreground text-[10px]">Registrado</p>
+      </td>
+      <td className="px-4 py-3 text-right">
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Acciones de ${nombre}`}
+              />
+            }
+          >
+            <MoreHorizontal className="size-4" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={alVer}>
+              <Eye /> Ver detalle
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={alEditar}>
+              <Pencil /> Editar empleado
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </td>
+    </tr>
+  );
+}
+
+function TarjetaEmpleado({
+  empleado,
+  esSuperadmin,
+  alVer,
+  alEditar,
+}: {
+  empleado: FilaEmpleado;
+  esSuperadmin: boolean;
+  alVer: () => void;
+  alEditar: () => void;
+}) {
+  const nombre = `${empleado.nombres} ${empleado.apellidos}`;
+  const iniciales = `${empleado.nombres[0] ?? ""}${empleado.apellidos[0] ?? ""}`;
+  return (
+    <article className="p-4">
+      <div className="flex items-start gap-3">
+        <span className="from-primary/15 text-primary grid size-11 shrink-0 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 text-xs font-extrabold">
+          {iniciales}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-bold uppercase">{nombre}</h3>
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                DNI {empleado.dni}
+                {esSuperadmin ? ` · ${empleado.empresaNombre}` : ""}
+              </p>
+            </div>
+            <span
+              className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${CLASE_ESTADO[empleado.estado]}`}
+            >
+              {TEXTO_ESTADO[empleado.estado]}
+            </span>
+          </div>
+          <div className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-xs">
+            <span className="bg-muted/60 rounded-lg px-2.5 py-2">
+              <strong className="text-foreground block text-sm">
+                {empleado.comprasUltimos30d}
+              </strong>
+              compras en 30 días
+            </span>
+            <span className="bg-muted/60 rounded-lg px-2.5 py-2">
+              <strong className="money text-foreground block truncate text-sm">
+                {formatearSoles(empleado.montoUltimos30d)}
+              </strong>
+              consumo
+            </span>
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Button variant="outline" size="sm" onClick={alVer}>
+              <Eye className="size-3.5" /> Ver detalle
+            </Button>
+            <Button variant="ghost" size="sm" onClick={alEditar}>
+              <Pencil className="size-3.5" /> Editar
+            </Button>
+          </div>
+        </div>
+      </div>
+    </article>
   );
 }
 
@@ -295,19 +767,13 @@ function DetalleEmpleado({
       Record<string, never>
     >,
   );
-
   useEffect(() => {
-    if (!estadoVerificacion.ok) {
-      return;
-    }
+    if (!estadoVerificacion.ok) return;
     toast.success("Empleado verificado");
     router.refresh();
     onCerrar();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [estadoVerificacion, router]);
-
+  }, [estadoVerificacion, onCerrar, router]);
   const esPendiente = empleado.estado === "PENDIENTE_VERIFICACION";
-
   return (
     <DialogContent className="sm:max-w-md">
       <DialogHeader>
@@ -318,7 +784,6 @@ function DetalleEmpleado({
           DNI {empleado.dni} · {empleado.empresaNombre}
         </DialogDescription>
       </DialogHeader>
-
       <div className="flex flex-col gap-4">
         {empleado.fotoDniBlobPath ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -332,38 +797,24 @@ function DetalleEmpleado({
             Sin foto del DNI registrada.
           </p>
         )}
-
         <dl className="text-sm">
-          <div className="flex justify-between py-1">
-            <dt className="text-muted-foreground">Estado</dt>
-            <dd>
-              <Badge variant={VARIANTE_ESTADO[empleado.estado]}>
-                {TEXTO_ESTADO[empleado.estado]}
-              </Badge>
-            </dd>
-          </div>
-          <div className="flex justify-between py-1">
-            <dt className="text-muted-foreground">Teléfono</dt>
-            <dd>{empleado.telefono ?? "—"}</dd>
-          </div>
-          <div className="flex justify-between py-1">
-            <dt className="text-muted-foreground">Compras (30 días)</dt>
-            <dd>
-              {empleado.comprasUltimos30d} ·{" "}
-              {formatearSoles(empleado.montoUltimos30d)}
-            </dd>
-          </div>
+          <Detalle etiqueta="Estado">
+            <Badge variant={VARIANTE_ESTADO[empleado.estado]}>
+              {TEXTO_ESTADO[empleado.estado]}
+            </Badge>
+          </Detalle>
+          <Detalle etiqueta="Teléfono">{empleado.telefono ?? "—"}</Detalle>
+          <Detalle etiqueta="Compras (30 días)">
+            {empleado.comprasUltimos30d} ·{" "}
+            {formatearSoles(empleado.montoUltimos30d)}
+          </Detalle>
           {empleado.creadoPorNombre ? (
-            <div className="flex justify-between py-1">
-              <dt className="text-muted-foreground">Creado por</dt>
-              <dd>
-                {empleado.creadoPorNombre} · {fechaRelativa(empleado.createdAt)}
-              </dd>
-            </div>
+            <Detalle etiqueta="Creado por">
+              {empleado.creadoPorNombre} · {fechaRelativa(empleado.createdAt)}
+            </Detalle>
           ) : null}
         </dl>
       </div>
-
       {puedeGestionar ? (
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           {esPendiente ? (
@@ -397,5 +848,20 @@ function DetalleEmpleado({
         </DialogFooter>
       ) : null}
     </DialogContent>
+  );
+}
+
+function Detalle({
+  etiqueta,
+  children,
+}: {
+  etiqueta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex justify-between gap-4 py-1">
+      <dt className="text-muted-foreground">{etiqueta}</dt>
+      <dd className="text-right">{children}</dd>
+    </div>
   );
 }

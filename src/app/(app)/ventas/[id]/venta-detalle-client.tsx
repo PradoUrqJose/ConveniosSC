@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Ban, FileText, MoreVertical } from "lucide-react";
+import {
+  ArrowLeft,
+  Ban,
+  FileText,
+  MoreVertical,
+  ReceiptText,
+  UserRound,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,14 +31,16 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
   const anulada = venta.estado === "ANULADA";
 
   return (
-    <section className="mx-auto flex max-w-xl flex-col gap-6 pb-10">
-      <div className="flex items-center justify-between">
+    <section className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-10">
+      <div className="flex items-center justify-between gap-3">
         <Link
           href="/ventas"
-          className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm"
+          className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm font-semibold"
         >
-          <ArrowLeft className="size-4" />
-          Venta
+          <span className="bg-card ring-foreground/8 grid size-9 place-items-center rounded-xl shadow-sm ring-1">
+            <ArrowLeft className="size-4" />
+          </span>
+          Volver a ventas
         </Link>
         {venta.puedeAnular ? (
           <DropdownMenu>
@@ -75,39 +84,55 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
         </div>
       ) : null}
 
-      <div className="flex items-center gap-2 text-sm">
-        {anulada ? (
-          <Badge variant="destructive">Anulada</Badge>
-        ) : (
-          <Badge className="bg-success/10 text-success border-success/20 border">
-            Registrada
-          </Badge>
-        )}
-        <span className="text-muted-foreground">
-          {formatearFechaHoraLima(venta.createdAt)}
+      <div className="from-primary via-primary relative overflow-hidden rounded-[1.6rem] bg-linear-to-br to-blue-950 p-5 text-white shadow-[0_24px_65px_rgba(29,78,216,.2)] sm:p-7">
+        <div className="absolute -top-20 -right-12 size-56 rounded-full bg-cyan-300/20 blur-3xl" />
+        <div className="relative flex items-start justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold tracking-[0.14em] text-blue-100/70 uppercase">
+              Total de la operación
+            </p>
+            <p
+              className={`money mt-2 text-3xl font-bold tracking-tight sm:text-4xl ${anulada ? "line-through opacity-70" : ""}`}
+            >
+              {formatearSoles(venta.montoFinalCentimos)}
+            </p>
+            <p className="mt-2 text-xs text-blue-100/70">
+              Registrada {formatearFechaHoraLima(venta.createdAt)}
+            </p>
+          </div>
+          {anulada ? (
+            <Badge variant="destructive">Anulada</Badge>
+          ) : (
+            <Badge className="border border-emerald-200/30 bg-emerald-300/15 text-emerald-100">
+              Registrada
+            </Badge>
+          )}
+        </div>
+      </div>
+
+      <div className="surface-panel flex items-center gap-4 p-5 sm:p-6">
+        <span className="bg-primary/10 text-primary grid size-11 shrink-0 place-items-center rounded-xl">
+          <UserRound className="size-5" />
         </span>
+        <div className="min-w-0">
+          <h2 className="text-muted-foreground text-[10px] font-bold tracking-[0.13em] uppercase">
+            Empleado beneficiario
+          </h2>
+          <p className="mt-1 truncate font-bold">
+            {venta.empleado.nombres.toUpperCase()}{" "}
+            {venta.empleado.apellidos.toUpperCase()}
+          </p>
+          <p className="text-muted-foreground mt-0.5 text-sm">
+            DNI {venta.empleado.dni} · {venta.empresaCompradora.nombre}
+          </p>
+        </div>
       </div>
 
-      <div className="flex flex-col gap-2">
-        <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-          Empleado
+      <div className="surface-panel p-5 sm:p-6">
+        <h2 className="flex items-center gap-2 font-bold tracking-tight">
+          <ReceiptText className="text-primary size-4" /> Venta
         </h2>
-        <p className="font-semibold">
-          {venta.empleado.nombres.toUpperCase()}{" "}
-          {venta.empleado.apellidos.toUpperCase()}
-        </p>
-        <p className="text-muted-foreground text-sm">
-          DNI {venta.empleado.dni} · {venta.empresaCompradora.nombre}
-        </p>
-      </div>
-
-      <div className="border-t" />
-
-      <div className="flex flex-col gap-2">
-        <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-          Venta
-        </h2>
-        <dl className="text-sm">
+        <dl className="mt-4 divide-y text-sm">
           <Fila
             etiqueta="Empresa vendedora"
             valor={venta.empresaVendedora.nombre}
@@ -126,27 +151,31 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
       </div>
 
       <div
-        className={`rounded-xl border p-4 text-sm ${anulada ? "text-muted-foreground line-through" : ""}`}
+        className={`surface-panel p-5 text-sm sm:p-6 ${anulada ? "text-muted-foreground line-through" : ""}`}
       >
         <div className="flex justify-between py-1">
           <span className="text-muted-foreground">Monto</span>
-          <span>{formatearSoles(venta.montoBrutoCentimos)}</span>
+          <span className="money">
+            {formatearSoles(venta.montoBrutoCentimos)}
+          </span>
         </div>
         <div className="flex justify-between py-1">
           <span className="text-muted-foreground">
             Descuento ({bpsAPorcentaje(venta.descuentoBps)}%)
           </span>
-          <span>− {formatearSoles(venta.montoDescuentoCentimos)}</span>
+          <span className="money">
+            − {formatearSoles(venta.montoDescuentoCentimos)}
+          </span>
         </div>
         <div className="mt-1 flex justify-between border-t pt-2 font-semibold">
           <span>Total</span>
-          <span>{formatearSoles(venta.montoFinalCentimos)}</span>
+          <span className="money">
+            {formatearSoles(venta.montoFinalCentimos)}
+          </span>
         </div>
       </div>
 
-      <div className="border-t" />
-
-      <div className="flex flex-col gap-3">
+      <div className="surface-panel flex flex-col gap-3 p-5 sm:p-6">
         <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
           Evidencia
         </h2>
@@ -194,7 +223,7 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
       </div>
 
       {venta.observacion ? (
-        <div className="flex flex-col gap-1">
+        <div className="surface-panel flex flex-col gap-1 p-5 sm:p-6">
           <h2 className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
             Observación
           </h2>
@@ -216,9 +245,9 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
 
 function Fila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
   return (
-    <div className="flex justify-between py-1">
+    <div className="flex justify-between gap-4 py-2.5">
       <dt className="text-muted-foreground">{etiqueta}</dt>
-      <dd>{valor}</dd>
+      <dd className="text-right font-medium">{valor}</dd>
     </div>
   );
 }

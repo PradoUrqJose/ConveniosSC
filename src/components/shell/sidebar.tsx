@@ -1,12 +1,14 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import Link from "next/link";
+import { LogOut, Settings2 } from "lucide-react";
 
 import { EnlaceNav } from "@/components/shell/enlace-nav";
 import { IconoDestino } from "@/components/shell/iconos";
 import type { Navegacion } from "@/lib/navegacion";
 import type { PerfilNav } from "@/lib/auth/perfil";
 import { cerrarSesion } from "@/modules/auth/actions";
+import { Marca } from "@/components/shell/marca";
 
 export function Sidebar({
   nav,
@@ -17,57 +19,111 @@ export function Sidebar({
   perfil: PerfilNav;
   pendientesEmpleados: number;
 }) {
-  const destinoEmpleados = nav.lateral.find((d) => d.href === "/empleados");
+  const rutasOperacion = new Set([
+    "/",
+    "/dashboard",
+    "/ventas",
+    "/ventas/nueva",
+  ]);
+  const destinosPrincipales = nav.lateral.filter((destino) =>
+    rutasOperacion.has(destino.href),
+  );
+  const destinosGestion = nav.lateral.filter(
+    (destino) => !rutasOperacion.has(destino.href),
+  );
+  const destinosMas = nav.mas.filter(
+    (destino) =>
+      destino.href !== "/perfil" &&
+      !nav.lateral.some(
+        (destinoLateral) => destinoLateral.href === destino.href,
+      ),
+  );
+  const destinosSecundarios = [...destinosGestion, ...destinosMas];
 
   return (
-    <aside className="border-border bg-sidebar text-sidebar-foreground sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r lg:flex">
-      <div className="flex h-14 items-center gap-2 border-b px-4">
-        <span className="text-lg font-semibold tracking-tight">Convenios</span>
-        {perfil.empresaNombre ? (
-          <span className="text-muted-foreground truncate text-sm">
-            · {perfil.empresaNombre}
-          </span>
-        ) : null}
+    <aside className="bg-sidebar text-sidebar-foreground sticky top-0 hidden h-dvh w-[276px] shrink-0 flex-col overflow-hidden lg:flex">
+      <div className="pointer-events-none absolute -top-24 -left-20 size-64 rounded-full bg-cyan-400/10 blur-3xl" />
+      <div className="relative flex min-h-[88px] items-center px-6">
+        <Marca />
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-        {nav.lateral.map((destino) => (
-          <EnlaceNav key={destino.href} destino={destino} className="h-9">
-            <IconoDestino destino={destino} className="size-4" />
+      {perfil.empresaNombre ? (
+        <div className="relative mx-4 mb-4 rounded-xl border border-white/8 bg-white/5 px-3.5 py-3">
+          <p className="text-[10px] font-bold tracking-[0.13em] text-slate-500 uppercase">
+            Espacio de trabajo
+          </p>
+          <p className="mt-1 truncate text-sm font-semibold text-slate-200">
+            {perfil.empresaNombre}
+          </p>
+        </div>
+      ) : (
+        <div className="relative mx-4 mb-4 rounded-xl border border-cyan-300/10 bg-cyan-300/5 px-3.5 py-3">
+          <p className="text-[10px] font-bold tracking-[0.13em] text-cyan-200/60 uppercase">
+            Control global
+          </p>
+          <p className="mt-1 text-sm font-semibold text-slate-200">
+            Todas las empresas
+          </p>
+        </div>
+      )}
+
+      <nav className="relative flex-1 space-y-1 overflow-y-auto px-4 py-2">
+        <div className="px-3 pb-2 text-[10px] font-bold tracking-[0.16em] text-slate-600 uppercase">
+          Principal
+        </div>
+        {destinosPrincipales.map((destino) => (
+          <EnlaceNav key={destino.href} destino={destino}>
+            <IconoDestino destino={destino} className="size-[19px]" />
             <span className="truncate">{destino.etiqueta}</span>
-            {destinoEmpleados &&
-            destino.href === "/empleados" &&
-            pendientesEmpleados > 0 ? (
-              <span className="bg-primary text-primary-foreground ml-auto rounded-full px-1.5 py-0.5 text-xs font-semibold">
-                {pendientesEmpleados}
-              </span>
-            ) : null}
           </EnlaceNav>
         ))}
 
-        {nav.mas.length > 0 ? (
+        {destinosSecundarios.length > 0 ? (
           <>
-            <div className="text-muted-foreground pt-4 pb-2 pl-3 text-xs font-medium tracking-wide uppercase">
-              Más
+            <div className="pt-6 pb-2 pl-3 text-[10px] font-bold tracking-[0.16em] text-slate-600 uppercase">
+              Gestión
             </div>
-            {nav.mas.map((destino) => (
-              <EnlaceNav key={destino.href} destino={destino} className="h-9">
-                <IconoDestino destino={destino} className="size-4" />
+            {destinosSecundarios.map((destino) => (
+              <EnlaceNav
+                key={destino.href}
+                destino={destino}
+                className="min-h-11"
+              >
+                <IconoDestino destino={destino} className="size-[18px]" />
                 <span className="truncate">{destino.etiqueta}</span>
+                {destino.href === "/empleados" && pendientesEmpleados > 0 ? (
+                  <span className="ml-auto rounded-full bg-cyan-300 px-2 py-0.5 text-[10px] font-extrabold text-slate-950">
+                    {pendientesEmpleados}
+                  </span>
+                ) : null}
               </EnlaceNav>
             ))}
           </>
         ) : null}
       </nav>
 
-      <div className="border-t p-3">
-        <div className="text-muted-foreground mb-2 px-2 text-sm">
-          {perfil.nombres} {perfil.apellidos}
-        </div>
+      <div className="relative m-4 mt-2 rounded-2xl border border-white/8 bg-white/5 p-3">
+        <Link
+          href="/perfil/password"
+          className="group flex items-center gap-3 rounded-xl px-1 py-1"
+        >
+          <span className="flex size-10 items-center justify-center rounded-xl bg-linear-to-br from-slate-600 to-slate-800 text-xs font-extrabold text-white ring-1 ring-white/10">
+            {`${perfil.nombres[0] ?? ""}${perfil.apellidos[0] ?? ""}`.toUpperCase() ||
+              "U"}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold text-slate-100">
+              {perfil.nombres} {perfil.apellidos}
+            </p>
+            <p className="flex items-center gap-1 text-[11px] text-slate-500 group-hover:text-slate-300">
+              <Settings2 className="size-3" /> Configurar cuenta
+            </p>
+          </div>
+        </Link>
         <form action={cerrarSesion}>
           <button
             type="submit"
-            className="text-muted-foreground hover:bg-muted hover:text-foreground flex h-9 w-full items-center gap-2 rounded-md px-3 text-sm transition-colors"
+            className="mt-2 flex h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-xs font-semibold text-slate-500 transition-colors hover:bg-red-400/10 hover:text-red-300"
           >
             <LogOut className="size-4" aria-hidden="true" />
             Cerrar sesión

@@ -24,13 +24,16 @@ export function EnlaceNav({ destino, className, children }: Props) {
       aria-current={activo ? "page" : undefined}
       title={destino.descripcion}
       className={cn(
-        "flex items-center gap-3 rounded-md px-3 text-sm transition-colors",
+        "group/nav relative flex min-h-11 items-center gap-3 overflow-hidden rounded-xl px-3.5 text-sm font-semibold transition-all duration-200",
         activo
-          ? "bg-foreground/10 font-semibold"
-          : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+          ? "bg-white/12 text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,.1),0_10px_24px_rgba(0,0,0,.14)]"
+          : "text-slate-400 hover:bg-white/7 hover:text-white",
         className,
       )}
     >
+      {activo ? (
+        <span className="absolute inset-y-2 left-0 w-0.5 rounded-r-full bg-cyan-300" />
+      ) : null}
       {children}
     </Link>
   );

@@ -60,22 +60,22 @@
     "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
 
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: oklch(0.982 0.006 245);
+  --foreground: oklch(0.215 0.035 252);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
 
-  --primary: oklch(0.45 0.15 250);
+  --primary: oklch(0.49 0.18 251);
   --primary-foreground: oklch(0.985 0 0);
 
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.955 0.014 247);
+  --secondary-foreground: oklch(0.29 0.045 251);
+  --muted: oklch(0.952 0.011 247);
+  --muted-foreground: oklch(0.51 0.035 252);
+  --accent: oklch(0.943 0.024 239);
+  --accent-foreground: oklch(0.28 0.06 250);
 
   --destructive: oklch(0.577 0.245 27.3);
   --destructive-foreground: oklch(0.985 0 0);
@@ -85,9 +85,9 @@
   --warning: oklch(0.72 0.16 75);
   --warning-foreground: oklch(0.145 0 0);
 
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.45 0.15 250);
+  --border: oklch(0.9 0.018 248);
+  --input: oklch(0.88 0.02 248);
+  --ring: oklch(0.49 0.18 251);
 
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
@@ -95,35 +95,35 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
 
-  --radius: 0.625rem;
+  --radius: 0.75rem;
 
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: oklch(0.21 0.055 254);
+  --sidebar-foreground: oklch(0.97 0.01 245);
   --sidebar-primary: oklch(0.45 0.15 250);
   --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-accent: oklch(0.3 0.06 253);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.45 0.15 250);
 }
 
 .dark {
   color-scheme: dark;
-  --background: oklch(0.145 0 0);
+  --background: oklch(0.16 0.025 254);
   --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
+  --card: oklch(0.205 0.03 254);
   --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
+  --popover: oklch(0.205 0.03 254);
   --popover-foreground: oklch(0.985 0 0);
 
-  --primary: oklch(0.65 0.15 250);
+  --primary: oklch(0.7 0.145 245);
   --primary-foreground: oklch(0.145 0 0);
 
-  --secondary: oklch(0.269 0 0);
+  --secondary: oklch(0.265 0.032 252);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
+  --muted: oklch(0.265 0.03 252);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
+  --accent: oklch(0.29 0.045 250);
   --accent-foreground: oklch(0.985 0 0);
 
   --destructive: oklch(0.65 0.2 25);
@@ -144,7 +144,7 @@
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
 
-  --sidebar: oklch(0.205 0 0);
+  --sidebar: oklch(0.13 0.038 255);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.65 0.15 250);
   --sidebar-primary-foreground: oklch(0.145 0 0);
@@ -192,8 +192,39 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow-x: hidden;
+    background-image: radial-gradient(
+      circle at 90% -10%,
+      color-mix(in oklab, var(--primary) 9%, transparent),
+      transparent 28rem
+    );
   }
   html {
     @apply font-sans;
+    text-rendering: optimizeLegibility;
+  }
+}
+
+@layer components {
+  .page-shell {
+    /* En móvil (PWA) el espaciado es más compacto: la pantalla es el recurso
+       escaso y la barra inferior ya reserva su propio hueco en el <main>. */
+    @apply mx-auto flex w-full max-w-[1480px] flex-col gap-3.5 pb-0 sm:gap-6 lg:gap-7 lg:pb-10;
+  }
+
+  .page-kicker {
+    @apply text-primary mb-1.5 text-[0.68rem] font-extrabold tracking-[0.16em] uppercase;
+  }
+
+  .surface-panel {
+    @apply bg-card/90 ring-foreground/7 overflow-hidden rounded-[1.5rem] shadow-[0_14px_40px_rgba(15,23,42,.055)] ring-1;
+  }
+
+  .control-bar {
+    @apply bg-card/80 ring-foreground/7 rounded-[1.25rem] p-3 shadow-sm ring-1 sm:p-4;
+  }
+
+  .money {
+    @apply font-mono tabular-nums;
   }
 }

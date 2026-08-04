@@ -305,8 +305,15 @@ export async function resetearPasswordCore(
   const passwordTemporal = generarPasswordTemporal();
   const passwordHash = await hashPassword(passwordTemporal);
 
+  // El reset también levanta el bloqueo por intentos fallidos: si no, el
+  // usuario recibe una contraseña nueva y sigue sin poder entrar hasta que
+  // expire `bloqueado_hasta`, sin ninguna señal de por qué.
   await tx.execute(sql`
-    UPDATE usuarios SET password_hash = ${passwordHash}, debe_cambiar_password = true
+    UPDATE usuarios SET
+      password_hash = ${passwordHash},
+      debe_cambiar_password = true,
+      intentos_fallidos = 0,
+      bloqueado_hasta = NULL
     WHERE id = ${usuarioId}
   `);
   await revocarSesionesDeUsuario(tx, usuarioId);
@@ -319,6 +326,64 @@ export async function resetearPasswordCore(
   });
 
   return { ok: true, usuarioId, passwordTemporal };
+}
+
+/**
+ * Levanta el bloqueo por intentos fallidos sin tocar la contraseña. El bloqueo
+ * dura 5 minutos y el mensaje de login no lo revela (02 §6), así que sin esta
+ * acción un usuario bloqueado no tiene forma de saber por qué no entra ni un
+ * administrador de resolverlo. No hay acción propia en `accion_auditoria`: se
+ * registra como `USUARIO_ACTUALIZADO` con el antes y el después de los dos
+ * campos, que es justo lo que el visor de auditoría sabe mostrar en diff.
+ */
+export async function desbloquearUsuarioCore(
+  tx: TransaccionAuditada,
+  ctx: SessionContext,
+  usuarioId: string,
+): Promise<ResultadoUsuario> {
+  const actual = obtenerFilas(
+    await tx.execute(
+      sql`SELECT id, empresa_id, intentos_fallidos, bloqueado_hasta
+          FROM usuarios WHERE id = ${usuarioId} FOR UPDATE`,
+    ),
+  )[0];
+  if (!actual) {
+    return {
+      ok: false,
+      codigo: "NO_ENCONTRADO",
+      mensaje: "El usuario no existe.",
+    };
+  }
+  if (ctx.rol === "ADMIN_EMPRESA") {
+    const actualEmpresaId =
+      actual.empresa_id === null ? null : String(actual.empresa_id);
+    if (actualEmpresaId !== ctx.empresaId) {
+      throw new ErrorAuth(
+        "SIN_PERMISO",
+        "El usuario pertenece a otra empresa.",
+      );
+    }
+  }
+
+  await tx.execute(sql`
+    UPDATE usuarios SET intentos_fallidos = 0, bloqueado_hasta = NULL
+    WHERE id = ${usuarioId}
+  `);
+
+  await registrar(tx, {
+    accion: "USUARIO_ACTUALIZADO",
+    entidad: "usuario",
+    entidadId: usuarioId,
+    actor: ctx,
+    datosAntes: {
+      intentosFallidos: Number(actual.intentos_fallidos ?? 0),
+      bloqueadoHasta:
+        actual.bloqueado_hasta === null ? null : String(actual.bloqueado_hasta),
+    },
+    datosDespues: { intentosFallidos: 0, bloqueadoHasta: null },
+  });
+
+  return { ok: true, usuarioId };
 }
 
 /** Devuelve un error si el empleado no es de la empresa o ya está asignado a otro usuario. */

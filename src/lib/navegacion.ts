@@ -10,9 +10,12 @@ export type DestinoNav = {
 };
 
 export type Navegacion = {
-  /** Pestañas de la barra inferior móvil (04-UI §0: máx. 4, incluido "Más"). */
+  /**
+   * Pestañas de la barra inferior móvil (PWA). Solo operación urgente: no hay
+   * menú "Más". "Nueva venta" va siempre en la posición central.
+   */
   tabs: DestinoNav[];
-  /** Destinos del menú "Más" (escritorio y móvil). */
+  /** Destinos extra del escritorio que no entran en la barra lateral. */
   mas: DestinoNav[];
   /** Destinos de la barra lateral (escritorio ≥768px, 260px). */
   lateral: DestinoNav[];
@@ -20,8 +23,8 @@ export type Navegacion = {
 
 const ENTRADA_INICIO: DestinoNav = {
   href: "/",
-  etiqueta: "Inicio",
-  descripcion: "Pantalla principal del vendedor",
+  etiqueta: "Dashboard",
+  descripcion: "Resumen de tu actividad",
 };
 
 const ENTRADA_DASHBOARD: DestinoNav = {
@@ -39,7 +42,7 @@ const ENTRADA_NUEVA_VENTA: DestinoNav = {
 
 const ENTRADA_VENTAS: DestinoNav = {
   href: "/ventas",
-  etiqueta: "Mis ventas",
+  etiqueta: "Ventas",
   descripcion: "Historial de ventas",
 };
 
@@ -94,35 +97,51 @@ const ENTRADA_PERFIL: DestinoNav = {
 const NAVEGACION_POR_ROL: Record<RolUsuario, Navegacion> = {
   VENDEDOR: {
     tabs: [ENTRADA_INICIO, ENTRADA_NUEVA_VENTA, ENTRADA_VENTAS],
-    mas: [ENTRADA_PERFIL, ENTRADA_AUDITORIA],
+    mas: [ENTRADA_PERFIL],
     lateral: [ENTRADA_INICIO, ENTRADA_NUEVA_VENTA, ENTRADA_VENTAS],
   },
   ADMIN_EMPRESA: {
-    tabs: [ENTRADA_DASHBOARD, ENTRADA_NUEVA_VENTA, ENTRADA_DASHBOARD_VENTAS],
-    mas: [
+    tabs: [
+      ENTRADA_DASHBOARD,
+      ENTRADA_DASHBOARD_VENTAS,
+      ENTRADA_NUEVA_VENTA,
       ENTRADA_EMPLEADOS,
-      ENTRADA_USUARIOS,
       ENTRADA_SEDES,
+    ],
+    mas: [ENTRADA_EMPLEADOS, ENTRADA_SEDES, ENTRADA_PERFIL],
+    lateral: [
+      ENTRADA_DASHBOARD,
+      ENTRADA_DASHBOARD_VENTAS,
+      ENTRADA_NUEVA_VENTA,
+      ENTRADA_EMPLEADOS,
+      ENTRADA_SEDES,
+    ],
+  },
+  SUPERADMIN: {
+    // Sin "Nueva venta": registrar ventas está restringido a VENDEDOR y
+    // ADMIN_EMPRESA (`requireRol` en /ventas/nueva y en las actions).
+    tabs: [
+      ENTRADA_DASHBOARD,
+      ENTRADA_DASHBOARD_VENTAS,
+      ENTRADA_EMPLEADOS,
+      ENTRADA_SEDES,
+    ],
+    mas: [
+      ENTRADA_SEDES,
+      ENTRADA_EMPRESAS,
+      ENTRADA_CONVENIOS,
+      ENTRADA_USUARIOS,
       ENTRADA_AUDITORIA,
       ENTRADA_PERFIL,
     ],
     lateral: [
       ENTRADA_DASHBOARD,
-      ENTRADA_NUEVA_VENTA,
       ENTRADA_DASHBOARD_VENTAS,
       ENTRADA_EMPLEADOS,
-      ENTRADA_USUARIOS,
       ENTRADA_SEDES,
-      ENTRADA_AUDITORIA,
-    ],
-  },
-  SUPERADMIN: {
-    tabs: [ENTRADA_DASHBOARD, ENTRADA_EMPRESAS, ENTRADA_CONVENIOS],
-    mas: [ENTRADA_AUDITORIA, ENTRADA_PERFIL],
-    lateral: [
-      ENTRADA_DASHBOARD,
       ENTRADA_EMPRESAS,
       ENTRADA_CONVENIOS,
+      ENTRADA_USUARIOS,
       ENTRADA_AUDITORIA,
     ],
   },

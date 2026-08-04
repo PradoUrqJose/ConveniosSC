@@ -25,7 +25,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const respuesta = await handleUpload({
       body,
       request,
-      onBeforeGenerateToken: async (pathname, _clientPayload, _multipart) => {
+      onBeforeGenerateToken: async (pathname) => {
         const ctx = await requireSession();
 
         const control = await rateLimit(db, `upload:${ctx.usuarioId}`, {

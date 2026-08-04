@@ -105,6 +105,7 @@ export default async function VentasPage({
       empresas={empresas}
       vendedores={vendedores}
       sedes={sedes}
+      puedeCrear={sesion.rol !== "SUPERADMIN"}
     />
   );
 }

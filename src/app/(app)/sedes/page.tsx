@@ -18,7 +18,7 @@ export default async function SedesPage() {
 
   let sinPermiso = false;
   try {
-    requireRol(sesion, ["ADMIN_EMPRESA"]);
+    requireRol(sesion, ["SUPERADMIN", "ADMIN_EMPRESA"]);
   } catch (error) {
     if (error instanceof ErrorAuth) {
       sinPermiso = true;
@@ -41,5 +41,11 @@ export default async function SedesPage() {
   const sedes = await listarSedes(sesion, {});
   const empresaId = sesion.empresaId ?? "";
 
-  return <SedesClient sedes={sedes} empresaId={empresaId} />;
+  return (
+    <SedesClient
+      sedes={sedes}
+      empresaId={empresaId}
+      puedeGestionar={sesion.rol === "ADMIN_EMPRESA"}
+    />
+  );
 }

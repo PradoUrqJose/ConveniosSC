@@ -1,27 +1,16 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Ellipsis } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
   estaActivo,
   navegacionPorRol,
   type DestinoNav,
-  type Navegacion,
 } from "@/lib/navegacion";
 import type { RolUsuario } from "@/lib/auth/sesion";
 import { IconoDestino } from "@/components/shell/iconos";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 
 function Pestaña({
   destino,
@@ -34,42 +23,45 @@ function Pestaña({
   const activo = estaActivo(pathname, destino.href);
   const mostrarBadge = destino.href === "/empleados" && pendientesEmpleados > 0;
 
+  if (destino.destacado) {
+    return (
+      <Link
+        href={destino.href}
+        prefetch
+        aria-label={destino.etiqueta}
+        aria-current={activo ? "page" : undefined}
+        className="flex min-w-0 flex-1 items-start justify-center"
+      >
+        <span className="from-primary to-primary/85 text-primary-foreground shadow-primary/35 ring-background flex size-[3.1rem] -translate-y-4 items-center justify-center rounded-[1.1rem] bg-linear-to-br shadow-lg ring-4 transition-transform active:scale-95">
+          <IconoDestino destino={destino} className="size-6" />
+        </span>
+      </Link>
+    );
+  }
+
   return (
     <Link
       href={destino.href}
       prefetch
       aria-current={activo ? "page" : undefined}
-      className="relative flex flex-1 flex-col items-center justify-center gap-0.5 pb-[env(safe-area-inset-bottom)] text-[0.7rem]"
+      className={cn(
+        "flex min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.63rem] font-semibold transition-colors",
+        activo ? "text-primary" : "text-muted-foreground",
+      )}
     >
-      <span
-        className={cn(
-          "relative flex h-8 items-center justify-center",
-          activo && "text-primary",
-        )}
-      >
-        {destino.destacado ? (
-          <span className="bg-primary text-primary-foreground flex size-12 -translate-y-3 items-center justify-center rounded-full shadow-lg">
-            <IconoDestino destino={destino} className="size-6" />
-          </span>
-        ) : (
-          <IconoDestino
-            destino={destino}
-            className={cn("size-5", !activo && "text-muted-foreground")}
-          />
-        )}
+      <span className="relative flex h-6 items-center justify-center">
+        <IconoDestino destino={destino} className="size-[1.3rem]" />
         {mostrarBadge ? (
-          <span className="bg-primary text-primary-foreground absolute top-0 right-1/2 translate-x-3 rounded-full px-1 text-[0.6rem] font-semibold">
+          <span className="bg-primary text-primary-foreground absolute -top-1 left-1/2 min-w-4 translate-x-1.5 rounded-full px-1 text-center text-[0.58rem] leading-4 font-bold">
             {pendientesEmpleados}
           </span>
         ) : null}
       </span>
-      <span className={cn(activo && "font-semibold")}>{destino.etiqueta}</span>
+      <span className="w-full truncate px-0.5 text-center">
+        {destino.etiqueta}
+      </span>
     </Link>
   );
-}
-
-function masActivo(nav: Navegacion, pathname: string): boolean {
-  return nav.mas.some((d) => estaActivo(pathname, d.href));
 }
 
 export function TabBarMovil({
@@ -80,62 +72,22 @@ export function TabBarMovil({
   pendientesEmpleados: number;
 }) {
   const nav = navegacionPorRol(rol);
-  const [masAbierto, setMasAbierto] = useState(false);
-  const pathname = usePathname();
 
   return (
     <nav
-      className="border-border bg-background fixed inset-x-0 bottom-0 z-40 flex h-16 items-stretch border-t lg:hidden"
+      aria-label="Navegación principal"
+      className="border-border/70 bg-background/92 fixed inset-x-0 bottom-0 z-40 border-t shadow-[0_-10px_35px_rgba(15,23,42,.08)] backdrop-blur-2xl lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      {nav.tabs.map((destino) => (
-        <Pestaña
-          key={destino.href}
-          destino={destino}
-          pendientesEmpleados={pendientesEmpleados}
-        />
-      ))}
-
-      <Sheet open={masAbierto} onOpenChange={setMasAbierto}>
-        <SheetTrigger
-          aria-label="Más opciones"
-          className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-0.5 text-[0.7rem]",
-            masAbierto || masActivo(nav, pathname)
-              ? "text-foreground"
-              : "text-muted-foreground",
-          )}
-        >
-          <Ellipsis className="size-5" aria-hidden="true" />
-          Más
-        </SheetTrigger>
-        <SheetContent side="bottom">
-          <SheetHeader>
-            <SheetTitle>Más opciones</SheetTitle>
-          </SheetHeader>
-          <div className="grid gap-1 pb-6">
-            {nav.mas.map((destino) => (
-              <SheetClose
-                key={destino.href}
-                render={<Link href={destino.href} prefetch />}
-              >
-                <span className="hover:bg-accent flex items-center gap-3 rounded-md px-2 py-2 text-sm">
-                  <IconoDestino
-                    destino={destino}
-                    className={cn(
-                      "size-4",
-                      estaActivo(pathname, destino.href)
-                        ? "text-primary"
-                        : "text-muted-foreground",
-                    )}
-                  />
-                  <span className="font-medium">{destino.etiqueta}</span>
-                </span>
-              </SheetClose>
-            ))}
-          </div>
-        </SheetContent>
-      </Sheet>
+      <div className="flex h-[3.6rem] items-stretch">
+        {nav.tabs.map((destino) => (
+          <Pestaña
+            key={destino.href}
+            destino={destino}
+            pendientesEmpleados={pendientesEmpleados}
+          />
+        ))}
+      </div>
     </nav>
   );
 }
