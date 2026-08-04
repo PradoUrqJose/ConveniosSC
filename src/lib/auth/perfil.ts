@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { cache } from "react";
 
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
 import { obtenerFilas } from "@/lib/audit/registrar";
@@ -11,7 +12,7 @@ export type PerfilNav = {
 };
 
 /** Datos del usuario que muestra el header del shell (04-UI §0). */
-export async function cargarPerfilNav(
+export const cargarPerfilNav = cache(async function cargarPerfilNav(
   ejecutor: TransaccionAuditada,
   usuarioId: string,
 ): Promise<PerfilNav> {
@@ -37,7 +38,7 @@ export async function cargarPerfilNav(
         ? null
         : String(fila.sede_por_defecto_id),
   };
-}
+});
 
 /** Empleados `PENDIENTE_VERIFICACION` de la empresa; alimenta el badge del menú. */
 export async function contarPendientesVerificacion(

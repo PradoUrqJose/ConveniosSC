@@ -2,7 +2,6 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import { useActionState, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -21,7 +20,6 @@ const ESTADO_INICIAL: EstadoLogin = {
 };
 
 export function LoginForm({ volver }: { volver: string | undefined }) {
-  const router = useRouter();
   const [estado, formAction, pendiente] = useActionState(
     iniciarSesion,
     ESTADO_INICIAL,
@@ -32,13 +30,16 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
     if (!estado.ok) {
       return;
     }
-    if (estado.data.debeCambiarPassword) {
-      router.push("/perfil/password");
-    } else {
-      router.push(volver && volver.startsWith("/") ? volver : "/");
-    }
-    router.refresh();
-  }, [estado, router, volver]);
+    // La action acaba de establecer una cookie httpOnly. Una navegación del
+    // documento completo garantiza que el Proxy la reciba incluso en dev.
+    window.location.assign(
+      estado.data.debeCambiarPassword
+        ? "/perfil/password"
+        : volver && volver.startsWith("/")
+          ? volver
+          : "/",
+    );
+  }, [estado, volver]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 

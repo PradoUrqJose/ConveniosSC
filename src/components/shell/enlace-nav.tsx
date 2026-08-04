@@ -20,6 +20,7 @@ export function EnlaceNav({ destino, className, children }: Props) {
   return (
     <Link
       href={destino.href}
+      prefetch
       aria-current={activo ? "page" : undefined}
       title={destino.descripcion}
       className={cn(

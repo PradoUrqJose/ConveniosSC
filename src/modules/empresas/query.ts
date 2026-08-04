@@ -44,8 +44,7 @@ export async function listarEmpresas(
     ? sql`WHERE ${sql.join(condicion, sql` AND `)}`
     : sql``;
 
-  const filas = obtenerFilas(
-    await db.execute(sql`
+  const filasPromise = db.execute(sql`
       SELECT e.id, e.ruc, e.nombre_comercial, e.razon_social, e.activo,
         e.tope_monto_venta_centimos, e.requiere_evidencia_en_venta,
         e.dias_retroactivos_venta,
@@ -57,17 +56,22 @@ export async function listarEmpresas(
       ${where}
       ORDER BY e.nombre_comercial ASC, e.id ASC
       LIMIT ${POR_PAGINA + 1}
-    `),
-  );
+    `);
+  const conteoPromise = cursor
+    ? null
+    : db.execute(sql`SELECT count(*)::int AS n FROM empresas e ${where}`);
+  const [filasResultado, conteoResultado] = await Promise.all([
+    filasPromise,
+    conteoPromise,
+  ]);
+  const filas = obtenerFilas(filasResultado);
 
   const haySiguiente = filas.length > POR_PAGINA;
   const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
 
   let total: number | undefined;
-  if (!cursor) {
-    const conteo = obtenerFilas(
-      await db.execute(sql`SELECT count(*)::int AS n FROM empresas e ${where}`),
-    )[0];
+  if (conteoResultado) {
+    const conteo = obtenerFilas(conteoResultado)[0];
     total = Number(conteo?.n ?? 0);
   }
 

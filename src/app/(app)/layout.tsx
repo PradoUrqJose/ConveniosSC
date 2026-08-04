@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 
 import { db } from "@/db";
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
@@ -25,6 +26,12 @@ export default async function AppLayout({
       redirect("/login");
     }
     throw error;
+  }
+
+  const pathname = (await headers()).get("x-convenios-pathname");
+
+  if (sesion.debeCambiarPassword && pathname !== "/perfil/password") {
+    redirect("/perfil/password");
   }
 
   if (sesion.debeCambiarPassword) {

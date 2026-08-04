@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { cookies, headers } from "next/headers";
+import { after } from "next/server";
+import { cache } from "react";
 
 import { db } from "@/db";
 
@@ -40,7 +42,7 @@ export class ErrorAuth extends Error {
 export type SesionRequerida = SessionContext & { debeCambiarPassword: boolean };
 
 /** 401 si no hay cookie o la sesión no es válida (02 §3: guarda explícita). */
-export async function requireSession(): Promise<SesionRequerida> {
+export const requireSession = cache(async (): Promise<SesionRequerida> => {
   const store = await cookies();
   const token = store.get(SESSION_COOKIE_NAME)?.value;
   if (!token) {
@@ -52,7 +54,9 @@ export async function requireSession(): Promise<SesionRequerida> {
     throw new ErrorAuth("NO_AUTENTICADO", "La sesión no es válida.");
   }
 
-  await refrescarUltimoUso(db, sesion.sesionId);
+  // No es necesario retrasar la navegación para actualizar un dato auxiliar.
+  // `after` mantiene la actualización, pero la respuesta sale de inmediato.
+  after(() => refrescarUltimoUso(db, sesion.sesionId));
 
   const hdrs = await headers();
   return {
@@ -64,7 +68,7 @@ export async function requireSession(): Promise<SesionRequerida> {
     userAgent: hdrs.get("user-agent") ?? null,
     debeCambiarPassword: sesion.debeCambiarPassword,
   };
-}
+});
 
 /** 403 si el rol del contexto no está entre los permitidos. */
 export function requireRol(ctx: SessionContext, roles: RolUsuario[]): void {

@@ -1,17 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "@/components/ui/sonner";
 import { BannerInstalacion } from "@/components/pwa/banner-instalacion";
+import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
-
-const TEMA_SCRIPT = `
-(function () {
-  try {
-    var guardado = localStorage.getItem('theme');
-    var oscuro = guardado ? guardado === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
-    document.documentElement.classList.toggle('dark', oscuro);
-  } catch (e) {}
-})();
-`;
 
 export const metadata: Metadata = {
   title: "Convenios",
@@ -35,13 +26,12 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es" className="h-full antialiased" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: TEMA_SCRIPT }} />
-      </head>
       <body className="flex min-h-full flex-col">
-        {children}
-        <BannerInstalacion />
-        <Toaster />
+        <ThemeProvider>
+          {children}
+          <BannerInstalacion />
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

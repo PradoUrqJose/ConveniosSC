@@ -1,38 +1,16 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
 import { Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 
-type Tema = "light" | "dark";
-
-const listeners = new Set<() => void>();
-
-function subscribe(callback: () => void) {
-  listeners.add(callback);
-  return () => listeners.delete(callback);
-}
-
-function getSnapshot(): Tema {
-  return document.documentElement.classList.contains("dark") ? "dark" : "light";
-}
-
-function getServerSnapshot(): Tema {
-  return "light";
-}
-
-function fijarTema(siguiente: Tema) {
-  document.documentElement.classList.toggle("dark", siguiente === "dark");
-  window.localStorage.setItem("theme", siguiente);
-  listeners.forEach((listener) => listener());
-}
-
 export function ThemeToggle() {
-  const tema = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const { resolvedTheme, setTheme } = useTheme();
+  const tema = resolvedTheme === "dark" ? "dark" : "light";
 
   function alternar() {
-    fijarTema(tema === "dark" ? "light" : "dark");
+    setTheme(tema === "dark" ? "light" : "dark");
   }
 
   return (

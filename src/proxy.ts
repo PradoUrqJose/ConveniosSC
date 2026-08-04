@@ -1,11 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
- * Proxy de redirección (06-BACKLOG.md T05). Solo redirige a nivel de
- * navegación; la autorización real vive en cada Server Action (`requireSession`
- * / `requireRol`). No aplica a peticiones no-GET ni a `/api`, `/_next`, `/login`
- * ni assets estáticos. Tampoco a `/sw.js` (el service worker se precachea y
- * se sirve sin sesión) ni a `/~offline` (el fallback offline debe cargar sin red).
+ * Proxy de redirección (06-BACKLOG.md T05). La autorización y la validez de la
+ * sesión pertenecen al DAL (`requireSession`); consultar Neon desde el proxy
+ * duplicaba ese trabajo y añadía una vuelta de red a cada navegación. Aquí solo
+ * se descarta la ausencia de cookie y se propaga la ruta al layout.
  */
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (request.method !== "GET") {
@@ -14,28 +13,16 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   const { pathname } = request.nextUrl;
 
-  const { SESSION_COOKIE_NAME } = await import("@/lib/auth/sesion");
-  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  const token = request.cookies.get(
+    process.env.SESSION_COOKIE_NAME ?? "convenios_sesion",
+  )?.value;
   if (!token) {
     return redirigirAlLogin(request);
   }
 
-  const { db } = await import("@/db");
-  const { obtenerSesionValida, refrescarUltimoUso } =
-    await import("@/lib/auth/sesion");
-
-  const sesion = await obtenerSesionValida(db, token);
-  if (!sesion) {
-    return redirigirAlLogin(request);
-  }
-
-  await refrescarUltimoUso(db, sesion.sesionId);
-
-  if (sesion.debeCambiarPassword && pathname !== "/perfil/password") {
-    return NextResponse.redirect(new URL("/perfil/password", request.url));
-  }
-
-  return NextResponse.next();
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-convenios-pathname", pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 function redirigirAlLogin(request: NextRequest): NextResponse {

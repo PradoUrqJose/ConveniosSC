@@ -471,25 +471,6 @@ export async function listarVentas(
     ? sql`WHERE ${sql.join(filtros, sql` AND `)}`
     : sql``;
 
-  const resumenFilas = obtenerFilas(
-    await ejecutor.execute(sql`
-      SELECT count(*)::int AS cantidad,
-        COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS suma_bruto,
-        COALESCE(sum(v.monto_descuento_centimos), 0)::bigint AS suma_descuento,
-        COALESCE(sum(v.monto_final_centimos), 0)::bigint AS suma_final
-      FROM ventas v
-      JOIN empleados e ON e.id = v.empleado_comprador_id
-      ${whereFiltros}
-    `),
-  );
-  const resumenFila = resumenFilas[0];
-  const resumen: ResumenVentas = {
-    cantidad: Number(resumenFila?.cantidad ?? 0),
-    sumaBruto: Number(resumenFila?.suma_bruto ?? 0),
-    sumaDescuento: Number(resumenFila?.suma_descuento ?? 0),
-    sumaFinal: Number(resumenFila?.suma_final ?? 0),
-  };
-
   const cursorDatos = decodificarCursorVenta(entrada.cursor);
   const condicionCursorSql = condicionCursor(orden, cursorDatos);
   const filtrosPagina = condicionCursorSql
@@ -499,15 +480,32 @@ export async function listarVentas(
     ? sql`WHERE ${sql.join(filtrosPagina, sql` AND `)}`
     : sql``;
 
-  const filas = obtenerFilas(
-    await ejecutor.execute(sql`
+  const [resumenResultado, filasResultado] = await Promise.all([
+    ejecutor.execute(sql`
+      SELECT count(*)::int AS cantidad,
+        COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS suma_bruto,
+        COALESCE(sum(v.monto_descuento_centimos), 0)::bigint AS suma_descuento,
+        COALESCE(sum(v.monto_final_centimos), 0)::bigint AS suma_final
+      FROM ventas v
+      JOIN empleados e ON e.id = v.empleado_comprador_id
+      ${whereFiltros}
+    `),
+    ejecutor.execute(sql`
       SELECT ${CAMPOS_VENTA}
       ${JOINS_VENTA}
       ${wherePagina}
       ORDER BY ${fragmentoOrden(orden)}
       LIMIT ${POR_PAGINA_VENTAS + 1}
     `),
-  );
+  ]);
+  const resumenFila = obtenerFilas(resumenResultado)[0];
+  const resumen: ResumenVentas = {
+    cantidad: Number(resumenFila?.cantidad ?? 0),
+    sumaBruto: Number(resumenFila?.suma_bruto ?? 0),
+    sumaDescuento: Number(resumenFila?.suma_descuento ?? 0),
+    sumaFinal: Number(resumenFila?.suma_final ?? 0),
+  };
+  const filas = obtenerFilas(filasResultado);
 
   const haySiguiente = filas.length > POR_PAGINA_VENTAS;
   const pagina = haySiguiente ? filas.slice(0, POR_PAGINA_VENTAS) : filas;

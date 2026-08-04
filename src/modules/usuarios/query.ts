@@ -70,8 +70,7 @@ export async function listarUsuarios(
     ? sql`WHERE ${sql.join(condicion, sql` AND `)}`
     : sql``;
 
-  const filas = obtenerFilas(
-    await db.execute(sql`
+  const filasPromise = db.execute(sql`
       SELECT u.id, u.username, u.nombres, u.apellidos, u.rol, u.empresa_id,
         e.nombre_comercial AS empresa_nombre, u.activo, u.ultimo_acceso_at,
         u.debe_cambiar_password, u.empleado_id, u.sede_por_defecto_id,
@@ -83,17 +82,22 @@ export async function listarUsuarios(
       ${where}
       ORDER BY u.username ASC, u.id ASC
       LIMIT ${POR_PAGINA + 1}
-    `),
-  );
+    `);
+  const conteoPromise = cursor
+    ? null
+    : db.execute(sql`SELECT count(*)::int AS n FROM usuarios u ${where}`);
+  const [filasResultado, conteoResultado] = await Promise.all([
+    filasPromise,
+    conteoPromise,
+  ]);
+  const filas = obtenerFilas(filasResultado);
 
   const haySiguiente = filas.length > POR_PAGINA;
   const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
 
   let total: number | undefined;
-  if (!cursor) {
-    const conteo = obtenerFilas(
-      await db.execute(sql`SELECT count(*)::int AS n FROM usuarios u ${where}`),
-    )[0];
+  if (conteoResultado) {
+    const conteo = obtenerFilas(conteoResultado)[0];
     total = Number(conteo?.n ?? 0);
   }
 

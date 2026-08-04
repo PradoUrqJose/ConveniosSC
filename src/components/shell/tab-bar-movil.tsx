@@ -37,6 +37,7 @@ function Pestaña({
   return (
     <Link
       href={destino.href}
+      prefetch
       aria-current={activo ? "page" : undefined}
       className="relative flex flex-1 flex-col items-center justify-center gap-0.5 pb-[env(safe-area-inset-bottom)] text-[0.7rem]"
     >
@@ -116,7 +117,7 @@ export function TabBarMovil({
             {nav.mas.map((destino) => (
               <SheetClose
                 key={destino.href}
-                render={<Link href={destino.href} />}
+                render={<Link href={destino.href} prefetch />}
               >
                 <span className="hover:bg-accent flex items-center gap-3 rounded-md px-2 py-2 text-sm">
                   <IconoDestino

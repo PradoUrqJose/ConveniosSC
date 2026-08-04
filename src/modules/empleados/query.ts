@@ -307,8 +307,7 @@ export async function listarEmpleados(
     ? sql`WHERE ${sql.join(condicion, sql` AND `)}`
     : sql``;
 
-  const filas = obtenerFilas(
-    await db.execute(sql`
+  const filasPromise = db.execute(sql`
       SELECT em.id, em.dni, em.nombres, em.apellidos, em.telefono, em.estado,
         em.empresa_id, em.created_at,
         emp.nombre_comercial AS empresa_nombre,
@@ -333,19 +332,22 @@ export async function listarEmpleados(
       ${where}
       ORDER BY em.apellidos ASC, em.nombres ASC, em.id ASC
       LIMIT ${POR_PAGINA + 1}
-    `),
-  );
+    `);
+  const conteoPromise = cursor
+    ? null
+    : db.execute(sql`SELECT count(*)::int AS n FROM empleados em ${where}`);
+  const [filasResultado, conteoResultado] = await Promise.all([
+    filasPromise,
+    conteoPromise,
+  ]);
+  const filas = obtenerFilas(filasResultado);
 
   const haySiguiente = filas.length > POR_PAGINA;
   const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
 
   let total: number | undefined;
-  if (!cursor) {
-    const conteo = obtenerFilas(
-      await db.execute(
-        sql`SELECT count(*)::int AS n FROM empleados em ${where}`,
-      ),
-    )[0];
+  if (conteoResultado) {
+    const conteo = obtenerFilas(conteoResultado)[0];
     total = Number(conteo?.n ?? 0);
   }
 
