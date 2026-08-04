@@ -20,6 +20,9 @@
 # production
 /build
 
+# subida local de desarrollo (fallback sin Vercel Blob, ver T11.6)
+/public/uploads
+
 # misc
 .DS_Store
 *.pem
