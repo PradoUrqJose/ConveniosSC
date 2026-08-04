@@ -1,5 +1,110 @@
-import { PaginaEnConstruccion } from "@/components/shell/pagina-en-construccion";
+import { redirect } from "next/navigation";
 
-export default function VentasPage() {
-  return <PaginaEnConstruccion titulo="Mis ventas" />;
+import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
+import { parsearSoles } from "@/lib/dinero";
+import { listarEmpresasParaEmpleado } from "@/modules/empleados/query";
+import {
+  listarVendedoresPropios,
+  listarVentas,
+  sedesParaVenta,
+  type DireccionVentas,
+  type EstadoVenta,
+  type FiltrosVentas,
+  type OrdenVentas,
+} from "@/modules/ventas/query";
+import { VentasClient } from "./ventas-client";
+
+export type SearchParamsVentas = {
+  q?: string;
+  desde?: string;
+  hasta?: string;
+  empresa?: string;
+  estado?: string;
+  vendedor?: string;
+  sede?: string;
+  montoMin?: string;
+  montoMax?: string;
+  revision?: string;
+  dir?: string;
+  orden?: string;
+  cursor?: string;
+};
+
+const ORDENES: OrdenVentas[] = [
+  "fecha_desc",
+  "fecha_asc",
+  "monto_desc",
+  "monto_asc",
+];
+
+function centimosDe(texto: string | undefined): number | undefined {
+  if (!texto) return undefined;
+  try {
+    return parsearSoles(texto);
+  } catch {
+    return undefined;
+  }
+}
+
+export default async function VentasPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParamsVentas>;
+}) {
+  let sesion;
+  try {
+    sesion = await requireSession();
+  } catch (error) {
+    if (error instanceof ErrorAuth) {
+      redirect("/login");
+    }
+    throw error;
+  }
+
+  const sp = await searchParams;
+  const esAdmin = sesion.rol === "ADMIN_EMPRESA";
+
+  const estado: EstadoVenta | "TODAS" =
+    sp.estado === "REGISTRADA" || sp.estado === "ANULADA" ? sp.estado : "TODAS";
+  const direccion: DireccionVentas =
+    sp.dir === "compradas" ? "compradas" : "vendidas";
+  const orden: OrdenVentas = ORDENES.includes(sp.orden as OrdenVentas)
+    ? (sp.orden as OrdenVentas)
+    : "fecha_desc";
+
+  const filtros: FiltrosVentas = {
+    desde: sp.desde || undefined,
+    hasta: sp.hasta || undefined,
+    empresaId: sp.empresa || undefined,
+    estado,
+    q: sp.q || undefined,
+    vendedorId: esAdmin ? sp.vendedor || undefined : undefined,
+    sedeId: esAdmin ? sp.sede || undefined : undefined,
+    montoMinCentimos: centimosDe(sp.montoMin),
+    montoMaxCentimos: centimosDe(sp.montoMax),
+    soloRevision: esAdmin ? sp.revision === "1" : undefined,
+    direccion,
+    orden,
+    cursor: sp.cursor || undefined,
+  };
+
+  const [pagina, empresasTodas, vendedores, sedes] = await Promise.all([
+    listarVentas(sesion, filtros),
+    listarEmpresasParaEmpleado(sesion),
+    esAdmin ? listarVendedoresPropios(sesion) : Promise.resolve([]),
+    esAdmin ? sedesParaVenta(sesion) : Promise.resolve([]),
+  ]);
+
+  const empresas = empresasTodas.filter((e) => e.id !== sesion.empresaId);
+
+  return (
+    <VentasClient
+      pagina={pagina}
+      sp={sp}
+      esAdmin={esAdmin}
+      empresas={empresas}
+      vendedores={vendedores}
+      sedes={sedes}
+    />
+  );
 }

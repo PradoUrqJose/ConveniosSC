@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -55,11 +55,25 @@ export function FormEmpleado({
   empresas,
   miEmpresaId,
   onCerrar,
+  dniInicial,
+  empresaBloqueada,
+  onExito,
 }: {
   empleado?: FilaEmpleado | null;
   empresas: EmpresaOpcion[];
   miEmpresaId: string | null;
   onCerrar: () => void;
+  /** DNI ya buscado desde el formulario de venta: bloqueado, no editable. */
+  dniInicial?: string;
+  /** Empresa fijada desde el formulario de venta (la del convenio elegido). */
+  empresaBloqueada?: { id: string; nombre: string };
+  /** Si se pasa, se llama al crear con éxito en vez de solo cerrar el modal. */
+  onExito?: (resultado: {
+    empleadoId: string;
+    estado: string;
+    nombres: string;
+    apellidos: string;
+  }) => void;
 }) {
   const esCrear = !empleado;
   const router = useRouter();
@@ -68,10 +82,18 @@ export function FormEmpleado({
       empleado?.estado === "RECHAZADO",
   );
   const [activo, setActivo] = useState(true);
+  const ultimosDatosRef = useRef<{ nombres: string; apellidos: string }>({
+    nombres: "",
+    apellidos: "",
+  });
 
   const [estado, formAction, pendiente] = useActionState(
     async (estadoAnterior: Estado, formData: FormData): Promise<Estado> => {
       if (esCrear) {
+        ultimosDatosRef.current = {
+          nombres: String(formData.get("nombres") ?? ""),
+          apellidos: String(formData.get("apellidos") ?? ""),
+        };
         return crearEmpleado(INICIO_ACCION, formData);
       }
       const res = await actualizarEmpleado(INICIO_ACCION, formData);
@@ -95,6 +117,14 @@ export function FormEmpleado({
     }
     toast.success(esCrear ? "Empleado creado" : "Empleado actualizado");
     router.refresh();
+    if (esCrear && onExito && estado.data.empleadoId && estado.data.estado) {
+      onExito({
+        empleadoId: estado.data.empleadoId,
+        estado: estado.data.estado,
+        nombres: ultimosDatosRef.current.nombres,
+        apellidos: ultimosDatosRef.current.apellidos,
+      });
+    }
     onCerrar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado, router]);
@@ -122,7 +152,21 @@ export function FormEmpleado({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="empresa">Empresa</Label>
-          {esCrear ? (
+          {empresaBloqueada ? (
+            <>
+              <Input
+                id="empresa"
+                value={empresaBloqueada.nombre}
+                disabled
+                readOnly
+              />
+              <input
+                type="hidden"
+                name="empresaId"
+                value={empresaBloqueada.id}
+              />
+            </>
+          ) : esCrear ? (
             <Select
               name="empresaId"
               defaultValue={miEmpresaId ?? undefined}
@@ -152,16 +196,26 @@ export function FormEmpleado({
         <div className="flex flex-col gap-2">
           <Label htmlFor="dni">DNI</Label>
           {esCrear ? (
-            <Input
-              id="dni"
-              name="dni"
-              required
-              inputMode="numeric"
-              autoComplete="off"
-              disabled={pendiente}
-              maxLength={8}
-              placeholder="8 dígitos"
-            />
+            dniInicial ? (
+              <Input
+                id="dni"
+                name="dni"
+                value={dniInicial}
+                readOnly
+                className="bg-muted"
+              />
+            ) : (
+              <Input
+                id="dni"
+                name="dni"
+                required
+                inputMode="numeric"
+                autoComplete="off"
+                disabled={pendiente}
+                maxLength={8}
+                placeholder="8 dígitos"
+              />
+            )
           ) : (
             <Input id="dni" value={empleado!.dni} disabled readOnly />
           )}

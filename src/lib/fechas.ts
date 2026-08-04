@@ -20,6 +20,11 @@ export function hoyLima(): string {
   return formatInTimeZone(new Date(), ZONA, FORMATO_ISO);
 }
 
+/** `TIMESTAMPTZ` (Date o ISO string) → `YYYY-MM-DD` en Lima. Para comparar contra `fecha_venta`. */
+export function fechaLimaDe(marca: Date | string): string {
+  return formatInTimeZone(marca, ZONA, FORMATO_ISO);
+}
+
 const FECHA_ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Valida que el string sea `YYYY-MM-DD` y represente una fecha calendario real. */

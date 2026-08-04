@@ -20,6 +20,10 @@ import {
   type DatosActualizarEmpleado,
   type DatosCrearEmpleado,
 } from "./acciones";
+import {
+  buscarPorDni as buscarPorDniQuery,
+  type ResultadoBusquedaDni,
+} from "./query";
 
 const zFotoDni = z.object({
   fotoDniBlobPath: z.string().min(1),
@@ -183,6 +187,21 @@ function extensionDe(mime: string): string {
     default:
       return "jpg";
   }
+}
+
+/**
+ * Envoltura `"use server"` de `query.ts::buscarPorDni` (03 §6): el
+ * formulario de venta la llama directo (sin `FormData`) en cada búsqueda de
+ * DNI, con su propio debounce en el cliente.
+ */
+export async function buscarPorDni(
+  dni: string,
+): Promise<Resultado<ResultadoBusquedaDni>> {
+  return capturarErrores(async () => {
+    const ctx = await requireSession();
+    requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"]);
+    return buscarPorDniQuery(ctx, { dni });
+  });
 }
 
 export async function crearEmpleado(

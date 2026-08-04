@@ -10,7 +10,7 @@ import { subirArchivoLocal } from "@/modules/empleados/actions";
 import type { Resultado } from "@/lib/tipos";
 import type { MimePermitido } from "@/lib/archivos";
 
-type DatosSubida = {
+export type DatosSubida = {
   blobPath: string;
   sha256: string;
   mime: string;
@@ -27,7 +27,7 @@ const ESTADO_VACIO: EstadoVacio = {
 
 const MIME_IMAGEN: MimePermitido[] = ["image/jpeg", "image/png", "image/webp"];
 
-type TipoArchivo = "dni" | "documento" | "evidencia";
+export type TipoArchivo = "dni" | "documento" | "evidencia";
 
 const CONVENCION: Record<TipoArchivo, (ext: string) => string> = {
   dni: (ext) =>
@@ -35,27 +35,16 @@ const CONVENCION: Record<TipoArchivo, (ext: string) => string> = {
   documento: (ext) =>
     `ventas/${crypto.randomUUID()}/documento/${crypto.randomUUID()}.${ext}`,
   evidencia: (ext) =>
-    `ventas/${crypto.randomUUID()}/evidencia/1-${crypto.randomUUID()}.${ext}`,
+    `ventas/${crypto.randomUUID()}/evidencia/${crypto.randomUUID()}.${ext}`,
 };
 
 /**
- * `<CampoArchivo>` (05 §5): selección de foto (cámara/archivo), compresión
- * en cliente (02 §8: máx 1600 px y 1 MB), sha256 con Web Crypto, subida
- * directa a Vercel Blob vía `POST /api/blob/upload`, progreso, miniatura y
- * eliminación. Los datos quedan en hidden inputs con prefijo configurable.
+ * Lógica compartida de selección, compresión, hash y subida a Blob (02 §8).
+ * La usan tanto `<CampoArchivo>` (un solo archivo: DNI, documento de venta)
+ * como `<CampoEvidencias>` (0..5 archivos), para no duplicar el flujo de
+ * compresión/sha256/subida con fallback local de desarrollo.
  */
-export function CampoArchivo({
-  prefijo = "archivo",
-  etiqueta = "Archivo",
-  tipo,
-  onEliminar,
-}: {
-  prefijo?: string;
-  etiqueta?: string;
-  tipo: TipoArchivo;
-  onEliminar?: () => void;
-}) {
-  const inputRef = useRef<HTMLInputElement>(null);
+export function useSubidaArchivo(tipo: TipoArchivo) {
   const [subiendo, setSubiendo] = useState(false);
   const [progreso, setProgreso] = useState(0);
   const [datos, setDatos] = useState<DatosSubida | null>(null);
@@ -105,16 +94,16 @@ export function CampoArchivo({
         sizeBytes = res.data.sizeBytes;
         void e;
       }
-      setDatos({ blobPath, sha256, mime, sizeBytes });
-      if (inputRef.current) {
-        inputRef.current.value = "";
-      }
+      const resultado = { blobPath, sha256, mime, sizeBytes };
+      setDatos(resultado);
+      return resultado;
     } catch (e) {
       setError(
         e instanceof Error
           ? e.message
           : "No se pudo subir el archivo. Inténtalo de nuevo.",
       );
+      return null;
     } finally {
       setSubiendo(false);
     }
@@ -126,7 +115,53 @@ export function CampoArchivo({
     }
     setPreview(null);
     setDatos(null);
+    setError(null);
+  };
+
+  return { subiendo, progreso, datos, preview, error, procesar, eliminar };
+}
+
+/**
+ * `<CampoArchivo>` (05 §5): selección de foto (cámara/archivo), compresión
+ * en cliente (02 §8: máx 1600 px y 1 MB), sha256 con Web Crypto, subida
+ * directa a Vercel Blob vía `POST /api/blob/upload`, progreso, miniatura y
+ * eliminación. Los datos quedan en hidden inputs con prefijo configurable.
+ */
+export function CampoArchivo({
+  prefijo = "archivo",
+  etiqueta = "Archivo",
+  tipo,
+  onEliminar,
+  onCambio,
+}: {
+  prefijo?: string;
+  etiqueta?: string;
+  tipo: TipoArchivo;
+  onEliminar?: () => void;
+  /** Notifica al padre cuando la subida termina (o se elimina el archivo). */
+  onCambio?: (datos: DatosSubida | null) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { subiendo, progreso, datos, preview, error, procesar, eliminar } =
+    useSubidaArchivo(tipo);
+
+  const alEliminar = () => {
+    eliminar();
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
     onEliminar?.();
+    onCambio?.(null);
+  };
+
+  const alProcesar = async (file: File) => {
+    const resultado = await procesar(file);
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+    if (resultado) {
+      onCambio?.(resultado);
+    }
   };
 
   const esImagen =
@@ -167,7 +202,7 @@ export function CampoArchivo({
             variant="ghost"
             size="icon"
             aria-label="Eliminar archivo"
-            onClick={eliminar}
+            onClick={alEliminar}
             disabled={subiendo}
           >
             <Trash2 className="size-4" />
@@ -195,7 +230,7 @@ export function CampoArchivo({
               camara.capture = "environment";
               camara.onchange = () => {
                 const f = camara.files?.[0];
-                if (f) void procesar(f);
+                if (f) void alProcesar(f);
               };
               camara.click();
             }}
@@ -213,7 +248,7 @@ export function CampoArchivo({
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];
-          if (f) void procesar(f);
+          if (f) void alProcesar(f);
         }}
       />
 
@@ -243,7 +278,7 @@ export function CampoArchivo({
   );
 }
 
-async function comprimir(
+export async function comprimir(
   file: File,
   onProgress: (n: number) => void,
 ): Promise<File> {
@@ -260,7 +295,7 @@ async function comprimir(
   });
 }
 
-async function sha256Hex(file: File): Promise<string> {
+export async function sha256Hex(file: File): Promise<string> {
   const buffer = await file.arrayBuffer();
   const digest = await crypto.subtle.digest("SHA-256", buffer);
   return Array.from(new Uint8Array(digest))
@@ -268,7 +303,7 @@ async function sha256Hex(file: File): Promise<string> {
     .join("");
 }
 
-function extensionDe(mime: string): string {
+export function extensionDe(mime: string): string {
   switch (mime) {
     case "image/png":
       return "png";

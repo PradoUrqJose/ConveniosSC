@@ -7,6 +7,7 @@ export type PerfilNav = {
   nombres: string;
   apellidos: string;
   empresaNombre: string | null;
+  sedePorDefectoId: string | null;
 };
 
 /** Datos del usuario que muestra el header del shell (04-UI §0). */
@@ -16,7 +17,7 @@ export async function cargarPerfilNav(
 ): Promise<PerfilNav> {
   const filas = obtenerFilas(
     await ejecutor.execute(sql`
-      SELECT u.nombres, u.apellidos, e.nombre_comercial
+      SELECT u.nombres, u.apellidos, u.sede_por_defecto_id, e.nombre_comercial
       FROM usuarios u
       LEFT JOIN empresas e ON e.id = u.empresa_id
       WHERE u.id = ${usuarioId}
@@ -30,6 +31,11 @@ export async function cargarPerfilNav(
       fila?.nombre_comercial === null || fila?.nombre_comercial === undefined
         ? null
         : String(fila.nombre_comercial),
+    sedePorDefectoId:
+      fila?.sede_por_defecto_id === null ||
+      fila?.sede_por_defecto_id === undefined
+        ? null
+        : String(fila.sede_por_defecto_id),
   };
 }
 
