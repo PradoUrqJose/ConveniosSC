@@ -6,6 +6,7 @@ import { listarEmpresasParaEmpleado } from "@/modules/empleados/query";
 import {
   listarVendedoresPropios,
   listarVentas,
+  POR_PAGINA_VENTAS,
   sedesParaVenta,
   type DireccionVentas,
   type EstadoVenta,
@@ -28,6 +29,10 @@ export type SearchParamsVentas = {
   dir?: string;
   orden?: string;
   cursor?: string;
+  // Pila de cursores de las páginas ya visitadas (separados por coma; la
+  // primera página se representa con un elemento vacío). Permite volver
+  // atrás en una paginación por cursor, que por diseño solo avanza.
+  antes?: string;
 };
 
 const ORDENES: OrdenVentas[] = [
@@ -106,6 +111,7 @@ export default async function VentasPage({
       vendedores={vendedores}
       sedes={sedes}
       puedeCrear={sesion.rol !== "SUPERADMIN"}
+      porPagina={POR_PAGINA_VENTAS}
     />
   );
 }

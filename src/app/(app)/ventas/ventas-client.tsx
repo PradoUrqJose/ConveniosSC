@@ -1,11 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   BadgePercent,
+  ChevronLeft,
+  ChevronRight,
   Filter,
+  Loader2,
   Plus,
   Receipt,
   Search,
@@ -53,6 +62,7 @@ import type {
   VendedorOpcion,
 } from "@/modules/ventas/query";
 import type { SearchParamsVentas } from "./page";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CabeceraPagina,
   EstadoVacio,
@@ -78,6 +88,11 @@ const CAMPOS_FILTRO_CHIP = [
   "revision",
 ] as const;
 
+// Marca, dentro de `antes`, la posición de la primera página (que no tiene
+// cursor propio). No puede ser "" porque `urlDe` trata los valores vacíos
+// como "eliminar este parámetro" y `antes` perdería esa entrada.
+const CENTINELA_PRIMERA_PAGINA = "-";
+
 function esFiltroActivo(campo: string, sp: SearchParamsVentas): boolean {
   const valor = sp[campo as keyof SearchParamsVentas];
   if (!valor) return false;
@@ -93,6 +108,7 @@ export function VentasClient({
   vendedores,
   sedes,
   puedeCrear,
+  porPagina,
 }: {
   pagina: Pagina<FilaVenta> & { resumen: ResumenVentas };
   sp: SearchParamsVentas;
@@ -101,6 +117,7 @@ export function VentasClient({
   vendedores: VendedorOpcion[];
   sedes: SedeOpcion[];
   puedeCrear: boolean;
+  porPagina: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -108,16 +125,27 @@ export function VentasClient({
   const [texto, setTexto] = useState(sp.q ?? "");
   const [popoverAbierto, setPopoverAbierto] = useState(false);
   const [sheetAbierto, setSheetAbierto] = useState(false);
+  const [pendiente, startTransition] = useTransition();
 
   const direccion = sp.dir === "compradas" ? "compradas" : "vendidas";
   const orden = sp.orden ?? "fecha_desc";
   const hoy = hoyLima();
   const ayer = sumarDias(hoy, -1);
 
+  // Navega dentro de una transición para no descartar la tabla actual: React
+  // mantiene el contenido visible (isPending=true) en vez de mostrar el
+  // fallback de loading.tsx, y nosotros dibujamos nuestro propio skeleton.
+  const irA = (url: string) => {
+    startTransition(() => {
+      router.push(url);
+    });
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("cursor");
+      params.delete("antes");
       if (texto) {
         params.set("q", texto);
       } else {
@@ -125,7 +153,7 @@ export function VentasClient({
       }
       const target = `${pathname}?${params.toString()}`;
       if (target !== `${pathname}?${searchParams.toString()}`) {
-        router.replace(target);
+        startTransition(() => router.replace(target));
       }
     }, 300);
     return () => clearTimeout(timer);
@@ -134,7 +162,10 @@ export function VentasClient({
 
   const urlDe = (cambios: Record<string, string | null>) => {
     const params = new URLSearchParams(searchParams.toString());
+    // Cualquier cambio ajeno a la paginación reinicia la página: descarta el
+    // cursor actual y la pila de páginas visitadas (ver `antes` más abajo).
     params.delete("cursor");
+    params.delete("antes");
     for (const [clave, valor] of Object.entries(cambios)) {
       if (valor === null || valor === "") {
         params.delete(clave);
@@ -146,13 +177,46 @@ export function VentasClient({
   };
 
   const aplicarFiltros = (cambios: Record<string, string>) => {
-    router.push(urlDe(cambios));
+    irA(urlDe(cambios));
   };
 
   const filtrosActivos = CAMPOS_FILTRO_CHIP.filter((campo) =>
     esFiltroActivo(campo, sp),
   );
-  const conCursor = urlDe({ cursor: pagina.cursor });
+
+  // --- Paginación por cursor con historial ------------------------------
+  // `listarVentas` usa keyset pagination (WHERE (fecha, id) > cursor): es
+  // eficiente y estable ante inserciones, pero solo sabe avanzar. Para
+  // permitir "anterior" guardamos en la URL (`antes`) la pila de cursores
+  // usados para llegar a cada página anterior; "primera página" se
+  // representa como cadena vacía. Ir atrás = desapilar y reusar ese cursor.
+  const historial = sp.antes ? sp.antes.split(",") : [];
+  const paginaActual = historial.length + 1;
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil(pagina.resumen.cantidad / porPagina),
+  );
+
+  const urlSiguiente = pagina.cursor
+    ? urlDe({
+        cursor: pagina.cursor,
+        antes: [...historial, sp.cursor ?? CENTINELA_PRIMERA_PAGINA].join(","),
+      })
+    : null;
+
+  const urlAnterior =
+    historial.length > 0
+      ? (() => {
+          const cursorPrevio = historial[historial.length - 1];
+          return urlDe({
+            cursor:
+              !cursorPrevio || cursorPrevio === CENTINELA_PRIMERA_PAGINA
+                ? null
+                : cursorPrevio,
+            antes: historial.slice(0, -1).join(",") || null,
+          });
+        })()
+      : null;
 
   return (
     <section className="page-shell">
@@ -186,9 +250,12 @@ export function VentasClient({
               { id: "compradas", label: "Compraron mis empleados" },
             ] as const
           ).map((t) => (
-            <Link
+            <button
               key={t.id}
-              href={urlDe({ dir: t.id === "vendidas" ? null : t.id })}
+              type="button"
+              onClick={() =>
+                irA(urlDe({ dir: t.id === "vendidas" ? null : t.id }))
+              }
               className={`rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition ${
                 direccion === t.id
                   ? "bg-card text-foreground shadow-sm"
@@ -196,7 +263,7 @@ export function VentasClient({
               }`}
             >
               {t.label}
-            </Link>
+            </button>
           ))}
         </div>
       ) : null}
@@ -365,6 +432,19 @@ export function VentasClient({
               orden={orden}
               hoy={hoy}
               ayer={ayer}
+              pendiente={pendiente}
+            />
+            <Paginador
+              paginaActual={paginaActual}
+              totalPaginas={totalPaginas}
+              porPagina={porPagina}
+              cantidad={pagina.items.length}
+              total={pagina.resumen.cantidad}
+              urlAnterior={urlAnterior}
+              urlSiguiente={urlSiguiente}
+              pendiente={pendiente}
+              onNavegar={irA}
+              className="surface-panel px-2"
             />
           </div>
 
@@ -375,18 +455,24 @@ export function VentasClient({
               esAdmin={esAdmin}
               direccion={direccion}
               urlDe={urlDe}
+              onNavegar={irA}
               orden={orden}
+              pendiente={pendiente}
+              paginador={
+                <Paginador
+                  paginaActual={paginaActual}
+                  totalPaginas={totalPaginas}
+                  porPagina={porPagina}
+                  cantidad={pagina.items.length}
+                  total={pagina.resumen.cantidad}
+                  urlAnterior={urlAnterior}
+                  urlSiguiente={urlSiguiente}
+                  pendiente={pendiente}
+                  onNavegar={irA}
+                />
+              }
             />
           </div>
-
-          {pagina.cursor ? (
-            <Link
-              href={conCursor}
-              className="mx-auto rounded-full border px-4 py-2 text-sm font-medium"
-            >
-              Cargar más
-            </Link>
-          ) : null}
         </>
       )}
     </section>
@@ -623,6 +709,7 @@ function ListaMovil({
   orden,
   hoy,
   ayer,
+  pendiente,
 }: {
   items: FilaVenta[];
   esAdmin: boolean;
@@ -630,6 +717,7 @@ function ListaMovil({
   orden: string;
   hoy: string;
   ayer: string;
+  pendiente: boolean;
 }) {
   const agrupaPorDia = orden.startsWith("fecha");
 
@@ -655,25 +743,34 @@ function ListaMovil({
   }, [items, agrupaPorDia, hoy, ayer]);
 
   return (
-    <>
-      {grupos.map((grupo, i) => (
-        <div key={grupo.etiqueta ?? i} className="flex flex-col gap-3">
-          {grupo.etiqueta ? (
-            <h2 className="text-muted-foreground pt-1 text-xs font-semibold tracking-wide uppercase">
-              {grupo.etiqueta}
-            </h2>
-          ) : null}
-          {grupo.items.map((v) => (
-            <TarjetaVenta
-              key={v.id}
-              venta={v}
-              esAdmin={esAdmin}
-              direccion={direccion}
-            />
-          ))}
+    <div className="relative">
+      <div
+        className={`flex flex-col gap-3 transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
+      >
+        {grupos.map((grupo, i) => (
+          <div key={grupo.etiqueta ?? i} className="flex flex-col gap-3">
+            {grupo.etiqueta ? (
+              <h2 className="text-muted-foreground pt-1 text-xs font-semibold tracking-wide uppercase">
+                {grupo.etiqueta}
+              </h2>
+            ) : null}
+            {grupo.items.map((v) => (
+              <TarjetaVenta
+                key={v.id}
+                venta={v}
+                esAdmin={esAdmin}
+                direccion={direccion}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+      {pendiente ? (
+        <div className="bg-background/70 animate-in fade-in-0 absolute inset-0 duration-150">
+          <EsqueletoTarjetas cantidad={items.length || 4} />
         </div>
-      ))}
-    </>
+      ) : null}
+    </div>
   );
 }
 
@@ -691,7 +788,7 @@ function TarjetaVenta({
   return (
     <Link
       href={`/ventas/${venta.id}`}
-      className={`bg-card/90 ring-foreground/7 hover:bg-card flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition hover:-translate-y-0.5 hover:shadow-lg ${
+      className={`bg-card/90 ring-foreground/7 hover:bg-card animate-in fade-in-0 flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg ${
         venta.requiereRevision && !anulada ? "ring-warning/35 bg-warning/5" : ""
       }`}
     >
@@ -739,112 +836,245 @@ function TablaVentas({
   esAdmin,
   direccion,
   urlDe,
+  onNavegar,
   orden,
+  pendiente,
+  paginador,
 }: {
   items: FilaVenta[];
   esAdmin: boolean;
   direccion: string;
   urlDe: (cambios: Record<string, string | null>) => string;
+  onNavegar: (url: string) => void;
   orden: string;
+  pendiente: boolean;
+  paginador: ReactNode;
 }) {
   const router = useRouter();
+  const columnas = esAdmin ? 9 : 8;
   return (
     <div className="surface-panel">
-      <Table>
-        <TableHeader className="bg-muted/45">
-          <TableRow>
-            <TableHead>
-              <EncabezadoOrdenable
-                label="Fecha"
-                campoAsc="fecha_asc"
-                campoDesc="fecha_desc"
-                orden={orden}
-                urlDe={urlDe}
-              />
-            </TableHead>
-            <TableHead>Empleado</TableHead>
-            <TableHead>Empresa</TableHead>
-            <TableHead>Sede</TableHead>
-            {esAdmin ? <TableHead>Vendedor</TableHead> : null}
-            <TableHead className="text-right">
-              <EncabezadoOrdenable
-                label="Monto"
-                campoAsc="monto_asc"
-                campoDesc="monto_desc"
-                orden={orden}
-                urlDe={urlDe}
-                alinearDerecha
-              />
-            </TableHead>
-            <TableHead className="text-right">Descuento</TableHead>
-            <TableHead className="text-right">Total</TableHead>
-            <TableHead>Estado</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((v) => {
-            const anulada = v.estado === "ANULADA";
-            const contraparte = empresaContraparte(v, direccion);
-            return (
-              <TableRow
-                key={v.id}
-                className={`cursor-pointer ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
-                onClick={() => router.push(`/ventas/${v.id}`)}
-              >
-                <TableCell>
-                  <div>{formatearFechaUI(v.fechaVenta)}</div>
-                  <div className="text-muted-foreground text-xs">
-                    {formatearHoraLima(v.createdAt)}
-                  </div>
-                </TableCell>
-                <TableCell
-                  className={
-                    anulada ? "text-muted-foreground line-through" : ""
-                  }
+      <div className="relative">
+        <Table>
+          <TableHeader className="bg-muted/45">
+            <TableRow>
+              <TableHead>
+                <EncabezadoOrdenable
+                  label="Fecha"
+                  campoAsc="fecha_asc"
+                  campoDesc="fecha_desc"
+                  orden={orden}
+                  urlDe={urlDe}
+                  onNavegar={onNavegar}
+                />
+              </TableHead>
+              <TableHead>Empleado</TableHead>
+              <TableHead>Empresa</TableHead>
+              <TableHead>Sede</TableHead>
+              {esAdmin ? <TableHead>Vendedor</TableHead> : null}
+              <TableHead className="text-right">
+                <EncabezadoOrdenable
+                  label="Monto"
+                  campoAsc="monto_asc"
+                  campoDesc="monto_desc"
+                  orden={orden}
+                  urlDe={urlDe}
+                  onNavegar={onNavegar}
+                  alinearDerecha
+                />
+              </TableHead>
+              <TableHead className="text-right">Descuento</TableHead>
+              <TableHead className="text-right">Total</TableHead>
+              <TableHead>Estado</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody
+            className={`transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
+          >
+            {items.map((v) => {
+              const anulada = v.estado === "ANULADA";
+              const contraparte = empresaContraparte(v, direccion);
+              return (
+                <TableRow
+                  key={v.id}
+                  className={`animate-in fade-in-0 cursor-pointer duration-300 ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
+                  onClick={() => router.push(`/ventas/${v.id}`)}
                 >
-                  <div>
-                    {v.empleado.nombres.toUpperCase()}{" "}
-                    {v.empleado.apellidos.toUpperCase()}
-                  </div>
-                  <div className="text-muted-foreground text-xs">
-                    {v.empleado.dni}
-                  </div>
-                </TableCell>
-                <TableCell>{contraparte.nombre}</TableCell>
-                <TableCell>{v.sede.nombre}</TableCell>
-                {esAdmin ? (
                   <TableCell>
-                    {v.vendedor.nombres} {v.vendedor.apellidos}
+                    <div>{formatearFechaUI(v.fechaVenta)}</div>
+                    <div className="text-muted-foreground text-xs">
+                      {formatearHoraLima(v.createdAt)}
+                    </div>
                   </TableCell>
-                ) : null}
-                <TableCell
-                  className={`text-right ${anulada ? "text-muted-foreground line-through" : ""}`}
-                >
-                  {formatearSoles(v.montoBrutoCentimos)}
-                </TableCell>
-                <TableCell className="text-muted-foreground text-right">
-                  −{formatearSoles(v.montoDescuentoCentimos)}
-                </TableCell>
-                <TableCell className="text-right font-medium">
-                  {formatearSoles(v.montoFinalCentimos)}
-                </TableCell>
-                <TableCell>
-                  {anulada ? (
-                    <Badge variant="destructive">Anulada</Badge>
-                  ) : v.requiereRevision ? (
-                    <Badge className="bg-warning/10 text-warning border-warning/20 border">
-                      Revisión
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline">Registrada</Badge>
-                  )}
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                  <TableCell
+                    className={
+                      anulada ? "text-muted-foreground line-through" : ""
+                    }
+                  >
+                    <div>
+                      {v.empleado.nombres.toUpperCase()}{" "}
+                      {v.empleado.apellidos.toUpperCase()}
+                    </div>
+                    <div className="text-muted-foreground text-xs">
+                      {v.empleado.dni}
+                    </div>
+                  </TableCell>
+                  <TableCell>{contraparte.nombre}</TableCell>
+                  <TableCell>{v.sede.nombre}</TableCell>
+                  {esAdmin ? (
+                    <TableCell>
+                      {v.vendedor.nombres} {v.vendedor.apellidos}
+                    </TableCell>
+                  ) : null}
+                  <TableCell
+                    className={`text-right ${anulada ? "text-muted-foreground line-through" : ""}`}
+                  >
+                    {formatearSoles(v.montoBrutoCentimos)}
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-right">
+                    −{formatearSoles(v.montoDescuentoCentimos)}
+                  </TableCell>
+                  <TableCell className="text-right font-medium">
+                    {formatearSoles(v.montoFinalCentimos)}
+                  </TableCell>
+                  <TableCell>
+                    {anulada ? (
+                      <Badge variant="destructive">Anulada</Badge>
+                    ) : v.requiereRevision ? (
+                      <Badge className="bg-warning/10 text-warning border-warning/20 border">
+                        Revisión
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline">Registrada</Badge>
+                    )}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {pendiente ? (
+          <div className="bg-background/70 animate-in fade-in-0 absolute inset-0 top-11 duration-150">
+            <FilasEsqueleto columnas={columnas} filas={items.length || 6} />
+          </div>
+        ) : null}
+      </div>
+
+      {paginador}
     </div>
+  );
+}
+
+function FilasEsqueleto({
+  columnas,
+  filas,
+}: {
+  columnas: number;
+  filas: number;
+}) {
+  return (
+    <div className="divide-y">
+      {Array.from({ length: filas }, (_, fila) => (
+        <div key={fila} className="flex items-center gap-6 px-4 py-4">
+          {Array.from({ length: columnas }, (_, col) => (
+            <Skeleton
+              key={col}
+              className={`h-4 ${col === 0 ? "w-24" : col === columnas - 1 ? "ml-auto w-16" : "flex-1"}`}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EsqueletoTarjetas({ cantidad }: { cantidad: number }) {
+  return (
+    <div className="flex flex-col gap-3">
+      {Array.from({ length: cantidad }, (_, i) => (
+        <div
+          key={i}
+          className="bg-card/90 ring-foreground/7 flex flex-col gap-2.5 rounded-[1.2rem] p-4 ring-1"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <Skeleton className="h-3 w-32" />
+          <Skeleton className="h-3 w-44" />
+          <div className="mt-1.5 flex justify-end gap-3 border-t pt-3">
+            <Skeleton className="h-4 w-20" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Paginador({
+  paginaActual,
+  totalPaginas,
+  porPagina,
+  cantidad,
+  total,
+  urlAnterior,
+  urlSiguiente,
+  pendiente,
+  onNavegar,
+  className,
+}: {
+  paginaActual: number;
+  totalPaginas: number;
+  porPagina: number;
+  cantidad: number;
+  total: number;
+  urlAnterior: string | null;
+  urlSiguiente: string | null;
+  pendiente: boolean;
+  onNavegar: (url: string) => void;
+  className?: string;
+}) {
+  const desde = cantidad ? (paginaActual - 1) * porPagina + 1 : 0;
+  const hasta = desde ? desde + cantidad - 1 : 0;
+  return (
+    <footer
+      className={`flex min-h-16 flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs ${className ?? ""}`}
+    >
+      <span className="text-muted-foreground">
+        Mostrando <strong className="text-foreground">{desde}</strong> a{" "}
+        <strong className="text-foreground">{hasta}</strong> de{" "}
+        <strong className="text-foreground">{total}</strong> ventas
+      </span>
+      <div className="flex items-center gap-3">
+        <span className="text-muted-foreground hidden items-center gap-1.5 sm:flex">
+          {pendiente ? (
+            <Loader2 className="text-muted-foreground size-3.5 animate-spin" />
+          ) : null}
+          Página <strong className="text-foreground">{paginaActual}</strong> de{" "}
+          <strong className="text-foreground">{totalPaginas}</strong>
+        </span>
+        <div className="flex gap-1">
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={!urlAnterior || pendiente}
+            aria-label="Página anterior"
+            onClick={() => urlAnterior && onNavegar(urlAnterior)}
+          >
+            <ChevronLeft className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            disabled={!urlSiguiente || pendiente}
+            aria-label="Página siguiente"
+            onClick={() => urlSiguiente && onNavegar(urlSiguiente)}
+          >
+            <ChevronRight className="size-4" />
+          </Button>
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -854,6 +1084,7 @@ function EncabezadoOrdenable({
   campoDesc,
   orden,
   urlDe,
+  onNavegar,
   alinearDerecha,
 }: {
   label: string;
@@ -861,17 +1092,19 @@ function EncabezadoOrdenable({
   campoDesc: string;
   orden: string;
   urlDe: (cambios: Record<string, string | null>) => string;
+  onNavegar: (url: string) => void;
   alinearDerecha?: boolean;
 }) {
   const activo = orden === campoAsc || orden === campoDesc;
   const siguiente = orden === campoDesc ? campoAsc : campoDesc;
   return (
-    <Link
-      href={urlDe({ orden: siguiente })}
+    <button
+      type="button"
+      onClick={() => onNavegar(urlDe({ orden: siguiente }))}
       className={`inline-flex items-center gap-1 hover:underline ${alinearDerecha ? "flex-row-reverse" : ""} ${activo ? "text-foreground" : ""}`}
     >
       {label}
       {activo ? (orden === campoDesc ? "↓" : "↑") : null}
-    </Link>
+    </button>
   );
 }

@@ -255,7 +255,7 @@ export type FiltrosVentas = {
   cursor?: string;
 };
 
-const POR_PAGINA_VENTAS = 25;
+export const POR_PAGINA_VENTAS = 25;
 
 const CAMPOS_VENTA = sql`
   v.id, v.fecha_venta, v.created_at,
