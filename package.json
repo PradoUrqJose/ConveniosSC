@@ -65,5 +65,8 @@
     "tsx": "^4.23.5",
     "typescript": "^5",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "@swc/helpers": "^0.5.17"
   }
 }
