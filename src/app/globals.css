@@ -9,7 +9,10 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
   --font-heading: var(--font-sans);
+  --color-brand: var(--brand);
+  --color-brand-on-dark: var(--brand-on-dark);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,6 +62,9 @@
     ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  /* Serif de sistema, cero descarga — solo para el wordmark de marca
+     (isotipo + "Convenios"), nunca para texto de producto. */
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
 
   --background: oklch(0.982 0.006 245);
   --foreground: oklch(0.215 0.035 252);
@@ -105,6 +111,13 @@
   --sidebar-accent-foreground: oklch(0.98 0 0);
   --sidebar-border: oklch(1 0 0 / 9%);
   --sidebar-ring: oklch(0.45 0.15 250);
+
+  /* Identidad de marca (isotipo + wordmark "Convenios"), independiente de
+     --primary: --primary gobierna la acción de la UI, --brand es siempre el
+     mismo azul del logo. --brand-on-dark es fijo (no cambia con el tema):
+     es para superficies que son oscuras siempre, como el sidebar. */
+  --brand: #283c73;
+  --brand-on-dark: #8da0d6;
 }
 
 .dark {
@@ -152,6 +165,8 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.65 0.15 250);
+
+  --brand: #8da0d6;
 }
 
 @keyframes skeleton-shimmer {

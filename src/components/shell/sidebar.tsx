@@ -44,7 +44,7 @@ export function Sidebar({
     <aside className="bg-sidebar text-sidebar-foreground sticky top-0 hidden h-dvh w-[276px] shrink-0 flex-col overflow-hidden lg:flex">
       <div className="pointer-events-none absolute -top-24 -left-20 size-64 rounded-full bg-cyan-400/10 blur-3xl" />
       <div className="relative flex min-h-[88px] items-center px-6">
-        <Marca />
+        <Marca sobreOscuro />
       </div>
 
       {perfil.empresaNombre ? (

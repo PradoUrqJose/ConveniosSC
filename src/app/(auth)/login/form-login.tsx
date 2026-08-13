@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowRight, Building2, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useActionState, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Isotipo } from "@/components/shell/isotipo";
 import type { RolUsuario } from "@/lib/auth/sesion";
 import type { Resultado } from "@/lib/tipos";
 import { iniciarSesion } from "@/modules/auth/actions";
@@ -65,7 +66,7 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
         <aside className="from-primary via-primary text-primary-foreground relative hidden min-h-[570px] overflow-hidden bg-linear-to-br to-indigo-950 p-9 lg:flex lg:flex-col">
           <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:14px_14px] opacity-15" />
           <div className="relative flex size-11 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
-            <Building2 className="size-6" />
+            <Isotipo className="size-6" />
           </div>
           <div className="relative mt-auto">
             <p className="text-primary-foreground/70 text-sm font-medium">
@@ -88,7 +89,7 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
           <CardContent className="flex flex-col justify-center gap-6 px-6 py-8 sm:px-10 lg:min-h-[570px] lg:gap-7 lg:py-9">
             <div>
               <div className="bg-primary text-primary-foreground mb-5 flex size-10 items-center justify-center rounded-xl lg:hidden">
-                <Building2 className="size-5" />
+                <Isotipo className="size-5" />
               </div>
               <p className="text-primary text-xs font-bold tracking-[0.16em] uppercase">
                 Bienvenido
