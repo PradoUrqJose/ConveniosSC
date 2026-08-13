@@ -5,7 +5,7 @@
  * Las fechas de negocio (`fecha_venta`, vigencias) son `DATE` y se manipulan como strings
  * `YYYY-MM-DD`, nunca como objetos `Date` — así no hay corrimientos por zona.
  */
-import { formatInTimeZone, toZonedTime } from "date-fns-tz";
+import { formatInTimeZone } from "date-fns-tz";
 import { differenceInMinutes } from "date-fns";
 
 export const ZONA = "America/Lima";
@@ -83,7 +83,14 @@ export function fechaRelativa(
   marca: Date | string,
   ahora: Date = new Date(),
 ): string {
-  const minutos = differenceInMinutes(ahora, toZonedTime(marca, ZONA), {
+  // Diferencia entre dos instantes reales: no depende de la zona horaria
+  // (5 horas de diferencia son 5 horas en cualquier zona). `toZonedTime`
+  // reinterpreta la hora local Lima como si fuera la hora local del proceso
+  // que ejecuta el código — correcto solo por coincidencia si ese proceso ya
+  // corre en America/Lima, y sistemáticamente mal en cualquier otro (p. ej.
+  // un servidor en UTC), así que aquí NO se usa.
+  const marcaDate = typeof marca === "string" ? new Date(marca) : marca;
+  const minutos = differenceInMinutes(ahora, marcaDate, {
     roundingMethod: "floor",
   });
 
