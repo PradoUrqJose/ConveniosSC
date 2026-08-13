@@ -158,7 +158,8 @@ export async function cambiarPassword(
   _estadoAnterior: Resultado<Record<string, never>>,
   formData: FormData,
 ): Promise<Resultado<Record<string, never>>> {
-  return capturarErrores(async () => {
+  const redirigirAlInicio = formData.get("redirigirAlInicio") === "on";
+  const resultado = await capturarErrores(async () => {
     const ctx = await requireSession();
 
     const parse = zCambiarPassword.safeParse({
@@ -224,12 +225,20 @@ export async function cambiarPassword(
         UPDATE usuarios SET password_hash = ${nuevoHash}, debe_cambiar_password = false
         WHERE id = ${ctx.usuarioId}
       `);
-      await tx.execute(sql`
-        UPDATE sesiones SET revocada_at = now()
-        WHERE usuario_id = ${ctx.usuarioId}
-          AND (${sesionId} IS NULL OR id <> ${sesionId})
-          AND revocada_at IS NULL
-      `);
+      if (sesionId) {
+        await tx.execute(sql`
+          UPDATE sesiones SET revocada_at = now()
+          WHERE usuario_id = ${ctx.usuarioId}
+            AND id <> ${sesionId}
+            AND revocada_at IS NULL
+        `);
+      } else {
+        await tx.execute(sql`
+          UPDATE sesiones SET revocada_at = now()
+          WHERE usuario_id = ${ctx.usuarioId}
+            AND revocada_at IS NULL
+        `);
+      }
       await registrar(tx, {
         accion: "PASSWORD_CAMBIADA",
         entidad: "usuario",
@@ -249,4 +258,8 @@ export async function cambiarPassword(
     revalidatePath("/");
     return { ok: true, data: {} };
   });
+  if (resultado.ok && redirigirAlInicio) {
+    redirect("/");
+  }
+  return resultado;
 }

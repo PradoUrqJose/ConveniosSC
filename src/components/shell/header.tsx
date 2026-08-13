@@ -8,6 +8,7 @@ import { usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { CambiarPasswordDialog } from "@/components/auth/cambiar-password-dialog";
 import { cerrarSesion } from "@/modules/auth/actions";
 import { estaActivo, navegacionPorRol, nombreRol } from "@/lib/navegacion";
 import type { RolUsuario } from "@/lib/auth/sesion";
@@ -27,6 +28,7 @@ export function Header({
   tituloSecundario?: string;
 }) {
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const [dialogoPasswordAbierto, setDialogoPasswordAbierto] = useState(false);
   const [puedeInstalar, setPuedeInstalar] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
@@ -133,11 +135,23 @@ export function Header({
               href="/perfil/password"
               role="menuitem"
               onClick={() => setMenuAbierto(false)}
-              className="hover:bg-muted focus-visible:bg-muted flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium outline-none"
+              className="hover:bg-muted focus-visible:bg-muted flex h-10 items-center gap-2 rounded-lg px-3 text-sm font-medium outline-none lg:hidden"
             >
               <KeyRound className="size-4" />
               Cambiar contraseña
             </Link>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                setMenuAbierto(false);
+                setDialogoPasswordAbierto(true);
+              }}
+              className="hover:bg-muted focus-visible:bg-muted hidden h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm font-medium outline-none lg:flex"
+            >
+              <KeyRound className="size-4" />
+              Cambiar contraseña
+            </button>
             {puedeInstalar ? (
               <button
                 type="button"
@@ -167,6 +181,10 @@ export function Header({
           </div>
         ) : null}
       </div>
+      <CambiarPasswordDialog
+        abierto={dialogoPasswordAbierto}
+        alCambiarAbierto={setDialogoPasswordAbierto}
+      />
     </header>
   );
 }

@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { redirect } from "next/navigation";
-import { KeyRound, UserCog } from "lucide-react";
+import { UserCog } from "lucide-react";
 
 import { db } from "@/db";
-import { Button } from "@/components/ui/button";
+import { AccionCambiarPassword } from "@/components/auth/accion-cambiar-password";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CabeceraPagina } from "@/components/shell/pagina-ui";
@@ -107,9 +106,7 @@ export default async function PerfilPage() {
         </div>
 
         <div className="mt-5 flex flex-wrap gap-2 border-t pt-5">
-          <Button render={<Link href="/perfil/password" />} variant="outline">
-            <KeyRound className="size-3.5" /> Cambiar contraseña
-          </Button>
+          <AccionCambiarPassword />
         </div>
       </Card>
     </div>
