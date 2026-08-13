@@ -23,10 +23,19 @@ describe.skipIf(!ACTIVO)("Auditoría T04 — cadena de hash en BD", () => {
     pool = new pg.Pool({ connectionString: URL, max: 30 });
     db = drizzle(pool);
     await pool.query("TRUNCATE TABLE auditoria RESTART IDENTITY");
-    const admin = await pool.query(
-      "SELECT id FROM usuarios WHERE username = 'admin'",
+    // No depende del seed (`npm run db:seed`, que el workflow de CI no
+    // corre): se arma su propio actor, igual que el resto de la suite de
+    // aceptación. `actor_usuario_id` en `auditoria` es FK, así que hace
+    // falta un usuario real.
+    const usuario = await pool.query(
+      `INSERT INTO usuarios
+         (id, empresa_id, username, password_hash, debe_cambiar_password,
+          nombres, apellidos, rol)
+       VALUES (gen_random_uuid(), NULL, $1, 'x', false, 'Test', 'Auditoria', 'SUPERADMIN')
+       RETURNING id`,
+      [`test.auditoria.${Date.now()}`],
     );
-    adminId = admin.rows[0].id as string;
+    adminId = usuario.rows[0].id as string;
   });
 
   afterAll(async () => {
