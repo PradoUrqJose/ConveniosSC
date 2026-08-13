@@ -171,10 +171,10 @@ export function CampoArchivo({
 
   if (variante === "venta") {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex min-w-0 flex-col gap-3">
         <div className="lg:grid lg:min-h-[154px] lg:place-items-center lg:rounded-[14px] lg:border-[1.5px] lg:border-dashed lg:border-[#c8d2df] lg:bg-gradient-to-b lg:from-[rgba(247,250,253,0.8)] lg:to-white lg:p-5 lg:text-center lg:transition lg:hover:border-[#0f62ad] lg:hover:bg-[#f5f9ff]">
           {preview ? (
-            <div className="flex w-full items-center gap-3 rounded-xl border p-3 lg:max-w-[500px] lg:border-[#d7e9fb] lg:bg-[#f2f8ff] lg:px-3 lg:py-2.5 lg:text-left">
+            <div className="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border p-3 lg:max-w-[500px] lg:border-[#d7e9fb] lg:bg-[#f2f8ff] lg:px-3 lg:py-2.5 lg:text-left">
               {esImagen ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -185,10 +185,8 @@ export function CampoArchivo({
               ) : null}
               <FileText className="text-primary hidden size-[18px] shrink-0 lg:block" />
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-[#344054] lg:text-xs lg:font-semibold">
-                  {datos
-                    ? datos.blobPath.split("/").pop()
-                    : "Procesando archivo…"}
+                <p className="max-w-full truncate text-sm font-medium text-[#344054] lg:text-xs lg:font-semibold">
+                  {textoArchivoCargado(datos)}
                 </p>
                 <p className="text-muted-foreground text-xs lg:hidden">
                   {subiendo
@@ -279,9 +277,9 @@ export function CampoArchivo({
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex min-w-0 flex-col gap-3">
       {preview ? (
-        <div className="flex items-center gap-3 rounded-xl border p-3">
+        <div className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border p-3">
           {esImagen ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -295,8 +293,8 @@ export function CampoArchivo({
             </div>
           )}
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">
-              {datos ? datos.blobPath.split("/").pop() : "Procesando archivo…"}
+            <p className="max-w-full truncate text-sm font-medium">
+              {textoArchivoCargado(datos)}
             </p>
             <p className="text-muted-foreground text-xs">
               {subiendo
@@ -372,6 +370,11 @@ export function CampoArchivo({
       {datos ? <InputsArchivo prefijo={prefijo} datos={datos} /> : null}
     </div>
   );
+}
+
+/** El pathname contiene IDs internos y no es un nombre útil para la persona usuaria. */
+function textoArchivoCargado(datos: DatosSubida | null) {
+  return datos ? "Archivo cargado" : "Procesando archivo…";
 }
 
 function InputsArchivo({

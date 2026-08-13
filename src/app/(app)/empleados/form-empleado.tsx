@@ -148,7 +148,7 @@ export function FormEmpleado({
         </DialogDescription>
       </DialogHeader>
 
-      <form action={formAction} className="flex flex-col gap-4">
+      <form action={formAction} className="flex min-w-0 flex-col gap-4">
         {!esCrear ? (
           <input type="hidden" name="empleadoId" value={empleado!.id} />
         ) : null}
