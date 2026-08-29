@@ -5,20 +5,15 @@ import Link from "next/link";
 import { toast } from "sonner";
 import {
   AlertTriangle,
-  Building2,
+  Check,
   CheckCircle2,
-  FileImage,
   Loader2,
-  Plus,
   Search,
-  UserRound,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
@@ -77,12 +72,15 @@ const ESTADO_INICIAL: Resultado<VentaCreada> = {
 };
 
 export function FormVenta({
+  claseFuentes,
   usuarioId,
   convenios,
   sedes,
   sedePorDefectoId,
   config,
 }: {
+  /** Clases de `next/font` con las fuentes del flujo (se aplican al portal del Sheet). */
+  claseFuentes: string;
   usuarioId: string;
   convenios: ConvenioVigenteMio[];
   sedes: SedeOpcion[];
@@ -414,26 +412,58 @@ export function FormVenta({
     );
   }
 
+  /** Desglose del total: solo existe cuando hay un cálculo válido que enseñar. */
+  const desglose =
+    preview !== null && !superaTope && montoBrutoCentimos !== null
+      ? { bruto: montoBrutoCentimos, ...preview }
+      : null;
+
+  // Avance para la barra del resumen: cada paso vale un tramo.
+  const pasoUnoListo = puedeContinuar;
+  const pasoDosListo =
+    sedeId !== "" &&
+    fechaVenta !== "" &&
+    montoBrutoCentimos !== null &&
+    montoBrutoCentimos > 0 &&
+    !superaTope;
+  const pasoTresListo = documento !== null && evidenciaOk;
+  const pasos = [pasoUnoListo, pasoDosListo, pasoTresListo];
+  const completados = pasos.filter(Boolean).length;
+
+  /** Primer requisito que falta: el resumen solo muestra uno, el accionable. */
+  const faltante = !pasoUnoListo
+    ? "Identifica al empleado para empezar."
+    : !pasoDosListo
+      ? superaTope
+        ? `El monto no puede superar ${formatearSoles(config.topeMontoVentaCentimos)}.`
+        : "Completa la sede, la fecha y el monto de la venta."
+      : !pasoTresListo
+        ? documento === null
+          ? "Adjunta el documento de venta."
+          : "Esta empresa exige al menos una evidencia adicional."
+        : "Todo listo. Revisa los importes antes de registrar.";
+
   return (
-    <section className="flex flex-col gap-7 pb-6 lg:gap-6">
-      <div className="hidden lg:flex lg:items-start lg:justify-between lg:gap-6">
+    <section className={`venta-shell flex flex-col gap-6 pb-6 ${claseFuentes}`}>
+      {/* ── Barra superior ── */}
+      <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="text-primary mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-[0.04em] uppercase">
-            <Plus className="size-3.5" /> Registro de operación
-          </div>
-          {/* <h1 className="text-[28px] font-bold tracking-[-0.035em]">
-            Nueva venta
+          <p className="font-mono text-[12px] font-bold tracking-[0.16em] text-[var(--venta-azul)] uppercase">
+            Registro de operación
+          </p>
+          <h1 className="mt-1 text-[22px] leading-tight font-bold tracking-[-0.02em]">
+            Nueva venta con convenio
           </h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Registra la venta asociada a un empleado, adjunta el comprobante y
-            valida el importe antes de guardar.
-          </p> */}
         </div>
-        <span className="border-primary/15 bg-primary/5 text-primary inline-flex items-center gap-2 rounded-full border px-3 py-2 text-xs font-semibold">
-          <span className="bg-primary ring-primary/10 size-1.5 rounded-full ring-4" />
-          Borrador sin guardar
-        </span>
-      </div>
+        <p
+          data-listo={puedeGuardar ? "" : undefined}
+          className="inline-flex items-center gap-2.5 rounded-full border-2 border-[var(--venta-linea)] bg-[var(--venta-papel)] px-4 py-2.5 text-sm font-semibold text-[var(--venta-gris)] transition-colors data-[listo]:border-[var(--venta-azul-borde)] data-[listo]:bg-[var(--venta-azul-humo)] data-[listo]:text-[var(--venta-azul)]"
+        >
+          <span className="size-2 rounded-full bg-[var(--venta-gris-claro)] transition-colors group-data-[listo]:bg-current [[data-listo]>&]:bg-[var(--venta-azul)]" />
+          {puedeGuardar ? "Listo para registrar" : "Borrador sin guardar"}
+        </p>
+      </header>
+
       {borrador ? (
         <Alert>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
@@ -453,7 +483,7 @@ export function FormVenta({
       <form
         id="form-venta"
         action={formAction}
-        className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6"
+        className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_372px]"
       >
         <input type="hidden" name="ventaId" value={ventaId} />
         <input
@@ -462,237 +492,187 @@ export function FormVenta({
           value={empleado?.id ?? ""}
         />
 
-        <div className="flex flex-col gap-5">
-          {/* ① Empleado */}
-          <section className="bg-card flex flex-col gap-5 rounded-[18px] border p-5 shadow-sm lg:p-[22px]">
-            <div className="flex items-center gap-3">
-              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-[10px]">
-                <UserRound className="size-[18px]" />
-              </span>
-              <div>
-                <h2 className="text-[15px] font-bold">
-                  Información del empleado
-                </h2>
-                <p className="text-muted-foreground hidden text-xs lg:block">
-                  Identifica al empleado y su empresa de convenio.
-                </p>
-              </div>
-              <span className="bg-muted text-muted-foreground ml-auto shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold">
-                Paso 1<span className="hidden lg:inline"> de 3</span>
-              </span>
-            </div>
-
-            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_72px] lg:items-end lg:gap-4">
-              <div className="order-1 flex min-w-0 flex-col gap-2 lg:order-none">
-                <Label htmlFor="empresaConvenio">Empresa convenio</Label>
-                <Input
-                  id="empresaConvenio"
-                  value={empleado?.empresaNombre ?? ""}
-                  placeholder="Sin identificar"
-                  disabled
-                  readOnly
-                  className="bg-muted/45 h-14 rounded-2xl px-4"
-                />
-              </div>
-
-              <div
-                className={`${empleado ? "flex" : "hidden lg:flex"} order-3 min-w-0 flex-col gap-2 lg:order-none`}
+        <div className="flex min-w-0 flex-col gap-4">
+          {/* ── Paso 1: empleado ── */}
+          <PasoTarjeta
+            numero={1}
+            titulo="Identifica al empleado"
+            descripcion="Busca por documento y traemos su empresa de convenio."
+            activo={!pasoUnoListo}
+            hecho={pasoUnoListo}
+          >
+            <div className="flex flex-wrap items-center gap-2.5">
+              <Select
+                value={tipoDocumento}
+                onValueChange={(valor) =>
+                  cambiarTipoDocumento(valor as TipoDocumento)
+                }
               >
-                <Label htmlFor="nombreEmpleado">Nombre del empleado</Label>
-                <Input
-                  id="nombreEmpleado"
-                  value={
-                    empleado
-                      ? `${empleado.nombres.toUpperCase()} ${empleado.apellidos.toUpperCase()}`
-                      : ""
-                  }
-                  placeholder="Sin identificar"
-                  disabled
-                  readOnly
-                  className="bg-muted/45 h-14 rounded-2xl px-4"
-                />
-                {empleado ? (
-                  <div className="flex flex-wrap items-center gap-2 lg:hidden">
-                    <Badge className="bg-success/10 text-success border-success/20 border">
-                      {bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}% de
-                      descuento
-                    </Badge>
-                    {empleado.estado === "PENDIENTE_VERIFICACION" ? (
-                      <Badge className="bg-warning/10 text-warning border-warning/20 border">
-                        Pendiente de verificación
-                      </Badge>
-                    ) : null}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="order-4 hidden flex-col items-center gap-2 lg:order-none lg:flex">
-                <Label>Descuento</Label>
-                <div
-                  className={
-                    empleado
-                      ? "bg-primary text-primary-foreground flex size-14 items-center justify-center rounded-2xl text-lg font-bold shadow-sm"
-                      : "bg-muted text-muted-foreground flex size-14 items-center justify-center rounded-2xl text-lg font-bold"
-                  }
-                  aria-label={
-                    empleado
-                      ? `${bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)} por ciento de descuento`
-                      : "Descuento sin calcular"
-                  }
+                <SelectTrigger
+                  aria-label="Tipo de documento"
+                  className="order-1 h-[50px] w-auto shrink-0 rounded-full border-2 border-[var(--venta-linea)] bg-[var(--venta-papel)] px-5 text-[15px] font-semibold data-[size=default]:h-[50px] sm:h-[58px] sm:data-[size=default]:h-[58px]"
                 >
-                  {empleado
-                    ? `${bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}%`
-                    : "—"}
-                </div>
-              </div>
+                  <SelectValue>{() => (esDni ? "DNI" : "CE")}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DNI">DNI</SelectItem>
+                  <SelectItem value="CARNET_EXTRANJERIA">CE</SelectItem>
+                </SelectContent>
+              </Select>
 
-              <div className="order-2 flex min-w-0 flex-col gap-2 lg:order-none lg:col-span-3">
-                <Label htmlFor="numeroDocumento">Documento del empleado</Label>
-                <div
-                  className={`grid grid-cols-1 gap-2 transition-[grid-template-columns] duration-300 ease-out sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_auto] lg:items-center lg:gap-2.5 ${esDni ? "lg:grid-cols-[auto_minmax(0,1fr)_112px]" : "lg:grid-cols-[auto_minmax(0,1fr)_44px]"}`}
-                >
-                  <Select
-                    value={tipoDocumento}
-                    onValueChange={(valor) =>
-                      cambiarTipoDocumento(valor as TipoDocumento)
-                    }
-                  >
-                    <SelectTrigger
-                      size="lg"
-                      aria-label="Tipo de documento"
-                      className="w-full rounded-2xl px-4 font-semibold lg:w-[108px] lg:rounded-full lg:border-2 lg:data-[size=lg]:h-11"
-                    >
-                      <SelectValue>{() => (esDni ? "DNI" : "CE")}</SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="DNI">DNI</SelectItem>
-                      <SelectItem value="CARNET_EXTRANJERIA">CE</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="group relative min-w-0 lg:h-11">
-                    <Input
-                      id="numeroDocumento"
-                      value={numeroDocumento}
-                      onChange={(e) => cambiarNumeroDocumento(e.target.value)}
-                      onFocus={() => setDocumentoEnfocado(true)}
-                      onBlur={() => setDocumentoEnfocado(false)}
-                      inputMode={tipoDocumento === "DNI" ? "numeric" : "text"}
-                      maxLength={longitudVisualDocumento}
-                      autoFocus={convenios.length === 1}
-                      placeholder={
-                        tipoDocumento === "DNI"
-                          ? "8 dígitos"
-                          : "Hasta 12 caracteres"
-                      }
-                      autoComplete="off"
-                      spellCheck={false}
-                      className="h-14 rounded-2xl px-4 text-base lg:absolute lg:inset-0 lg:z-10 lg:size-full lg:cursor-text lg:opacity-0"
-                    />
-                    <div
-                      aria-hidden="true"
-                      className="hidden h-11 gap-1 lg:grid"
-                      style={{
-                        gridTemplateColumns: `repeat(${longitudVisualDocumento}, minmax(0, 1fr))`,
-                      }}
-                    >
-                      {Array.from({ length: longitudVisualDocumento }).map(
-                        (_, indice) => {
-                          const caracter = numeroDocumento[indice];
-                          const esCursor =
-                            documentoEnfocado &&
-                            indice === numeroDocumento.length &&
-                            numeroDocumento.length < longitudVisualDocumento;
-                          return (
-                            <span
-                              key={`${tipoDocumento}-${indice}`}
-                              className={
-                                caracter
-                                  ? "motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 flex min-w-0 items-center justify-center rounded-[11px] border-2 border-[#c7d4ff] bg-[#eaefff] font-mono text-base font-bold text-[#0035c4] transition-all duration-300"
-                                  : esCursor
-                                    ? "border-primary bg-background motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 flex min-w-0 items-center justify-center rounded-[11px] border-2 shadow-[0_0_0_3px_rgba(0,71,255,0.12)] transition-all duration-300"
-                                    : "bg-muted/80 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 flex min-w-0 items-center justify-center rounded-[11px] border-2 border-transparent transition-all duration-300"
-                              }
-                            >
-                              {caracter ??
-                                (esCursor ? (
-                                  <span className="bg-primary h-5 w-0.5 animate-pulse rounded-full" />
-                                ) : null)}
-                            </span>
-                          );
-                        },
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    type="button"
-                    size="lg"
-                    disabled={!documentoValido || buscando}
-                    onClick={() => void buscarEmpleado()}
-                    aria-label="Buscar empleado"
-                    className={`h-14 rounded-2xl px-5 transition-[width,gap,background-color,color,opacity] duration-300 ease-out lg:h-11 lg:rounded-full lg:px-0 ${esDni ? "lg:w-28 lg:gap-1.5" : "lg:w-11 lg:gap-0"}`}
-                  >
-                    {buscando ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <Search className="size-4" />
-                    )}
-                    <span
-                      className={`max-w-20 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity] duration-300 ease-out ${esDni ? "lg:max-w-20 lg:opacity-100" : "lg:max-w-0 lg:opacity-0"}`}
-                    >
-                      {buscando ? "Buscando…" : "Buscar"}
-                    </span>
-                  </Button>
-                </div>
-              </div>
-
-              <div className="order-5 lg:order-none lg:col-span-3">
+              <Button
+                type="button"
+                disabled={!documentoValido || buscando}
+                onClick={() => void buscarEmpleado()}
+                aria-label="Buscar empleado"
+                className={`order-2 ml-auto h-[50px] w-[50px] shrink-0 gap-2 rounded-full bg-[var(--venta-azul)] px-0 text-[15px] font-semibold text-white transition-[width] duration-300 ease-out hover:bg-[var(--venta-azul-hondo)] disabled:bg-[var(--venta-linea)] disabled:text-[var(--venta-gris-claro)] sm:order-3 sm:ml-0 sm:h-[58px] ${esDni ? "sm:w-[132px]" : "sm:w-[58px]"}`}
+              >
                 {buscando ? (
-                  <div className="bg-muted h-9 animate-pulse rounded-md lg:hidden" />
-                ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
-                  <ResultadoNegativo resultado={resultadoBusqueda} />
-                ) : empleado ? (
-                  <div className="space-y-1.5">
-                    {empleado.estado === "PENDIENTE_VERIFICACION" ? (
-                      <p className="text-muted-foreground text-xs">
-                        Puedes registrar la venta; el administrador de{" "}
-                        {empleado.empresaNombre} confirmará los datos.
-                      </p>
-                    ) : null}
-                    {previaBps !== null &&
-                    previaBps !== empleado.descuentoBps ? (
-                      <p className="text-muted-foreground text-xs">
-                        En esa fecha el descuento era{" "}
-                        {bpsAPorcentaje(previaBps)}%.
-                      </p>
-                    ) : null}
-                  </div>
-                ) : null}
+                  <Loader2 className="size-5 animate-spin" />
+                ) : (
+                  <Search className="size-5" />
+                )}
+                <span
+                  className={`max-w-0 overflow-hidden whitespace-nowrap opacity-0 transition-[max-width,opacity] duration-300 ease-out ${esDni ? "sm:max-w-20 sm:opacity-100" : ""}`}
+                >
+                  {buscando ? "Buscando…" : "Buscar"}
+                </span>
+              </Button>
+
+              {/* Casillas: el `<input>` real va encima, invisible y a pantalla
+                  completa, para que el teclado móvil siga funcionando. */}
+              <div className="relative order-3 h-[50px] min-w-0 basis-full sm:order-2 sm:h-[58px] sm:flex-1 sm:basis-64">
+                <Label htmlFor="numeroDocumento" className="sr-only">
+                  Documento del empleado
+                </Label>
+                <div
+                  aria-hidden="true"
+                  className="grid h-full gap-[7px]"
+                  style={{
+                    gridTemplateColumns: `repeat(${longitudVisualDocumento}, minmax(0, 1fr))`,
+                  }}
+                >
+                  {Array.from({ length: longitudVisualDocumento }).map(
+                    (_, indice) => {
+                      const caracter = numeroDocumento[indice];
+                      const esCursor =
+                        documentoEnfocado &&
+                        indice === numeroDocumento.length &&
+                        numeroDocumento.length < longitudVisualDocumento;
+                      return (
+                        <span
+                          key={`${tipoDocumento}-${indice}`}
+                          className={
+                            caracter
+                              ? "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-[var(--venta-azul-borde)] bg-[var(--venta-azul-humo)] font-mono text-lg font-bold text-[var(--venta-azul-hondo)] transition-all duration-200 sm:rounded-2xl sm:text-xl"
+                              : esCursor
+                                ? "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-[var(--venta-azul)] bg-[var(--venta-papel)] shadow-[0_0_0_4px_rgba(0,71,255,0.12)] transition-all duration-200 sm:rounded-2xl"
+                                : "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-transparent bg-[var(--venta-hueco)] transition-all duration-200 sm:rounded-2xl"
+                          }
+                        >
+                          {caracter ??
+                            (esCursor ? (
+                              <span className="h-5.5 w-0.5 animate-pulse rounded-full bg-[var(--venta-azul)]" />
+                            ) : null)}
+                        </span>
+                      );
+                    },
+                  )}
+                </div>
+                <input
+                  id="numeroDocumento"
+                  value={numeroDocumento}
+                  onChange={(e) => cambiarNumeroDocumento(e.target.value)}
+                  onFocus={() => setDocumentoEnfocado(true)}
+                  onBlur={() => setDocumentoEnfocado(false)}
+                  inputMode={esDni ? "numeric" : "text"}
+                  maxLength={longitudVisualDocumento}
+                  autoFocus={convenios.length === 1}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-describedby="pista-documento"
+                  className="absolute inset-0 size-full cursor-text rounded-2xl text-base opacity-0 outline-none"
+                />
               </div>
             </div>
-          </section>
 
-          <div className="border-border/70 border-t lg:hidden" />
+            <p
+              id="pista-documento"
+              className="mt-3 text-[13px] text-[var(--venta-gris)]"
+            >
+              {esDni
+                ? "8 dígitos, sin puntos ni guiones."
+                : "Hasta 12 caracteres, letras y números."}
+            </p>
 
-          {/* ② Venta */}
-          <section className="bg-card flex flex-col gap-5 rounded-[18px] border p-5 shadow-sm lg:p-[22px]">
-            <div className="flex items-center gap-3">
-              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-[10px]">
-                <Building2 className="size-[18px]" />
-              </span>
-              <div>
-                <h2 className="text-[15px] font-bold">Detalle de venta</h2>
-                <p className="text-muted-foreground hidden text-xs lg:block">
-                  Define la sede, fecha e importe de la operación.
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <CampoSoloLectura
+                rotulo="Empresa convenio"
+                htmlFor="empresaConvenio"
+                valor={empleado?.empresaNombre ?? ""}
+                marcador="Aparece al buscar"
+              />
+              <CampoSoloLectura
+                rotulo="Nombre del empleado"
+                htmlFor="nombreEmpleado"
+                valor={
+                  empleado
+                    ? `${empleado.nombres.toUpperCase()} ${empleado.apellidos.toUpperCase()}`
+                    : ""
+                }
+                marcador="Aparece al buscar"
+              />
+            </div>
+
+            {empleado ? (
+              <div className="mt-4 flex items-center gap-3 rounded-[18px] bg-[var(--venta-azul-humo)] px-4 py-3.5">
+                <span className="font-mono text-[22px] font-bold text-[var(--venta-azul)]">
+                  {bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}%
+                </span>
+                <p className="text-sm leading-snug text-[var(--venta-azul-hondo)]">
+                  Descuento de convenio vigente para{" "}
+                  <b className="font-bold">{empleado.empresaNombre}</b>. Se
+                  aplica solo a este empleado.
                 </p>
               </div>
-              <span className="bg-muted text-muted-foreground ml-auto shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold">
-                Paso 2<span className="hidden lg:inline"> de 3</span>
-              </span>
-            </div>
+            ) : null}
 
-            <div className="grid gap-5 lg:grid-cols-2">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="sedeId">Sede</Label>
+            <div className="mt-4 empty:mt-0">
+              {buscando ? (
+                <div className="bg-muted h-9 animate-pulse rounded-md" />
+              ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
+                <ResultadoNegativo resultado={resultadoBusqueda} />
+              ) : empleado ? (
+                <div className="space-y-1.5">
+                  {empleado.estado === "PENDIENTE_VERIFICACION" ? (
+                    <p className="text-[13px] text-[var(--venta-gris)]">
+                      Puedes registrar la venta; el administrador de{" "}
+                      {empleado.empresaNombre} confirmará los datos.
+                    </p>
+                  ) : null}
+                  {previaBps !== null && previaBps !== empleado.descuentoBps ? (
+                    <p className="text-[13px] text-[var(--venta-gris)]">
+                      En esa fecha el descuento era {bpsAPorcentaje(previaBps)}
+                      %.
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </PasoTarjeta>
+
+          {/* ── Paso 2: detalle ── */}
+          <PasoTarjeta
+            numero={2}
+            titulo="Detalle de la venta"
+            descripcion="Sede, fecha e importe de la operación."
+            activo={pasoUnoListo && !pasoDosListo}
+            hecho={pasoDosListo}
+            bloqueado={!pasoUnoListo}
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex min-w-0 flex-col">
+                <Rotulo htmlFor="sedeId">Sede</Rotulo>
                 <Select
                   value={sedeId}
                   onValueChange={(valor) => setSedeId(valor ?? "")}
@@ -700,8 +680,7 @@ export function FormVenta({
                   <input type="hidden" name="sedeId" value={sedeId} />
                   <SelectTrigger
                     id="sedeId"
-                    size="lg"
-                    className="w-full rounded-2xl px-4"
+                    className="h-[58px] w-full rounded-[18px] border-2 border-[var(--venta-linea)] bg-[var(--venta-papel)] px-4 text-base font-medium data-[size=default]:h-[58px]"
                   >
                     <SelectValue placeholder="Selecciona la sede">
                       {(valor) =>
@@ -720,8 +699,8 @@ export function FormVenta({
                 </Select>
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="fechaVenta">Fecha</Label>
+              <div className="flex min-w-0 flex-col">
+                <Rotulo htmlFor="fechaVenta">Fecha</Rotulo>
                 <DatePicker
                   id="fechaVenta"
                   name="fechaVenta"
@@ -729,137 +708,152 @@ export function FormVenta({
                   min={minFecha}
                   max={hoy}
                   onChange={setFechaVenta}
+                  className="h-[58px] rounded-[18px] border-2 border-[var(--venta-linea)] text-base"
                 />
               </div>
 
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="montoBruto">Monto de venta (S/)</Label>
-                <Input
-                  id="montoBruto"
-                  name="montoBruto"
-                  value={montoBrutoTexto}
-                  onChange={(e) => setMontoBrutoTexto(e.target.value)}
-                  inputMode="decimal"
-                  placeholder="S/. 0.00"
-                  aria-invalid={superaTope}
-                  className={
-                    superaTope
-                      ? "border-destructive h-14 rounded-2xl px-4 text-lg font-semibold"
-                      : "h-14 rounded-2xl px-4 text-lg font-semibold"
-                  }
-                />
-                {superaTope ? (
-                  <p className="text-destructive text-sm">
-                    El monto no puede superar{" "}
-                    {formatearSoles(config.topeMontoVentaCentimos)}.
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="montoFinal">Total con descuento (S/)</Label>
-                <Input
-                  id="montoFinal"
-                  value={preview ? formatearSoles(preview.final) : ""}
-                  disabled
-                  readOnly
-                  className="bg-muted/45 h-14 rounded-2xl px-4 text-lg font-semibold"
-                  placeholder="S/. 0.00"
-                />
-                {preview ? (
-                  <p className="text-muted-foreground text-xs">
-                    Descuento aplicado: {formatearSoles(preview.descuento)}
-                  </p>
-                ) : null}
-              </div>
-            </div>
-          </section>
-
-          <div className="border-border/70 border-t lg:hidden" />
-
-          {/* ③ Evidencia */}
-          <section className="bg-card flex flex-col gap-5 rounded-[18px] border p-5 shadow-sm lg:gap-0 lg:overflow-hidden lg:border-[#e3e8ef] lg:p-0 lg:shadow-[0_1px_2px_rgba(16,24,40,0.04),0_1px_3px_rgba(16,24,40,0.06)]">
-            <div className="flex items-center gap-3 lg:min-h-[68px] lg:border-b lg:border-[#e3e8ef] lg:px-[22px] lg:py-[17px]">
-              <span className="bg-primary/10 text-primary flex size-9 items-center justify-center rounded-[10px] lg:bg-[#eaf4ff] lg:text-[#0f62ad]">
-                <FileImage className="size-[18px]" />
-              </span>
-              <div>
-                <h2 className="text-[15px] font-bold lg:font-semibold">
-                  Comprobante y evidencia
-                </h2>
-                <p className="text-muted-foreground hidden text-xs lg:block">
-                  Adjunta el documento de venta y evidencia adicional.
-                </p>
-              </div>
-              <span className="bg-muted text-muted-foreground ml-auto shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold lg:bg-[#f8fafc] lg:px-2.5 lg:text-[#98a2b3]">
-                Paso 3<span className="hidden lg:inline"> de 3</span>
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-5 lg:p-[22px]">
-              {notaArchivosRestaurados ? (
-                <Alert>
-                  <AlertDescription>{notaArchivosRestaurados}</AlertDescription>
-                </Alert>
-              ) : null}
-
-              <div className="grid gap-5 lg:grid-cols-2 lg:items-start lg:gap-4">
-                <div className="min-w-0">
-                  <CampoArchivo
-                    key={documentoKey}
-                    prefijo="documento"
-                    etiqueta="documento"
-                    tipo="documento"
-                    variante="venta"
-                    onCambio={(datos) => {
-                      setDocumento(datos);
-                      setNotaArchivosRestaurados(null);
-                    }}
-                  />
+              <div className="grid min-w-0 gap-4 sm:col-span-2 sm:grid-cols-2">
+                {/* ── Monto ── */}
+                <div className="flex min-w-0 flex-col">
+                  <Rotulo htmlFor="montoBruto">Monto de venta (S/)</Rotulo>
+                  <div
+                    className={`flex h-[72px] items-center gap-2.5 rounded-[22px] border-2 bg-[var(--venta-papel)] px-4 transition focus-within:border-[var(--venta-azul)] focus-within:shadow-[0_0_0_4px_rgba(0,71,255,0.12)] ${
+                      superaTope
+                        ? "border-destructive"
+                        : "border-[var(--venta-linea)]"
+                    }`}
+                  >
+                    <span className="font-mono text-[22px] font-bold text-[var(--venta-gris)]">
+                      S/
+                    </span>
+                    <input
+                      id="montoBruto"
+                      name="montoBruto"
+                      value={montoBrutoTexto}
+                      onChange={(e) => setMontoBrutoTexto(e.target.value)}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      aria-invalid={superaTope}
+                      className="h-full min-w-0 flex-1 border-none bg-transparent font-mono text-[28px] font-bold outline-none placeholder:text-[var(--venta-gris-claro)]"
+                    />
+                  </div>
+                  {superaTope ? (
+                    <p className="text-destructive mt-3 text-[13px] font-semibold">
+                      El monto no puede superar{" "}
+                      {formatearSoles(config.topeMontoVentaCentimos)}.
+                    </p>
+                  ) : null}
                 </div>
 
-                <CampoEvidencias
-                  key={evidenciasKey}
-                  onCambio={(items) => {
-                    setEvidencias(items);
+                {/* ── Total con descuento: mismo campo, en azul y calculado ── */}
+                <div className="flex min-w-0 flex-col">
+                  <Rotulo htmlFor="montoFinal">Total con descuento</Rotulo>
+                  <output
+                    id="montoFinal"
+                    htmlFor="montoBruto"
+                    aria-live="polite"
+                    className="flex h-[72px] items-center gap-2.5 rounded-[22px] border-2 border-[var(--venta-azul-borde)] bg-[var(--venta-azul-humo)] px-4"
+                  >
+                    <span className="font-mono text-[22px] font-bold text-[var(--venta-azul)]/60">
+                      S/
+                    </span>
+                    <span
+                      className={`min-w-0 flex-1 truncate font-mono text-[28px] font-bold tabular-nums ${
+                        desglose
+                          ? "text-[var(--venta-azul)]"
+                          : "text-[var(--venta-azul)]/35"
+                      }`}
+                    >
+                      {desglose
+                        ? formatearSoles(desglose.final).replace("S/ ", "")
+                        : "0.00"}
+                    </span>
+                  </output>
+                  {desglose ? (
+                    <p className="mt-3 font-mono text-[13px] text-[var(--venta-gris)] tabular-nums">
+                      {formatearSoles(desglose.bruto)}
+                      <span className="mx-1.5 text-[var(--venta-gris-claro)]">
+                        −
+                      </span>
+                      {formatearSoles(desglose.descuento)}
+                      <span className="ml-1.5 text-[var(--venta-azul)]">
+                        ({bpsAPorcentaje(bpsEfectivo ?? 0)}%)
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </PasoTarjeta>
+
+          {/* ── Paso 3: comprobante ── */}
+          <PasoTarjeta
+            numero={3}
+            titulo="Comprobante y evidencia"
+            descripcion="Adjunta el documento de venta y evidencia adicional."
+            activo={pasoDosListo && !pasoTresListo}
+            hecho={pasoTresListo}
+            bloqueado={!pasoUnoListo}
+          >
+            {notaArchivosRestaurados ? (
+              <Alert className="mb-4">
+                <AlertDescription>{notaArchivosRestaurados}</AlertDescription>
+              </Alert>
+            ) : null}
+
+            <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+              <div className="min-w-0">
+                <CampoArchivo
+                  key={documentoKey}
+                  prefijo="documento"
+                  etiqueta="documento"
+                  tipo="documento"
+                  variante="venta"
+                  onCambio={(datos) => {
+                    setDocumento(datos);
                     setNotaArchivosRestaurados(null);
                   }}
                 />
               </div>
-              <input
-                type="hidden"
-                name="evidenciasJson"
-                value={JSON.stringify(evidencias)}
-              />
-              {config.requiereEvidenciaEnVenta && !evidenciaOk ? (
-                <p className="text-destructive text-sm">
-                  Esta empresa exige al menos una evidencia adicional.
-                </p>
-              ) : null}
 
-              <div className="flex flex-col gap-2 lg:gap-[7px]">
-                <Label
-                  htmlFor="observacion"
-                  className="lg:text-[13px] lg:font-semibold lg:text-[#344054]"
-                >
-                  Observación{" "}
-                  <span className="text-muted-foreground text-[11px] font-medium">
-                    Opcional
-                  </span>
-                </Label>
-                <Textarea
-                  id="observacion"
-                  name="observacion"
-                  value={observacion}
-                  onChange={(e) => setObservacion(e.target.value)}
-                  maxLength={500}
-                  rows={2}
-                  placeholder="Añade información relevante sobre la venta, el empleado o el comprobante..."
-                  className="rounded-2xl px-4 py-3 lg:min-h-[108px] lg:rounded-xl lg:border-[#d0d7e2] lg:px-3.5 lg:placeholder:text-[#a7b0bd]"
-                />
-              </div>
+              <CampoEvidencias
+                key={evidenciasKey}
+                onCambio={(items) => {
+                  setEvidencias(items);
+                  setNotaArchivosRestaurados(null);
+                }}
+              />
             </div>
-          </section>
+            <input
+              type="hidden"
+              name="evidenciasJson"
+              value={JSON.stringify(evidencias)}
+            />
+            {config.requiereEvidenciaEnVenta && !evidenciaOk ? (
+              <p className="text-destructive mt-3 text-[13px] font-semibold">
+                Esta empresa exige al menos una evidencia adicional.
+              </p>
+            ) : null}
+
+            <div className="mt-5 flex flex-col">
+              <Rotulo htmlFor="observacion">
+                Observación{" "}
+                <span className="font-medium text-[var(--venta-gris-claro)]">
+                  Opcional
+                </span>
+              </Rotulo>
+              <Textarea
+                id="observacion"
+                name="observacion"
+                value={observacion}
+                onChange={(e) => setObservacion(e.target.value)}
+                maxLength={500}
+                rows={3}
+                placeholder="Añade información relevante sobre la venta, el empleado o el comprobante…"
+                className="min-h-[104px] rounded-[18px] border-2 border-[var(--venta-linea)] bg-[var(--venta-papel)] px-4 py-3 text-base placeholder:text-[var(--venta-gris-claro)]"
+              />
+            </div>
+          </PasoTarjeta>
 
           {errorEnvio ? (
             <p role="alert" className="text-destructive text-sm">
@@ -868,97 +862,118 @@ export function FormVenta({
           ) : null}
         </div>
 
-        <aside className="lg:bg-card hidden lg:sticky lg:top-[96px] lg:block lg:overflow-hidden lg:rounded-[18px] lg:border lg:shadow-lg">
-          <div className="border-border border-b p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-bold">Resumen de venta</h2>
-              <span className="bg-muted text-muted-foreground rounded-md px-2 py-1 text-[10px] font-bold">
-                NUEVA
-              </span>
-            </div>
-            <p className="text-muted-foreground mt-1 text-xs">
-              Verifica los datos antes de registrar.
+        {/* ── Resumen ── */}
+        <aside className="hidden overflow-hidden rounded-[26px] bg-[var(--venta-papel)] lg:sticky lg:top-[96px] lg:block">
+          <div className="px-6 pt-6 pb-5">
+            <h2 className="text-[19px] font-bold tracking-[-0.01em]">
+              Resumen
+            </h2>
+            <p className="mt-0.5 text-sm text-[var(--venta-gris)]">
+              Verifica antes de registrar.
             </p>
+            <div
+              className="mt-4 flex items-center gap-1.5"
+              role="img"
+              aria-label={`Avance del registro: ${completados} de 3 pasos`}
+            >
+              {pasos.map((hecho, indice) => (
+                <i
+                  key={indice}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${hecho ? "bg-[var(--venta-azul)]" : "bg-[var(--venta-linea)]"}`}
+                />
+              ))}
+              <b className="font-mono text-[12px] font-bold tracking-[0.1em] text-[var(--venta-gris)]">
+                {completados} / 3
+              </b>
+            </div>
           </div>
-          <div className="space-y-3.5 p-5 text-xs">
-            <ResumenFila
+
+          <div className="px-6 pb-5">
+            <FilaResumen
               etiqueta="Empresa"
-              valor={empresaSeleccionada?.empresaNombre ?? "Sin seleccionar"}
+              valor={
+                empresaSeleccionada?.empresaNombre ?? empleado?.empresaNombre
+              }
+              marcador="Por definir"
             />
-            <ResumenFila
+            <FilaResumen
               etiqueta="Empleado"
               valor={
-                empleado
-                  ? `${empleado.nombres} ${empleado.apellidos}`
-                  : "Sin identificar"
+                empleado ? `${empleado.nombres} ${empleado.apellidos}` : null
               }
+              marcador="Por definir"
             />
-            <ResumenFila
+            <FilaResumen
               etiqueta="Sede"
-              valor={
-                sedes.find((s) => s.id === sedeId)?.nombre ?? "Sin seleccionar"
-              }
+              valor={sedes.find((s) => s.id === sedeId)?.nombre}
+              marcador="Por definir"
             />
-            <ResumenFila
+            <FilaResumen
               etiqueta="Fecha"
-              valor={
-                fechaVenta ? formatearFechaUI(fechaVenta) : "Sin seleccionar"
-              }
+              valor={fechaVenta ? formatearFechaUI(fechaVenta) : null}
+              marcador="Por definir"
             />
-            <ResumenFila
+            <FilaResumen
               etiqueta="Comprobante"
-              valor={documento ? "Adjunto" : "Pendiente"}
+              valor={documento ? "Adjunto" : null}
+              marcador="Sin adjuntar"
             />
-            <div className="from-primary/10 to-primary/5 mt-5 rounded-[13px] bg-gradient-to-br p-4">
-              <ResumenFila
-                etiqueta="Monto original"
-                valor={
-                  montoBrutoCentimos === null
-                    ? "S/ 0.00"
-                    : formatearSoles(montoBrutoCentimos)
-                }
-              />
-              <div className="mt-2">
-                <ResumenFila
-                  etiqueta="Descuento convenio"
-                  valor={
-                    preview
-                      ? `− ${formatearSoles(preview.descuento)}`
-                      : "− S/ 0.00"
-                  }
-                />
-              </div>
-              <div className="border-primary/15 mt-3 flex items-end justify-between border-t pt-3">
-                <span className="text-primary font-semibold">Total final</span>
-                <span className="text-primary text-2xl font-extrabold tracking-tight">
-                  {preview ? formatearSoles(preview.final) : "S/ 0.00"}
-                </span>
-              </div>
+          </div>
+
+          <div
+            aria-live="polite"
+            className="mx-[18px] mb-[18px] rounded-[22px] bg-[var(--venta-azul)] p-[22px] text-white"
+          >
+            <div className="flex justify-between py-0.5 font-mono text-sm text-white/75">
+              <span>Monto de venta</span>
+              <b className="font-bold text-white">
+                {montoBrutoCentimos === null
+                  ? "S/ 0.00"
+                  : formatearSoles(montoBrutoCentimos)}
+              </b>
+            </div>
+            <div className="flex justify-between py-0.5 font-mono text-sm text-white/75">
+              <span>Descuento convenio</span>
+              <b className="font-bold text-white">
+                − {preview ? formatearSoles(preview.descuento) : "S/ 0.00"}
+              </b>
+            </div>
+            <div className="my-3.5 h-px bg-white/25" />
+            {/* Apilado, no en línea: la columna mide 372 px y en Courier un
+                importe de cinco cifras no cabe junto al rótulo. */}
+            <div>
+              <span className="block font-mono text-[12px] font-bold tracking-[0.14em] text-white/75 uppercase">
+                Total final
+              </span>
+              <p className="mt-2 font-mono text-[clamp(28px,3vw,36px)] leading-none font-bold tracking-[-0.02em] tabular-nums">
+                {preview ? formatearSoles(preview.final) : "S/ 0.00"}
+              </p>
             </div>
           </div>
-          <div className="border-border border-t p-5">
+
+          <div className="px-6 pb-6">
             <Button
               type="submit"
               disabled={!puedeGuardar}
-              className="h-12 w-full rounded-xl"
+              className="h-[58px] w-full rounded-full bg-[var(--venta-azul)] text-base font-semibold text-white hover:bg-[var(--venta-azul-hondo)] disabled:bg-[var(--venta-hueco)] disabled:text-[var(--venta-gris-claro)]"
             >
               {pendiente ? "Guardando…" : "Guardar venta"}
             </Button>
-            <p className="text-muted-foreground mt-2.5 text-[10px] leading-relaxed">
-              Al guardar confirmas que la información y los archivos adjuntos
-              son correctos.
+            <p className="mt-3 text-center text-[13px] leading-snug text-[var(--venta-gris)]">
+              {faltante}
             </p>
           </div>
         </aside>
       </form>
 
+      {/* ── Barra inferior móvil (PWA) ── */}
       <div className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
         <Button
           type="button"
           size="lg"
           disabled={!puedeGuardar}
           onClick={() => setResumenAbierto(true)}
-          className="shadow-primary/20 h-13 w-full rounded-2xl text-base shadow-lg"
+          className="h-14 w-full rounded-full bg-[var(--venta-azul)] text-base font-semibold text-white shadow-[var(--venta-azul)]/20 shadow-lg hover:bg-[var(--venta-azul-hondo)] disabled:bg-[var(--venta-hueco)] disabled:text-[var(--venta-gris-claro)]"
         >
           Revisar venta
         </Button>
@@ -968,48 +983,58 @@ export function FormVenta({
         <SheetContent
           side="bottom"
           showCloseButton={false}
-          className="gap-0 rounded-t-3xl px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+          className={`venta-shell gap-0 rounded-t-[26px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] ${claseFuentes}`}
         >
           <SheetHeader className="p-0 text-left">
-            <SheetTitle className="text-xl font-semibold">
+            <SheetTitle className="text-[19px] font-bold tracking-[-0.01em]">
               Revisa la venta
             </SheetTitle>
-            <p className="text-muted-foreground text-sm">
+            <p className="text-sm text-[var(--venta-gris)]">
               Confirma los datos antes de registrarla.
             </p>
           </SheetHeader>
-          <div className="bg-muted/50 my-5 space-y-3 rounded-2xl p-4 text-sm">
-            <ResumenFila
+          <div className="my-5">
+            <FilaResumen
               etiqueta="Empleado"
               valor={
-                empleado ? `${empleado.nombres} ${empleado.apellidos}` : "—"
+                empleado ? `${empleado.nombres} ${empleado.apellidos}` : null
               }
+              marcador="—"
             />
-            <ResumenFila
+            <FilaResumen
               etiqueta="Sede"
-              valor={sedes.find((s) => s.id === sedeId)?.nombre ?? "—"}
+              valor={sedes.find((s) => s.id === sedeId)?.nombre}
+              marcador="—"
             />
-            <ResumenFila
-              etiqueta="Monto"
+            <FilaResumen
+              etiqueta="Monto de venta"
               valor={
                 montoBrutoCentimos === null
-                  ? "—"
+                  ? null
                   : formatearSoles(montoBrutoCentimos)
               }
+              marcador="—"
             />
-            <div className="border-border flex items-center justify-between border-t pt-3 text-base font-semibold">
-              <span>Total</span>
-              <span className="text-primary">
-                {preview ? formatearSoles(preview.final) : "—"}
-              </span>
-            </div>
+            <FilaResumen
+              etiqueta="Descuento convenio"
+              valor={preview ? `− ${formatearSoles(preview.descuento)}` : null}
+              marcador="—"
+            />
+          </div>
+          <div className="mb-5 flex items-baseline justify-between gap-3 rounded-[22px] bg-[var(--venta-azul)] px-5 py-4 text-white">
+            <span className="shrink-0 font-mono text-[12px] font-bold tracking-[0.14em] text-white/75 uppercase">
+              Total final
+            </span>
+            <span className="font-mono text-[clamp(24px,7vw,30px)] leading-none font-bold tracking-[-0.02em] tabular-nums">
+              {preview ? formatearSoles(preview.final) : "S/ 0.00"}
+            </span>
           </div>
           <Button
             type="submit"
             form="form-venta"
             size="lg"
             disabled={!puedeGuardar}
-            className="h-13 w-full rounded-2xl text-base"
+            className="h-14 w-full rounded-full bg-[var(--venta-azul)] text-base font-semibold text-white hover:bg-[var(--venta-azul-hondo)] disabled:bg-[var(--venta-hueco)] disabled:text-[var(--venta-gris-claro)]"
           >
             {pendiente ? "Guardando…" : "Confirmar y guardar"}
           </Button>
@@ -1019,13 +1044,126 @@ export function FormVenta({
   );
 }
 
-function ResumenFila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
+/**
+ * Tarjeta de paso. `activo` marca el paso en curso con borde azul, `hecho`
+ * pone el número en verde y `bloqueado` lo atenúa y lo saca de la interacción
+ * mientras no se cumpla el requisito previo (los `input` siguen enviándose).
+ */
+function PasoTarjeta({
+  numero,
+  titulo,
+  descripcion,
+  activo = false,
+  hecho = false,
+  bloqueado = false,
+  children,
+}: {
+  numero: number;
+  titulo: string;
+  descripcion: string;
+  activo?: boolean;
+  hecho?: boolean;
+  bloqueado?: boolean;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-muted-foreground">{etiqueta}</span>
-      <span className="max-w-[65%] truncate text-right font-medium">
-        {valor}
-      </span>
+    <section
+      // `inert` (no solo `pointer-events`) también saca el paso del foco por
+      // teclado y del árbol de accesibilidad; los `input` se siguen enviando.
+      inert={bloqueado}
+      className={`rounded-[26px] border-2 bg-[var(--venta-papel)] p-5 transition-[border-color,opacity] duration-200 sm:p-7 ${
+        activo && !bloqueado
+          ? "border-[var(--venta-azul-borde)]"
+          : "border-transparent"
+      } ${bloqueado ? "opacity-50" : ""}`}
+    >
+      <div className="mb-6 flex items-center gap-3.5">
+        <span
+          className={`grid size-[34px] shrink-0 place-items-center rounded-full font-mono text-[15px] font-bold transition-colors ${
+            hecho
+              ? "bg-success text-success-foreground"
+              : activo && !bloqueado
+                ? "bg-[var(--venta-azul)] text-white"
+                : "bg-[var(--venta-hueco)] text-[var(--venta-gris)]"
+          }`}
+        >
+          {hecho ? <Check className="size-4" strokeWidth={3} /> : numero}
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-[17px] font-bold tracking-[-0.01em] sm:text-[19px]">
+            {titulo}
+          </h2>
+          <p className="mt-0.5 text-[13px] text-[var(--venta-gris)] sm:text-sm">
+            {descripcion}
+          </p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Rotulo({
+  htmlFor,
+  children,
+}: {
+  htmlFor: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Label
+      htmlFor={htmlFor}
+      className="mb-2 block text-[13px] font-semibold text-[var(--venta-gris)]"
+    >
+      {children}
+    </Label>
+  );
+}
+
+/** Campo de solo lectura del paso 1: hueco gris hasta que la búsqueda responde. */
+function CampoSoloLectura({
+  rotulo,
+  htmlFor,
+  valor,
+  marcador,
+}: {
+  rotulo: string;
+  htmlFor: string;
+  valor: string;
+  marcador: string;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col">
+      <Rotulo htmlFor={htmlFor}>{rotulo}</Rotulo>
+      <input
+        id={htmlFor}
+        value={valor}
+        placeholder={marcador}
+        readOnly
+        tabIndex={-1}
+        className={`h-[58px] min-w-0 truncate rounded-[18px] bg-[var(--venta-hueco)] px-4 text-base outline-none placeholder:font-normal placeholder:text-[var(--venta-gris-claro)] ${valor ? "font-semibold" : ""}`}
+      />
+    </div>
+  );
+}
+
+function FilaResumen({
+  etiqueta,
+  valor,
+  marcador,
+}: {
+  etiqueta: string;
+  valor: string | null | undefined;
+  marcador: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-3.5 border-b border-[var(--venta-linea)] py-2.5 text-sm last:border-b-0">
+      <span className="shrink-0 text-[var(--venta-gris)]">{etiqueta}</span>
+      <strong
+        className={`truncate text-right ${valor ? "font-semibold" : "font-normal text-[var(--venta-gris-claro)]"}`}
+      >
+        {valor || marcador}
+      </strong>
     </div>
   );
 }

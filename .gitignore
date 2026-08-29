@@ -49,3 +49,6 @@ next-env.d.ts
 AGENTS.local
 
 /entregables
+
+# fuentes de pdf.js copiadas por scripts/copiar-fuentes-pdf.mjs
+/public/pdfjs

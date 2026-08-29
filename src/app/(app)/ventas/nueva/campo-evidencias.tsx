@@ -85,7 +85,7 @@ export function CampoEvidencias({
           variant="ghost"
           size="sm"
           onClick={agregar}
-          className="self-start text-[#0f62ad] lg:self-center"
+          className="self-start rounded-full font-semibold text-[var(--venta-azul)] lg:self-center"
         >
           <Plus className="size-4" />
           Agregar otra evidencia
@@ -139,7 +139,7 @@ function SlotEvidencia({
         onArchivo={procesar}
       >
         {preview ? (
-          <div className="relative flex w-full min-w-0 items-center gap-3 rounded-xl border border-[#d7e9fb] bg-[#f2f8ff] p-3 text-left lg:max-w-[500px]">
+          <div className="relative flex w-full min-w-0 items-center gap-3 rounded-[18px] border-2 border-[var(--venta-azul-borde)] bg-[var(--venta-azul-humo)] p-3 text-left lg:max-w-[500px]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={preview}

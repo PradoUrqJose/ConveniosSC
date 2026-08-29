@@ -3,6 +3,7 @@
 import { es } from "date-fns/locale";
 import { CalendarDays } from "lucide-react";
 
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -31,6 +32,7 @@ export function DatePicker({
   min,
   max,
   id,
+  className,
 }: {
   name: string;
   value: string;
@@ -38,6 +40,8 @@ export function DatePicker({
   min?: string;
   max?: string;
   id?: string;
+  /** Permite a cada pantalla ajustar alto y forma del disparador. */
+  className?: string;
 }) {
   const seleccionada = aFecha(value);
   const deshabilitadas =
@@ -56,7 +60,10 @@ export function DatePicker({
         render={
           <Button
             variant="outline"
-            className="bg-background h-14 w-full justify-start gap-3 rounded-2xl px-4 font-normal"
+            className={cn(
+              "bg-background h-14 w-full justify-start gap-3 rounded-2xl px-4 font-normal",
+              className,
+            )}
           />
         }
       >

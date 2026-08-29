@@ -239,6 +239,41 @@
     @apply bg-card/80 ring-foreground/7 rounded-[1.25rem] p-3 shadow-sm ring-1 sm:p-4;
   }
 
+  /* Paleta de la pantalla Nueva venta. Vive aquí y no en `:root` porque es
+     local a ese flujo; en oscuro se reengancha a los tokens del tema para no
+     dejar una pantalla clavada en claro. */
+  .venta-shell {
+    /* Redefinir los tokens de fuente basta para que `font-sans`/`font-mono` de
+       Tailwind cambien dentro de esta pantalla, sin tocar el resto de la app. */
+    --font-sans: var(--font-venta-sans), ui-sans-serif, system-ui, sans-serif;
+    --font-mono:
+      var(--font-venta-mono), ui-monospace, SFMono-Regular, monospace;
+
+    --venta-azul: #0047ff;
+    --venta-azul-hondo: #0031b0;
+    --venta-azul-humo: #eef2ff;
+    --venta-azul-borde: #c9d6ff;
+    --venta-papel: #ffffff;
+    --venta-linea: #e5e8ef;
+    --venta-hueco: #f3f4f8;
+    --venta-gris: #7d8492;
+    --venta-gris-claro: #a9aeb9;
+    --venta-tinta: #12141a;
+  }
+
+  .dark .venta-shell {
+    --venta-azul: var(--primary);
+    --venta-azul-hondo: var(--primary);
+    --venta-azul-humo: color-mix(in oklab, var(--primary) 16%, transparent);
+    --venta-azul-borde: color-mix(in oklab, var(--primary) 38%, transparent);
+    --venta-papel: var(--card);
+    --venta-linea: var(--border);
+    --venta-hueco: var(--muted);
+    --venta-gris: var(--muted-foreground);
+    --venta-gris-claro: var(--muted-foreground);
+    --venta-tinta: var(--foreground);
+  }
+
   .money {
     @apply font-mono tabular-nums;
   }

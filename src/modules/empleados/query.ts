@@ -1,12 +1,13 @@
 import { sql } from "drizzle-orm";
 
-import { db } from "@/db";
+import { after } from "next/server";
+
+import { db, dbTx } from "@/db";
 import { registrar } from "@/lib/audit/registrar";
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
 import { obtenerFilas } from "@/lib/audit/registrar";
 import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import { hoyLima, sumarDias } from "@/lib/fechas";
-import { rateLimit } from "@/lib/rate-limit";
 import type { Pagina, Resultado } from "@/lib/tipos";
 import { zDocumentoIdentidad, type TipoDocumento } from "@/lib/zod";
 
@@ -79,7 +80,11 @@ export async function buscarPorDocumento(
   ctx: SessionContext,
   entrada:
     { tipoDocumento: TipoDocumento; numeroDocumento: string } | { dni: string },
-  ejecutor: TransaccionAuditada = db,
+  /**
+   * Solo lo pasan las pruebas de aceptación, que abren su propia transacción.
+   * Sin él se usa la conexión normal y la auditoría se difiere.
+   */
+  ejecutor?: TransaccionAuditada,
 ): Promise<Resultado<ResultadoBusquedaDocumento>> {
   const parsed = zDocumentoIdentidad.safeParse(
     "dni" in entrada
@@ -96,12 +101,125 @@ export async function buscarPorDocumento(
   }
   const { tipoDocumento, numeroDocumento } = parsed.data;
   const hoy = hoyLima();
+  const ventanaSegundos = VENTANA_BUSQUEDA_MS / 1000;
+  const enTransaccionAjena = ejecutor !== undefined;
+  const ex = ejecutor ?? db;
 
-  const control = await rateLimit(ejecutor, `documento:${ctx.usuarioId}`, {
-    limite: LIMITE_BUSQUEDAS,
-    ventanaMs: VENTANA_BUSQUEDA_MS,
-  });
-  if (!control.permitido) {
+  /**
+   * La auditoría no cambia la respuesta, así que no debe hacerla esperar: son
+   * tres idas y vueltas (lock, último hash, insert) de las seis que tenía esta
+   * búsqueda. `after` la deja correr tras responder, igual que `requireSession`
+   * hace con `refrescarUltimoUso`.
+   *
+   * Va en una transacción real (`dbTx`) y no en la conexión HTTP: la cadena de
+   * hashes se protege con `pg_advisory_xact_lock`, que solo dura lo que dura la
+   * transacción. Sobre neon-http cada sentencia es su propia transacción, así
+   * que ese lock se soltaba de inmediato y no protegía nada.
+   */
+  const anotar = async (empleadoId: string | null, resultado: string) => {
+    if (enTransaccionAjena) {
+      await auditar(
+        ex,
+        ctx,
+        tipoDocumento,
+        numeroDocumento,
+        empleadoId,
+        resultado,
+      );
+      return;
+    }
+    after(async () => {
+      try {
+        await dbTx().transaction((tx) =>
+          auditar(
+            tx,
+            ctx,
+            tipoDocumento,
+            numeroDocumento,
+            empleadoId,
+            resultado,
+          ),
+        );
+      } catch (error) {
+        console.error("[auditoria] BUSQUEDA_DOCUMENTO vía dbTx", error);
+        try {
+          // Sin `DATABASE_URL_UNPOOLED` no hay transacción posible. Se registra
+          // igual por HTTP: la cadena queda sin el lock, pero perder el rastro
+          // de una búsqueda de datos personales es peor que un hash disputado.
+          await auditar(
+            db,
+            ctx,
+            tipoDocumento,
+            numeroDocumento,
+            empleadoId,
+            resultado,
+          );
+        } catch (error2) {
+          console.error("[auditoria] BUSQUEDA_DOCUMENTO perdida", error2);
+        }
+      }
+    });
+  };
+
+  // Un único viaje a la base: el control de frecuencia y la búsqueda van en la
+  // misma sentencia. Eran dos idas y vueltas de ~95 ms contra Neon y el
+  // resultado de la primera solo servía para decidir si seguir.
+  const filas = obtenerFilas(
+    await ex.execute(sql`
+      WITH limite AS (
+        INSERT INTO rate_limits (clave, ventana_inicio, contador)
+        VALUES (${`documento:${ctx.usuarioId}`}, now(), 1)
+        ON CONFLICT (clave) DO UPDATE SET
+          ventana_inicio = CASE
+            WHEN rate_limits.ventana_inicio
+                 < now() - make_interval(secs => ${ventanaSegundos})
+            THEN now() ELSE rate_limits.ventana_inicio
+          END,
+          contador = CASE
+            WHEN rate_limits.ventana_inicio
+                 < now() - make_interval(secs => ${ventanaSegundos})
+            THEN 1 ELSE rate_limits.contador + 1
+          END
+        RETURNING contador
+      ),
+      encontrado AS (
+        SELECT e.id, e.empresa_id, e.tipo_documento, e.dni AS numero_documento,
+               e.nombres, e.apellidos, e.telefono,
+               e.estado, emp.nombre_comercial AS empresa_nombre,
+               convenio.convenio_id, convenio.descuento_bps
+        FROM empleados e
+        JOIN empresas emp ON emp.id = e.empresa_id
+        LEFT JOIN LATERAL (
+          SELECT c.id AS convenio_id, ct.descuento_bps
+          FROM convenios c
+          JOIN convenio_terminos ct
+            ON ct.convenio_id = c.id
+           AND ct.empresa_otorgante_id = ${ctx.empresaId}::uuid
+          WHERE c.estado = 'VIGENTE'
+            AND ((c.empresa_a_id = e.empresa_id
+                  AND c.empresa_b_id = ${ctx.empresaId}::uuid)
+              OR (c.empresa_b_id = e.empresa_id
+                  AND c.empresa_a_id = ${ctx.empresaId}::uuid))
+            AND ${hoy} >= c.vigencia_desde
+            AND (c.vigencia_hasta IS NULL OR ${hoy} <= c.vigencia_hasta)
+            AND ct.vigencia_desde <= ${hoy}
+            AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${hoy})
+          ORDER BY ct.vigencia_desde DESC
+          LIMIT 1
+        ) convenio ON TRUE
+        WHERE e.tipo_documento = ${tipoDocumento}
+          AND e.dni = ${numeroDocumento}
+        LIMIT 1
+      )
+      -- \`limite\` siempre devuelve una fila; \`encontrado\`, cero o una.
+      SELECT l.contador, e.*
+      FROM limite l
+      LEFT JOIN encontrado e ON TRUE
+    `),
+  );
+  const fila = filas[0];
+
+  if (Number(fila?.contador ?? 1) > LIMITE_BUSQUEDAS) {
     return {
       ok: false,
       codigo: "LIMITE_EXCEDIDO",
@@ -110,47 +228,8 @@ export async function buscarPorDocumento(
     };
   }
 
-  const filas = obtenerFilas(
-    await ejecutor.execute(sql`
-      SELECT e.id, e.empresa_id, e.tipo_documento, e.dni AS numero_documento,
-             e.nombres, e.apellidos, e.telefono,
-             e.estado, emp.nombre_comercial AS empresa_nombre,
-             convenio.convenio_id, convenio.descuento_bps
-      FROM empleados e
-      JOIN empresas emp ON emp.id = e.empresa_id
-      LEFT JOIN LATERAL (
-        SELECT c.id AS convenio_id, ct.descuento_bps
-        FROM convenios c
-        JOIN convenio_terminos ct
-          ON ct.convenio_id = c.id
-         AND ct.empresa_otorgante_id = ${ctx.empresaId}::uuid
-        WHERE c.estado = 'VIGENTE'
-          AND ((c.empresa_a_id = e.empresa_id
-                AND c.empresa_b_id = ${ctx.empresaId}::uuid)
-            OR (c.empresa_b_id = e.empresa_id
-                AND c.empresa_a_id = ${ctx.empresaId}::uuid))
-          AND ${hoy} >= c.vigencia_desde
-          AND (c.vigencia_hasta IS NULL OR ${hoy} <= c.vigencia_hasta)
-          AND ct.vigencia_desde <= ${hoy}
-          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${hoy})
-        ORDER BY ct.vigencia_desde DESC
-        LIMIT 1
-      ) convenio ON TRUE
-      WHERE e.tipo_documento = ${tipoDocumento}
-        AND e.dni = ${numeroDocumento}
-      LIMIT 1
-    `),
-  );
-  const fila = filas[0];
-  if (!fila) {
-    await auditar(
-      ejecutor,
-      ctx,
-      tipoDocumento,
-      numeroDocumento,
-      null,
-      "NO_EXISTE",
-    );
+  if (!fila?.id) {
+    await anotar(null, "NO_EXISTE");
     return {
       ok: true,
       data: { encontrado: false, motivo: "NO_EXISTE" },
@@ -162,14 +241,7 @@ export async function buscarPorDocumento(
   const empresaEmpleado = String(fila.empresa_id);
 
   if (estado === "RECHAZADO" || estado === "INACTIVO") {
-    await auditar(
-      ejecutor,
-      ctx,
-      tipoDocumento,
-      numeroDocumento,
-      empleadoId,
-      "NO_HABILITADO",
-    );
+    await anotar(empleadoId, "NO_HABILITADO");
     return {
       ok: true,
       data: { encontrado: false, motivo: "NO_HABILITADO" },
@@ -177,14 +249,7 @@ export async function buscarPorDocumento(
   }
 
   if (ctx.empresaId !== null && empresaEmpleado === ctx.empresaId) {
-    await auditar(
-      ejecutor,
-      ctx,
-      tipoDocumento,
-      numeroDocumento,
-      empleadoId,
-      "PROPIA_EMPRESA",
-    );
+    await anotar(empleadoId, "PROPIA_EMPRESA");
     return {
       ok: true,
       data: { encontrado: false, motivo: "PROPIA_EMPRESA" },
@@ -192,14 +257,7 @@ export async function buscarPorDocumento(
   }
 
   if (fila.convenio_id === null || fila.convenio_id === undefined) {
-    await auditar(
-      ejecutor,
-      ctx,
-      tipoDocumento,
-      numeroDocumento,
-      empleadoId,
-      "SIN_CONVENIO",
-    );
+    await anotar(empleadoId, "SIN_CONVENIO");
     return {
       ok: true,
       data: {
@@ -210,14 +268,7 @@ export async function buscarPorDocumento(
     };
   }
 
-  await auditar(
-    ejecutor,
-    ctx,
-    tipoDocumento,
-    numeroDocumento,
-    empleadoId,
-    "ENCONTRADO",
-  );
+  await anotar(empleadoId, "ENCONTRADO");
   return {
     ok: true,
     data: {

@@ -35,7 +35,9 @@ test("venta con empleado existente aparece en el listado", async ({ page }) => {
   expect(sedeBox).not.toBeNull();
   expect(montoBox).not.toBeNull();
   expect(Math.round(tipoBox!.height)).toBe(Math.round(documentoBox!.height));
-  expect(Math.round(sedeBox!.height)).toBe(Math.round(montoBox!.height));
+  // El monto es el campo destacado del paso 2 (rediseño de Nueva venta): puede
+  // ser más alto que la sede, nunca más bajo.
+  expect(montoBox!.height).toBeGreaterThanOrEqual(sedeBox!.height);
   const selectorTipoDocumento = page.getByLabel("Tipo de documento");
   const botonBuscar = page.getByRole("button", { name: /buscar empleado/i });
   if ((page.viewportSize()?.width ?? 0) >= 1024) {

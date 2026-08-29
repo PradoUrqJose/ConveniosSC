@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { subirArchivoLocal } from "@/modules/empleados/actions";
 import type { Resultado } from "@/lib/tipos";
 import type { MimePermitido } from "@/lib/archivos";
+import { miniaturaPrimeraPagina } from "@/lib/miniatura-pdf";
 
 export type DatosSubida = {
   blobPath: string;
@@ -49,6 +50,9 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
   const [datos, setDatos] = useState<DatosSubida | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [previewMime, setPreviewMime] = useState<string | null>(null);
+  // Se conserva el File original: la miniatura de PDF necesita los bytes, no
+  // el object URL (ver `miniatura-pdf.ts`).
+  const [archivo, setArchivo] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(
@@ -69,6 +73,7 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
     setPreviewMime(file.type);
+    setArchivo(file);
     try {
       const archivoFinal = await comprimir(file, setProgreso);
       const sha256 = await sha256Hex(archivoFinal);
@@ -120,6 +125,7 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
   const eliminar = () => {
     setPreview(null);
     setPreviewMime(null);
+    setArchivo(null);
     setDatos(null);
     setError(null);
   };
@@ -130,6 +136,7 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
     datos,
     preview,
     previewMime,
+    archivo,
     error,
     procesar,
     eliminar,
@@ -166,6 +173,7 @@ export function CampoArchivo({
     datos,
     preview,
     previewMime,
+    archivo,
     error,
     procesar,
     eliminar,
@@ -192,6 +200,7 @@ export function CampoArchivo({
 
   const esImagen =
     previewMime !== null && MIME_IMAGEN.includes(previewMime as MimePermitido);
+  const esPdf = previewMime === "application/pdf";
 
   if (variante === "venta") {
     return (
@@ -206,21 +215,18 @@ export function CampoArchivo({
           onArchivo={alProcesar}
         >
           {preview ? (
-            <div className="flex h-full w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border p-3 lg:border-[#d7e9fb] lg:bg-[#f2f8ff] lg:p-2 lg:text-left">
-              {esImagen ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={preview}
-                  alt="Vista previa del documento de venta"
-                  className="size-16 shrink-0 rounded-lg border object-cover lg:h-full lg:w-[42%] lg:max-w-52"
-                />
-              ) : (
-                <div className="bg-background flex size-16 shrink-0 items-center justify-center rounded-lg border lg:h-full lg:w-[36%] lg:max-w-40">
-                  <FileText className="text-primary size-6 lg:size-10" />
-                </div>
-              )}
+            <div className="flex h-full w-full min-w-0 items-center gap-3 overflow-hidden rounded-[18px] border-2 border-[var(--venta-azul-borde)] bg-[var(--venta-azul-humo)] p-3 text-left lg:p-2">
+              <VistaPreviaArchivo
+                preview={preview}
+                esImagen={esImagen}
+                archivoPdf={esPdf ? archivo : null}
+                alt="Vista previa del documento de venta"
+                claseImagen="size-16 shrink-0 rounded-lg border object-cover lg:h-full lg:w-[42%] lg:max-w-52"
+                claseCaja="bg-background flex size-16 shrink-0 items-center justify-center rounded-lg border lg:h-full lg:w-[36%] lg:max-w-40"
+                claseIcono="text-primary size-6 lg:size-10"
+              />
               <div className="min-w-0 flex-1">
-                <p className="max-w-full truncate text-sm font-semibold text-[#344054]">
+                <p className="max-w-full truncate text-sm font-semibold">
                   {textoArchivoCargado(datos)}
                 </p>
                 <p className="text-muted-foreground mt-1 text-xs">
@@ -240,7 +246,7 @@ export function CampoArchivo({
                 aria-label="Eliminar archivo"
                 onClick={alEliminar}
                 disabled={subiendo}
-                className="lg:size-7 lg:rounded-md lg:text-[#98a2b3] lg:hover:bg-white lg:hover:text-[#d92d20]"
+                className="text-[var(--venta-gris-claro)] hover:bg-white hover:text-[var(--destructive)] lg:size-7 lg:rounded-md"
               >
                 <Trash2 className="size-4" />
               </Button>
@@ -261,18 +267,15 @@ export function CampoArchivo({
     <div className="flex min-w-0 flex-col gap-3">
       {preview ? (
         <div className="flex min-w-0 items-center gap-3 overflow-hidden rounded-xl border p-3">
-          {esImagen ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={preview}
-              alt="Vista previa del archivo"
-              className="size-16 rounded-lg border object-cover"
-            />
-          ) : (
-            <div className="bg-muted flex size-16 items-center justify-center rounded-lg">
-              <FileText className="text-muted-foreground size-6" />
-            </div>
-          )}
+          <VistaPreviaArchivo
+            preview={preview}
+            esImagen={esImagen}
+            archivoPdf={esPdf ? archivo : null}
+            alt="Vista previa del archivo"
+            claseImagen="size-16 shrink-0 rounded-lg border object-cover"
+            claseCaja="bg-muted flex size-16 items-center justify-center rounded-lg"
+            claseIcono="text-muted-foreground size-6"
+          />
           <div className="min-w-0 flex-1">
             <p className="max-w-full truncate text-sm font-medium">
               {textoArchivoCargado(datos)}
@@ -351,6 +354,83 @@ export function CampoArchivo({
       {datos ? <InputsArchivo prefijo={prefijo} datos={datos} /> : null}
     </div>
   );
+}
+
+/**
+ * Miniatura del archivo cargado. Las imágenes usan el object URL directo; de
+ * los PDF se rasteriza la primera página con pdf.js (ver `miniatura-pdf.ts`:
+ * la CSP prohíbe el visor nativo), así que ambos casos terminan en un `<img>`
+ * con el mismo encuadre. Mientras se rasteriza —o si el PDF no se puede
+ * abrir— se muestra el ícono.
+ */
+function VistaPreviaArchivo({
+  preview,
+  esImagen,
+  archivoPdf,
+  alt,
+  claseImagen,
+  claseCaja,
+  claseIcono,
+}: {
+  preview: string;
+  esImagen: boolean;
+  archivoPdf: Blob | null;
+  alt: string;
+  claseImagen: string;
+  claseCaja: string;
+  claseIcono: string;
+}) {
+  const miniaturaPdf = useMiniaturaPdf(archivoPdf);
+  const fuente = esImagen ? preview : miniaturaPdf;
+
+  if (fuente) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={fuente}
+        alt={alt}
+        // Una página es mucho más alta que la caja: anclar el recorte arriba
+        // muestra el encabezado del comprobante y no una franja vacía del
+        // centro. Las fotos se siguen recortando centradas.
+        className={miniaturaPdf ? `${claseImagen} object-top` : claseImagen}
+      />
+    );
+  }
+
+  return (
+    <div className={claseCaja}>
+      <FileText className={claseIcono} />
+    </div>
+  );
+}
+
+/** Rasteriza el PDF `archivo` y limpia el object URL que genera. */
+function useMiniaturaPdf(archivo: Blob | null) {
+  const [miniatura, setMiniatura] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!archivo) return;
+    let vigente = true;
+    let generada: string | null = null;
+    void miniaturaPrimeraPagina(archivo).then((url) => {
+      if (!url) return;
+      // Si el archivo cambió mientras se rasterizaba, esta miniatura ya no sirve.
+      if (!vigente) {
+        URL.revokeObjectURL(url);
+        return;
+      }
+      generada = url;
+      setMiniatura(url);
+    });
+    return () => {
+      vigente = false;
+      setMiniatura(null);
+      if (generada) URL.revokeObjectURL(generada);
+    };
+  }, [archivo]);
+
+  // Sin archivo la miniatura anterior ya no aplica, aunque su limpieza aún no corra.
+  return archivo ? miniatura : null;
 }
 
 /** El pathname contiene IDs internos y no es un nombre útil para la persona usuaria. */

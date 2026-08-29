@@ -68,14 +68,14 @@ export function CargadorArchivoVenta({
           className={
             ocultarEtiqueta
               ? "sr-only"
-              : "lg:text-[13px] lg:font-semibold lg:text-[#344054]"
+              : "text-[13px] font-semibold text-[var(--venta-gris)]"
           }
         >
           {etiqueta}
           {requerido ? <span className="text-destructive"> *</span> : null}
         </Label>
         {indicador ? (
-          <span className="text-muted-foreground shrink-0 text-xs whitespace-nowrap lg:text-[11px] lg:text-[#98a2b3]">
+          <span className="shrink-0 text-[11px] whitespace-nowrap text-[var(--venta-gris-claro)]">
             {indicador}
           </span>
         ) : null}
@@ -88,17 +88,17 @@ export function CargadorArchivoVenta({
           evento.preventDefault();
           entregarArchivo(evento.dataTransfer.files[0]);
         }}
-        className="flex min-h-[154px] min-w-0 items-center justify-center rounded-[14px] border-[1.5px] border-dashed border-[#c8d2df] bg-gradient-to-b from-[rgba(247,250,253,0.8)] to-white p-5 text-center transition hover:border-[#0f62ad] hover:bg-[#f5f9ff] lg:h-[176px] lg:max-h-[176px] lg:min-h-[176px] lg:overflow-hidden"
+        className="flex min-h-[154px] min-w-0 items-center justify-center rounded-[22px] border-2 border-dashed border-[var(--venta-linea)] bg-[var(--venta-papel)] px-5 py-7 text-center transition hover:border-[var(--venta-azul-borde)] hover:bg-[var(--venta-azul-humo)] lg:h-[192px] lg:max-h-[192px] lg:min-h-[192px] lg:overflow-hidden"
       >
         {children ?? (
           <div className="flex max-w-[500px] flex-col items-center">
-            <div className="mb-2.5 hidden size-[42px] place-items-center rounded-xl bg-[#eaf4ff] text-[#0f62ad] lg:grid">
+            <div className="mb-2.5 hidden size-[42px] place-items-center rounded-xl bg-[var(--venta-azul-humo)] text-[var(--venta-azul)] lg:grid">
               <Upload className="size-[21px]" />
             </div>
-            <p className="hidden text-sm font-semibold text-[#172033] lg:block">
+            <p className="hidden text-[15px] font-semibold lg:block">
               {titulo}
             </p>
-            <p className="text-muted-foreground mb-3.5 text-xs lg:mt-1 lg:text-[#98a2b3]">
+            <p className="mb-3.5 text-[13px] text-[var(--venta-gris)] lg:mt-1">
               {ayuda}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row lg:justify-center">
@@ -106,7 +106,7 @@ export function CargadorArchivoVenta({
                 type="button"
                 disabled={subiendo}
                 onClick={() => inputRef.current?.click()}
-                className="lg:min-h-10 lg:rounded-[10px] lg:bg-[#0f62ad] lg:px-[15px] lg:shadow-[0_5px_12px_rgba(15,98,173,0.18)] lg:hover:bg-[#094d8c]"
+                className="rounded-full bg-[var(--venta-azul)] px-5 font-semibold text-white hover:bg-[var(--venta-azul-hondo)] lg:min-h-10"
               >
                 <ImagePlus className="size-4 lg:size-[17px]" />
                 Elegir archivo
@@ -116,7 +116,7 @@ export function CargadorArchivoVenta({
                 variant="outline"
                 disabled={subiendo}
                 onClick={abrirCamara}
-                className="lg:hidden"
+                className="rounded-full border-2 border-[var(--venta-linea)] font-semibold lg:hidden"
               >
                 <Camera className="size-4" />
                 Tomar foto
