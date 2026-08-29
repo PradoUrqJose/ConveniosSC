@@ -209,7 +209,7 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={`/api/adjuntos/${a.id}`}
+                    src={`/api/adjuntos/${a.id}?miniatura=1`}
                     alt={
                       a.descripcion ??
                       (a.tipo === "DOCUMENTO_VENTA" ? "Documento" : "Evidencia")

@@ -1,5 +1,8 @@
 import { sql } from "drizzle-orm";
 
+import { after } from "next/server";
+
+import { db, dbTx } from "@/db";
 import { registrar, type TransaccionAuditada } from "@/lib/audit/registrar";
 import { obtenerFilas } from "@/lib/audit/registrar";
 import type { SessionContext } from "@/lib/auth/guardas";
@@ -44,6 +47,14 @@ export async function leerAdjunto(
   ejecutor: TransaccionAuditada,
   ctx: SessionContext,
   adjuntoId: string,
+  /**
+   * `diferirAuditoria` saca el registro de `ADJUNTO_VISTO` del camino crítico
+   * con `after`, igual que `buscarPorDocumento`. Son tres idas y vueltas (lock,
+   * último hash, insert) de las seis que tenía cada lectura, y ninguna cambia
+   * la respuesta. Lo activa el route; las pruebas de aceptación, que traen su
+   * propia transacción, lo dejan apagado para poder afirmar sobre la fila.
+   */
+  opciones: { diferirAuditoria?: boolean } = {},
 ): Promise<Resultado<AdjuntoLeido>> {
   const control = await rateLimit(ejecutor, `adjunto:${ctx.usuarioId}`, {
     limite: LIMITE_ADJUNTOS,
@@ -87,20 +98,31 @@ export async function leerAdjunto(
     };
   }
 
-  await registrar(ejecutor, {
-    accion: "ADJUNTO_VISTO",
-    entidad: "adjunto",
-    entidadId: adjuntoId,
-    actor: {
-      usuarioId: ctx.usuarioId,
-      empresaId: ctx.empresaId,
-      rol: ctx.rol,
-    },
-    datosDespues: { path: fila.blob_path },
-    ip: ctx.ip,
-    userAgent: ctx.userAgent,
-    requestId: ctx.requestId,
-  });
+  if (opciones.diferirAuditoria) {
+    const blobPath = fila.blob_path;
+    after(async () => {
+      try {
+        // En una transacción real: `pg_advisory_xact_lock` solo protege la
+        // cadena de hashes mientras dura la transacción, y sobre neon-http
+        // cada sentencia es la suya, así que el lock se soltaría de inmediato.
+        await dbTx().transaction((tx) =>
+          auditarVisto(tx, ctx, adjuntoId, blobPath),
+        );
+      } catch (error) {
+        console.error("[auditoria] ADJUNTO_VISTO vía dbTx", error);
+        try {
+          // Sin `DATABASE_URL_UNPOOLED` no hay transacción posible. Se registra
+          // igual por HTTP: la cadena queda sin el lock, pero perder el rastro
+          // del acceso a un documento es peor que un hash disputado.
+          await auditarVisto(db, ctx, adjuntoId, blobPath);
+        } catch (error2) {
+          console.error("[auditoria] ADJUNTO_VISTO perdida", error2);
+        }
+      }
+    });
+  } else {
+    await auditarVisto(ejecutor, ctx, adjuntoId, fila.blob_path);
+  }
 
   return {
     ok: true,
@@ -112,6 +134,28 @@ export async function leerAdjunto(
       nombreArchivo: fila.blob_path.split("/").pop() ?? "archivo",
     },
   };
+}
+
+async function auditarVisto(
+  ejecutor: TransaccionAuditada,
+  ctx: SessionContext,
+  adjuntoId: string,
+  blobPath: string,
+): Promise<void> {
+  await registrar(ejecutor, {
+    accion: "ADJUNTO_VISTO",
+    entidad: "adjunto",
+    entidadId: adjuntoId,
+    actor: {
+      usuarioId: ctx.usuarioId,
+      empresaId: ctx.empresaId,
+      rol: ctx.rol,
+    },
+    datosDespues: { path: blobPath },
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    requestId: ctx.requestId,
+  });
 }
 
 function tienePermiso(ctx: SessionContext, fila: FilaAdjunto): boolean {
