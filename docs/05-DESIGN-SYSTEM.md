@@ -151,8 +151,8 @@ chart  scroll-area  accordion
 | Componente | Responsabilidad |
 |---|---|
 | `<CampoMonto>` | Input de dinero. `inputmode="decimal"`, prefijo `S/`, formatea al perder el foco, emite céntimos. |
-| `<CampoDni>` | Input de 8 dígitos, `inputmode="numeric"`, dispara la búsqueda al completar. |
-| `<CampoArchivo>` | Cámara + archivo, compresión, miniatura, progreso de subida, eliminar. Es el componente más complejo del proyecto. |
+| `<CampoDocumento>` | DNI/CE, input accesible y casillas visuales en escritorio. Solo busca al pulsar el botón. |
+| `<CampoArchivo>` | Arrastrar/archivo en escritorio; archivo/cámara en móvil; compresión, miniatura, progreso y eliminación. |
 | `<VisorAdjunto>` | Modal a pantalla completa con zoom por pellizco. PDF en pestaña nueva. |
 | `<Importe>` | Renderiza céntimos como texto. Props: `valor`, `signo?`, `tamaño?`. Siempre `tabular-nums`. |
 | `<EstadoBadge>` | Badge por estado de venta o empleado. Mapa de color y texto centralizado aquí. |
@@ -162,6 +162,14 @@ chart  scroll-area  accordion
 | `<StatTile>` | Métrica del dashboard con variación y flecha. |
 | `<ListaCursor>` | Listado paginado por cursor con «Cargar más» y skeletons. |
 | `<ConfirmarDestructivo>` | Diálogo con motivo obligatorio. Se usa en anular y rechazar. |
+
+### Altura de controles hermanos
+
+Inputs, fechas y selects de una misma fila deben usar la misma altura. Para un
+`SelectTrigger` de formulario se usa `size="lg"`; no se intenta corregirlo solo
+con `h-*`, porque el selector interno `data-size` tiene mayor especificidad. El
+tamaño compacto del buscador de documento es una excepción responsive y debe
+aplicarse con `lg:data-[size=lg]:h-*`.
 
 ---
 

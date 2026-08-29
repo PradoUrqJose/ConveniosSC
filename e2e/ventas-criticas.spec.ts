@@ -24,6 +24,32 @@ async function iniciarSesion(
 test("venta con empleado existente aparece en el listado", async ({ page }) => {
   await iniciarSesion(page);
   await page.goto("/ventas/nueva");
+  const [tipoBox, documentoBox, sedeBox, montoBox] = await Promise.all([
+    page.getByLabel("Tipo de documento").boundingBox(),
+    page.getByLabel("Documento del empleado").boundingBox(),
+    page.getByLabel("Sede").boundingBox(),
+    page.getByLabel("Monto de venta (S/)").boundingBox(),
+  ]);
+  expect(tipoBox).not.toBeNull();
+  expect(documentoBox).not.toBeNull();
+  expect(sedeBox).not.toBeNull();
+  expect(montoBox).not.toBeNull();
+  expect(Math.round(tipoBox!.height)).toBe(Math.round(documentoBox!.height));
+  expect(Math.round(sedeBox!.height)).toBe(Math.round(montoBox!.height));
+  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    const cargadores = page.locator('[data-slot="campo-archivo-venta"]');
+    await expect(cargadores).toHaveCount(2);
+    const [documentoCargaBox, evidenciaCargaBox] = await Promise.all([
+      cargadores.nth(0).boundingBox(),
+      cargadores.nth(1).boundingBox(),
+    ]);
+    expect(documentoCargaBox).not.toBeNull();
+    expect(evidenciaCargaBox).not.toBeNull();
+    expect(Math.round(documentoCargaBox!.height)).toBe(
+      Math.round(evidenciaCargaBox!.height),
+    );
+  }
+
   let solicitudesPost = 0;
   page.on("request", (request) => {
     if (request.method() === "POST") solicitudesPost += 1;
@@ -34,9 +60,9 @@ test("venta con empleado existente aparece en el listado", async ({ page }) => {
   await page.waitForTimeout(400);
   expect(solicitudesPost).toBe(0);
   await expect(page.getByLabel("Empresa convenio")).toHaveValue("");
-  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByRole("button", { name: /buscar empleado/i }).click();
   await expect.poll(() => solicitudesPost).toBe(1);
-  await expect(page.getByText(/descuento/i)).toBeVisible();
+  await expect(page.getByLabel("Empresa convenio")).not.toHaveValue("");
   await page.getByLabel("Monto de venta (S/)").fill("120.00");
   await page
     .getByLabel(/Documento de venta/i)
@@ -55,7 +81,7 @@ test("el vendedor no puede crear un empleado desde el punto de venta", async ({
   await page
     .getByLabel("Documento del empleado")
     .fill(process.env.E2E_DNI_NUEVO ?? "87654321");
-  await page.getByRole("button", { name: "Buscar" }).click();
+  await page.getByRole("button", { name: /buscar empleado/i }).click();
   await expect(page.getByText(/solicita a un administrador/i)).toBeVisible();
   await expect(
     page.getByRole("button", { name: /crear empleado/i }),
@@ -81,8 +107,14 @@ test("una venta conserva el descuento histórico tras cambiar el convenio", asyn
   await page
     .getByLabel("Documento del empleado")
     .fill(process.env.E2E_DNI_EXISTENTE ?? "45678912");
-  await page.getByRole("button", { name: "Buscar" }).click();
-  await expect(page.getByText(/12% de descuento/i)).toBeVisible();
+  await page.getByRole("button", { name: /buscar empleado/i }).click();
+  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    await expect(
+      page.getByRole("status", { name: /12 por ciento de descuento/i }),
+    ).toBeVisible();
+  } else {
+    await expect(page.getByText(/12% de descuento/i)).toBeVisible();
+  }
   await page.goto("/ventas");
   await page
     .getByRole("link", { name: /ver detalle/i })

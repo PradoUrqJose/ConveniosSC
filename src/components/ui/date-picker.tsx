@@ -56,7 +56,7 @@ export function DatePicker({
         render={
           <Button
             variant="outline"
-            className="bg-background h-11 w-full justify-start gap-3 rounded-xl px-3 font-normal"
+            className="bg-background h-14 w-full justify-start gap-3 rounded-2xl px-4 font-normal"
           />
         }
       >

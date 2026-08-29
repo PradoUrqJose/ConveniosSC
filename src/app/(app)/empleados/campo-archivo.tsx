@@ -3,8 +3,9 @@
 import { useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { upload } from "@vercel/blob/client";
-import { Camera, FileText, ImagePlus, Trash2, Upload } from "lucide-react";
+import { Camera, FileText, ImagePlus, Trash2 } from "lucide-react";
 
+import { CargadorArchivoVenta } from "@/components/cargador-archivo-venta";
 import { Button } from "@/components/ui/button";
 import { subirArchivoLocal } from "@/modules/empleados/actions";
 import type { Resultado } from "@/lib/tipos";
@@ -120,7 +121,8 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
 }
 
 /**
- * `<CampoArchivo>` (05 §5): selección de foto (cámara/archivo), compresión
+ * `<CampoArchivo>` (05 §5): selección de archivo y, solo en móvil, cámara;
+ * compresión
  * en cliente (02 §8: máx 1600 px y 1 MB), sha256 con Web Crypto, subida
  * directa a Vercel Blob vía `POST /api/blob/upload`, progreso, miniatura y
  * eliminación. Los datos quedan en hidden inputs con prefijo configurable.
@@ -170,7 +172,15 @@ export function CampoArchivo({
   if (variante === "venta") {
     return (
       <div className="flex min-w-0 flex-col gap-3">
-        <div className="lg:grid lg:min-h-[154px] lg:place-items-center lg:rounded-[14px] lg:border-[1.5px] lg:border-dashed lg:border-[#c8d2df] lg:bg-gradient-to-b lg:from-[rgba(247,250,253,0.8)] lg:to-white lg:p-5 lg:text-center lg:transition lg:hover:border-[#0f62ad] lg:hover:bg-[#f5f9ff]">
+        <CargadorArchivoVenta
+          etiqueta="Documento de venta"
+          requerido
+          titulo="Arrastra el comprobante aquí"
+          ayuda="Formatos JPG, PNG o PDF. Tamaño máximo de 10 MB."
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          subiendo={subiendo}
+          onArchivo={alProcesar}
+        >
           {preview ? (
             <div className="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border p-3 lg:max-w-[500px] lg:border-[#d7e9fb] lg:bg-[#f2f8ff] lg:px-3 lg:py-2.5 lg:text-left">
               {esImagen ? (
@@ -208,62 +218,8 @@ export function CampoArchivo({
                 <Trash2 className="size-4" />
               </Button>
             </div>
-          ) : (
-            <div className="text-center lg:max-w-[500px]">
-              <div className="bg-primary/10 text-primary mx-auto mb-2.5 hidden size-[42px] place-items-center rounded-xl lg:grid lg:bg-[#eaf4ff] lg:text-[#0f62ad]">
-                <Upload className="size-[21px]" />
-              </div>
-              <p className="hidden text-sm font-semibold text-[#172033] lg:block">
-                Arrastra el comprobante aquí
-              </p>
-              <p className="text-muted-foreground mb-3.5 text-xs lg:mt-1 lg:text-[#98a2b3]">
-                Formatos JPG, PNG o PDF. Tamaño máximo de 10 MB.
-              </p>
-              <div className="flex flex-col gap-2 sm:flex-row lg:justify-center">
-                <Button
-                  type="button"
-                  disabled={subiendo}
-                  onClick={() => inputRef.current?.click()}
-                  className="lg:min-h-10 lg:rounded-[10px] lg:bg-[#0f62ad] lg:px-[15px] lg:shadow-[0_5px_12px_rgba(15,98,173,0.18)] lg:hover:bg-[#094d8c]"
-                >
-                  <ImagePlus className="size-4 lg:size-[17px]" />
-                  Elegir archivo
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={subiendo}
-                  onClick={() => {
-                    const camara = document.createElement("input");
-                    camara.type = "file";
-                    camara.accept = "image/jpeg,image/png,image/webp";
-                    camara.capture = "environment";
-                    camara.onchange = () => {
-                      const f = camara.files?.[0];
-                      if (f) void alProcesar(f);
-                    };
-                    camara.click();
-                  }}
-                  className="lg:min-h-10 lg:rounded-[10px] lg:border-[#d0d7e2] lg:px-[15px] lg:text-[#344054] lg:hover:border-[#aeb8c5] lg:hover:bg-[#f8fafc]"
-                >
-                  <Camera className="size-4 lg:size-[17px]" />
-                  Tomar foto
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <input
-          ref={inputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/webp,application/pdf"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void alProcesar(f);
-          }}
-        />
+          ) : undefined}
+        </CargadorArchivoVenta>
         {error ? (
           <p role="alert" className="text-destructive text-sm">
             {error}

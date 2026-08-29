@@ -98,6 +98,7 @@ export function FormVenta({
   const [empresaConvenioId, setEmpresaConvenioId] = useState("");
   const [tipoDocumento, setTipoDocumento] = useState<TipoDocumento>("DNI");
   const [numeroDocumento, setNumeroDocumento] = useState("");
+  const [documentoEnfocado, setDocumentoEnfocado] = useState(false);
   const [buscando, setBuscando] = useState(false);
   const [resultadoBusqueda, setResultadoBusqueda] =
     useState<ResultadoBusquedaDocumento | null>(null);
@@ -255,6 +256,7 @@ export function FormVenta({
     tipoDocumento,
     numeroDocumento,
   }).success;
+  const longitudVisualDocumento = tipoDocumento === "DNI" ? 8 : 12;
 
   const buscarEmpleado = async () => {
     const documento = zDocumentoIdentidad.safeParse({
@@ -479,108 +481,189 @@ export function FormVenta({
               </span>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="empresaConvenio">Empresa convenio</Label>
-              <Input
-                id="empresaConvenio"
-                value={empleado?.empresaNombre ?? ""}
-                placeholder="Se mostrará al identificar al empleado"
-                disabled
-                readOnly
-                className="bg-muted/45 h-14 rounded-2xl px-4"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="numeroDocumento">Documento del empleado</Label>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_auto]">
-                <Select
-                  value={tipoDocumento}
-                  onValueChange={(valor) =>
-                    cambiarTipoDocumento(valor as TipoDocumento)
-                  }
-                >
-                  <SelectTrigger
-                    aria-label="Tipo de documento"
-                    className="h-14 rounded-2xl"
-                  >
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DNI">DNI</SelectItem>
-                    <SelectItem value="CARNET_EXTRANJERIA">CE</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)_72px] lg:items-end lg:gap-4">
+              <div className="order-1 flex min-w-0 flex-col gap-2 lg:order-none">
+                <Label htmlFor="empresaConvenio">Empresa convenio</Label>
                 <Input
-                  id="numeroDocumento"
-                  value={numeroDocumento}
-                  onChange={(e) => cambiarNumeroDocumento(e.target.value)}
-                  inputMode={tipoDocumento === "DNI" ? "numeric" : "text"}
-                  maxLength={tipoDocumento === "DNI" ? 8 : 12}
-                  autoFocus={convenios.length === 1}
-                  placeholder={
-                    tipoDocumento === "DNI"
-                      ? "8 dígitos"
-                      : "Hasta 12 caracteres"
-                  }
-                  autoComplete="off"
-                  className="h-14 rounded-2xl px-4 text-base"
-                />
-                <Button
-                  type="button"
-                  size="lg"
-                  disabled={!documentoValido || buscando}
-                  onClick={() => void buscarEmpleado()}
-                  className="h-14 rounded-2xl px-5"
-                >
-                  {buscando ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    <Search className="size-4" />
-                  )}
-                  {buscando ? "Buscando…" : "Buscar"}
-                </Button>
-              </div>
-            </div>
-
-            {buscando ? (
-              <div className="bg-muted h-9 animate-pulse rounded-md" />
-            ) : empleado ? (
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="nombreEmpleado">Nombre del empleado</Label>
-                <Input
-                  id="nombreEmpleado"
-                  value={`${empleado.nombres.toUpperCase()} ${empleado.apellidos.toUpperCase()}`}
+                  id="empresaConvenio"
+                  value={empleado?.empresaNombre ?? ""}
+                  placeholder="Sin identificar"
                   disabled
                   readOnly
                   className="bg-muted/45 h-14 rounded-2xl px-4"
                 />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge className="bg-success/10 text-success border-success/20 border">
-                    {bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}% de
-                    descuento
-                  </Badge>
-                  {empleado.estado === "PENDIENTE_VERIFICACION" ? (
-                    <Badge className="bg-warning/10 text-warning border-warning/20 border">
-                      Pendiente de verificación
+              </div>
+
+              <div
+                className={`${empleado ? "flex" : "hidden lg:flex"} order-3 min-w-0 flex-col gap-2 lg:order-none`}
+              >
+                <Label htmlFor="nombreEmpleado">Nombre del empleado</Label>
+                <Input
+                  id="nombreEmpleado"
+                  value={
+                    empleado
+                      ? `${empleado.nombres.toUpperCase()} ${empleado.apellidos.toUpperCase()}`
+                      : ""
+                  }
+                  placeholder="Sin identificar"
+                  disabled
+                  readOnly
+                  className="bg-muted/45 h-14 rounded-2xl px-4"
+                />
+                {empleado ? (
+                  <div className="flex flex-wrap items-center gap-2 lg:hidden">
+                    <Badge className="bg-success/10 text-success border-success/20 border">
+                      {bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}% de
+                      descuento
                     </Badge>
-                  ) : null}
-                </div>
-                {empleado.estado === "PENDIENTE_VERIFICACION" ? (
-                  <p className="text-muted-foreground text-xs">
-                    Puedes registrar la venta; el administrador de{" "}
-                    {empleado.empresaNombre} confirmará los datos.
-                  </p>
-                ) : null}
-                {previaBps !== null && previaBps !== empleado.descuentoBps ? (
-                  <p className="text-muted-foreground text-xs">
-                    En esa fecha el descuento era {bpsAPorcentaje(previaBps)}%.
-                  </p>
+                    {empleado.estado === "PENDIENTE_VERIFICACION" ? (
+                      <Badge className="bg-warning/10 text-warning border-warning/20 border">
+                        Pendiente de verificación
+                      </Badge>
+                    ) : null}
+                  </div>
                 ) : null}
               </div>
-            ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
-              <ResultadoNegativo resultado={resultadoBusqueda} />
-            ) : null}
+
+              <div className="order-4 hidden flex-col items-center gap-2 lg:order-none lg:flex">
+                <Label>Descuento</Label>
+                <div
+                  className={
+                    empleado
+                      ? "bg-primary text-primary-foreground flex size-14 items-center justify-center rounded-2xl text-lg font-bold shadow-sm"
+                      : "bg-muted text-muted-foreground flex size-14 items-center justify-center rounded-2xl text-lg font-bold"
+                  }
+                  aria-label={
+                    empleado
+                      ? `${bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)} por ciento de descuento`
+                      : "Descuento sin calcular"
+                  }
+                >
+                  {empleado
+                    ? `${bpsAPorcentaje(bpsEfectivo ?? empleado.descuentoBps)}%`
+                    : "—"}
+                </div>
+              </div>
+
+              <div className="order-2 flex min-w-0 flex-col gap-2 lg:order-none lg:col-span-3">
+                <Label htmlFor="numeroDocumento">Documento del empleado</Label>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_auto] lg:grid-cols-[auto_minmax(0,1fr)_44px] lg:items-center lg:gap-2.5">
+                  <Select
+                    value={tipoDocumento}
+                    onValueChange={(valor) =>
+                      cambiarTipoDocumento(valor as TipoDocumento)
+                    }
+                  >
+                    <SelectTrigger
+                      size="lg"
+                      aria-label="Tipo de documento"
+                      className="w-full rounded-2xl px-4 font-semibold lg:w-[108px] lg:rounded-full lg:border-2 lg:data-[size=lg]:h-11"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DNI">DNI</SelectItem>
+                      <SelectItem value="CARNET_EXTRANJERIA">CE</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <div className="group relative min-w-0 lg:h-11">
+                    <Input
+                      id="numeroDocumento"
+                      value={numeroDocumento}
+                      onChange={(e) => cambiarNumeroDocumento(e.target.value)}
+                      onFocus={() => setDocumentoEnfocado(true)}
+                      onBlur={() => setDocumentoEnfocado(false)}
+                      inputMode={tipoDocumento === "DNI" ? "numeric" : "text"}
+                      maxLength={longitudVisualDocumento}
+                      autoFocus={convenios.length === 1}
+                      placeholder={
+                        tipoDocumento === "DNI"
+                          ? "8 dígitos"
+                          : "Hasta 12 caracteres"
+                      }
+                      autoComplete="off"
+                      spellCheck={false}
+                      className="h-14 rounded-2xl px-4 text-base lg:absolute lg:inset-0 lg:z-10 lg:size-full lg:cursor-text lg:opacity-0"
+                    />
+                    <div
+                      aria-hidden="true"
+                      className="hidden h-11 gap-1 lg:grid"
+                      style={{
+                        gridTemplateColumns: `repeat(${longitudVisualDocumento}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {Array.from({ length: longitudVisualDocumento }).map(
+                        (_, indice) => {
+                          const caracter = numeroDocumento[indice];
+                          const esCursor =
+                            documentoEnfocado &&
+                            indice === numeroDocumento.length &&
+                            numeroDocumento.length < longitudVisualDocumento;
+                          return (
+                            <span
+                              key={indice}
+                              className={
+                                caracter
+                                  ? "flex min-w-0 items-center justify-center rounded-[11px] border-2 border-[#c7d4ff] bg-[#eaefff] font-mono text-base font-bold text-[#0035c4]"
+                                  : esCursor
+                                    ? "border-primary bg-background flex min-w-0 items-center justify-center rounded-[11px] border-2 shadow-[0_0_0_3px_rgba(0,71,255,0.12)]"
+                                    : "bg-muted/80 flex min-w-0 items-center justify-center rounded-[11px] border-2 border-transparent"
+                              }
+                            >
+                              {caracter ??
+                                (esCursor ? (
+                                  <span className="bg-primary h-5 w-0.5 animate-pulse rounded-full" />
+                                ) : null)}
+                            </span>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    size="lg"
+                    disabled={!documentoValido || buscando}
+                    onClick={() => void buscarEmpleado()}
+                    aria-label="Buscar empleado"
+                    className="h-14 rounded-2xl px-5 lg:size-11 lg:rounded-full lg:px-0"
+                  >
+                    {buscando ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Search className="size-4" />
+                    )}
+                    <span className="lg:hidden">
+                      {buscando ? "Buscando…" : "Buscar"}
+                    </span>
+                  </Button>
+                </div>
+              </div>
+
+              <div className="order-5 lg:order-none lg:col-span-3">
+                {buscando ? (
+                  <div className="bg-muted h-9 animate-pulse rounded-md lg:hidden" />
+                ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
+                  <ResultadoNegativo resultado={resultadoBusqueda} />
+                ) : empleado ? (
+                  <div className="space-y-1.5">
+                    {empleado.estado === "PENDIENTE_VERIFICACION" ? (
+                      <p className="text-muted-foreground text-xs">
+                        Puedes registrar la venta; el administrador de{" "}
+                        {empleado.empresaNombre} confirmará los datos.
+                      </p>
+                    ) : null}
+                    {previaBps !== null &&
+                    previaBps !== empleado.descuentoBps ? (
+                      <p className="text-muted-foreground text-xs">
+                        En esa fecha el descuento era{" "}
+                        {bpsAPorcentaje(previaBps)}%.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+              </div>
+            </div>
           </section>
 
           <div className="border-border/70 border-t lg:hidden" />
@@ -612,7 +695,8 @@ export function FormVenta({
                   <input type="hidden" name="sedeId" value={sedeId} />
                   <SelectTrigger
                     id="sedeId"
-                    className="h-11 w-full rounded-xl px-3"
+                    size="lg"
+                    className="w-full rounded-2xl px-4"
                   >
                     <SelectValue placeholder="Selecciona la sede">
                       {(valor) =>
@@ -714,30 +798,29 @@ export function FormVenta({
                 </Alert>
               ) : null}
 
-              <div className="flex flex-col gap-2 lg:gap-[7px]">
-                <Label className="lg:text-[13px] lg:font-semibold lg:text-[#344054]">
-                  Documento de venta <span className="text-destructive">*</span>
-                </Label>
-                <CampoArchivo
-                  key={documentoKey}
-                  prefijo="documento"
-                  etiqueta="documento"
-                  tipo="documento"
-                  variante="venta"
-                  onCambio={(datos) => {
-                    setDocumento(datos);
+              <div className="grid gap-5 lg:grid-cols-2 lg:items-start lg:gap-4">
+                <div className="min-w-0">
+                  <CampoArchivo
+                    key={documentoKey}
+                    prefijo="documento"
+                    etiqueta="documento"
+                    tipo="documento"
+                    variante="venta"
+                    onCambio={(datos) => {
+                      setDocumento(datos);
+                      setNotaArchivosRestaurados(null);
+                    }}
+                  />
+                </div>
+
+                <CampoEvidencias
+                  key={evidenciasKey}
+                  onCambio={(items) => {
+                    setEvidencias(items);
                     setNotaArchivosRestaurados(null);
                   }}
                 />
               </div>
-
-              <CampoEvidencias
-                key={evidenciasKey}
-                onCambio={(items) => {
-                  setEvidencias(items);
-                  setNotaArchivosRestaurados(null);
-                }}
-              />
               <input
                 type="hidden"
                 name="evidenciasJson"
