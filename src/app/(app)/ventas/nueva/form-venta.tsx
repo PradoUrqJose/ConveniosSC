@@ -256,7 +256,8 @@ export function FormVenta({
     tipoDocumento,
     numeroDocumento,
   }).success;
-  const longitudVisualDocumento = tipoDocumento === "DNI" ? 8 : 12;
+  const esDni = tipoDocumento === "DNI";
+  const longitudVisualDocumento = esDni ? 8 : 12;
 
   const buscarEmpleado = async () => {
     const documento = zDocumentoIdentidad.safeParse({
@@ -547,7 +548,9 @@ export function FormVenta({
 
               <div className="order-2 flex min-w-0 flex-col gap-2 lg:order-none lg:col-span-3">
                 <Label htmlFor="numeroDocumento">Documento del empleado</Label>
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_auto] lg:grid-cols-[auto_minmax(0,1fr)_44px] lg:items-center lg:gap-2.5">
+                <div
+                  className={`grid grid-cols-1 gap-2 transition-[grid-template-columns] duration-300 ease-out sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_auto] lg:items-center lg:gap-2.5 ${esDni ? "lg:grid-cols-[auto_minmax(0,1fr)_112px]" : "lg:grid-cols-[auto_minmax(0,1fr)_44px]"}`}
+                >
                   <Select
                     value={tipoDocumento}
                     onValueChange={(valor) =>
@@ -559,7 +562,7 @@ export function FormVenta({
                       aria-label="Tipo de documento"
                       className="w-full rounded-2xl px-4 font-semibold lg:w-[108px] lg:rounded-full lg:border-2 lg:data-[size=lg]:h-11"
                     >
-                      <SelectValue />
+                      <SelectValue>{() => (esDni ? "DNI" : "CE")}</SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="DNI">DNI</SelectItem>
@@ -601,13 +604,13 @@ export function FormVenta({
                             numeroDocumento.length < longitudVisualDocumento;
                           return (
                             <span
-                              key={indice}
+                              key={`${tipoDocumento}-${indice}`}
                               className={
                                 caracter
-                                  ? "flex min-w-0 items-center justify-center rounded-[11px] border-2 border-[#c7d4ff] bg-[#eaefff] font-mono text-base font-bold text-[#0035c4]"
+                                  ? "motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 flex min-w-0 items-center justify-center rounded-[11px] border-2 border-[#c7d4ff] bg-[#eaefff] font-mono text-base font-bold text-[#0035c4] transition-all duration-300"
                                   : esCursor
-                                    ? "border-primary bg-background flex min-w-0 items-center justify-center rounded-[11px] border-2 shadow-[0_0_0_3px_rgba(0,71,255,0.12)]"
-                                    : "bg-muted/80 flex min-w-0 items-center justify-center rounded-[11px] border-2 border-transparent"
+                                    ? "border-primary bg-background motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 flex min-w-0 items-center justify-center rounded-[11px] border-2 shadow-[0_0_0_3px_rgba(0,71,255,0.12)] transition-all duration-300"
+                                    : "bg-muted/80 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 flex min-w-0 items-center justify-center rounded-[11px] border-2 border-transparent transition-all duration-300"
                               }
                             >
                               {caracter ??
@@ -626,14 +629,16 @@ export function FormVenta({
                     disabled={!documentoValido || buscando}
                     onClick={() => void buscarEmpleado()}
                     aria-label="Buscar empleado"
-                    className="h-14 rounded-2xl px-5 lg:size-11 lg:rounded-full lg:px-0"
+                    className={`h-14 rounded-2xl px-5 transition-[width,gap,background-color,color,opacity] duration-300 ease-out lg:h-11 lg:rounded-full lg:px-0 ${esDni ? "lg:w-28 lg:gap-1.5" : "lg:w-11 lg:gap-0"}`}
                   >
                     {buscando ? (
                       <Loader2 className="size-4 animate-spin" />
                     ) : (
                       <Search className="size-4" />
                     )}
-                    <span className="lg:hidden">
+                    <span
+                      className={`max-w-20 overflow-hidden whitespace-nowrap opacity-100 transition-[max-width,opacity] duration-300 ease-out ${esDni ? "lg:max-w-20 lg:opacity-100" : "lg:max-w-0 lg:opacity-0"}`}
+                    >
                       {buscando ? "Buscando…" : "Buscar"}
                     </span>
                   </Button>

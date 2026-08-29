@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import imageCompression from "browser-image-compression";
 import { upload } from "@vercel/blob/client";
 import { Camera, FileText, ImagePlus, Trash2 } from "lucide-react";
@@ -48,7 +48,15 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
   const [progreso, setProgreso] = useState(0);
   const [datos, setDatos] = useState<DatosSubida | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [previewMime, setPreviewMime] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(
+    () => () => {
+      if (preview) URL.revokeObjectURL(preview);
+    },
+    [preview],
+  );
 
   const procesar = async (file: File) => {
     setError(null);
@@ -60,6 +68,7 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
     setProgreso(0);
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
+    setPreviewMime(file.type);
     try {
       const archivoFinal = await comprimir(file, setProgreso);
       const sha256 = await sha256Hex(archivoFinal);
@@ -109,15 +118,22 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
   };
 
   const eliminar = () => {
-    if (preview) {
-      URL.revokeObjectURL(preview);
-    }
     setPreview(null);
+    setPreviewMime(null);
     setDatos(null);
     setError(null);
   };
 
-  return { subiendo, progreso, datos, preview, error, procesar, eliminar };
+  return {
+    subiendo,
+    progreso,
+    datos,
+    preview,
+    previewMime,
+    error,
+    procesar,
+    eliminar,
+  };
 }
 
 /**
@@ -144,8 +160,16 @@ export function CampoArchivo({
   onCambio?: (datos: DatosSubida | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { subiendo, progreso, datos, preview, error, procesar, eliminar } =
-    useSubidaArchivo(tipo);
+  const {
+    subiendo,
+    progreso,
+    datos,
+    preview,
+    previewMime,
+    error,
+    procesar,
+    eliminar,
+  } = useSubidaArchivo(tipo);
 
   const alEliminar = () => {
     eliminar();
@@ -167,7 +191,7 @@ export function CampoArchivo({
   };
 
   const esImagen =
-    datos !== null && MIME_IMAGEN.includes(datos.mime as MimePermitido);
+    previewMime !== null && MIME_IMAGEN.includes(previewMime as MimePermitido);
 
   if (variante === "venta") {
     return (
@@ -182,21 +206,24 @@ export function CampoArchivo({
           onArchivo={alProcesar}
         >
           {preview ? (
-            <div className="flex w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border p-3 lg:max-w-[500px] lg:border-[#d7e9fb] lg:bg-[#f2f8ff] lg:px-3 lg:py-2.5 lg:text-left">
+            <div className="flex h-full w-full min-w-0 items-center gap-3 overflow-hidden rounded-xl border p-3 lg:border-[#d7e9fb] lg:bg-[#f2f8ff] lg:p-2 lg:text-left">
               {esImagen ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={preview}
-                  alt="Vista previa del archivo"
-                  className="size-16 rounded-lg border object-cover lg:hidden"
+                  alt="Vista previa del documento de venta"
+                  className="size-16 shrink-0 rounded-lg border object-cover lg:h-full lg:w-[42%] lg:max-w-52"
                 />
-              ) : null}
-              <FileText className="text-primary hidden size-[18px] shrink-0 lg:block" />
+              ) : (
+                <div className="bg-background flex size-16 shrink-0 items-center justify-center rounded-lg border lg:h-full lg:w-[36%] lg:max-w-40">
+                  <FileText className="text-primary size-6 lg:size-10" />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
-                <p className="max-w-full truncate text-sm font-medium text-[#344054] lg:text-xs lg:font-semibold">
+                <p className="max-w-full truncate text-sm font-semibold text-[#344054]">
                   {textoArchivoCargado(datos)}
                 </p>
-                <p className="text-muted-foreground text-xs lg:hidden">
+                <p className="text-muted-foreground mt-1 text-xs">
                   {subiendo
                     ? progreso > 0
                       ? `Subiendo ${etiqueta.toLowerCase()}… ${progreso}%`

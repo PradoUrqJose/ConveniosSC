@@ -36,7 +36,28 @@ test("venta con empleado existente aparece en el listado", async ({ page }) => {
   expect(montoBox).not.toBeNull();
   expect(Math.round(tipoBox!.height)).toBe(Math.round(documentoBox!.height));
   expect(Math.round(sedeBox!.height)).toBe(Math.round(montoBox!.height));
+  const selectorTipoDocumento = page.getByLabel("Tipo de documento");
+  const botonBuscar = page.getByRole("button", { name: /buscar empleado/i });
   if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    const anchoBuscarDni = (await botonBuscar.boundingBox())?.width;
+    expect(anchoBuscarDni).toBeGreaterThan(44);
+
+    await selectorTipoDocumento.click();
+    await page.getByRole("option", { name: "CE", exact: true }).click();
+    await expect(selectorTipoDocumento).toHaveText("CE");
+    await expect
+      .poll(async () => (await botonBuscar.boundingBox())?.width ?? 0)
+      .toBeLessThan(anchoBuscarDni!);
+
+    await selectorTipoDocumento.click();
+    await page.getByRole("option", { name: "DNI", exact: true }).click();
+    await expect(selectorTipoDocumento).toHaveText("DNI");
+    await expect
+      .poll(async () =>
+        Math.round((await botonBuscar.boundingBox())?.width ?? 0),
+      )
+      .toBe(Math.round(anchoBuscarDni!));
+
     const cargadores = page.locator('[data-slot="campo-archivo-venta"]');
     await expect(cargadores).toHaveCount(2);
     const [documentoCargaBox, evidenciaCargaBox] = await Promise.all([
@@ -67,6 +88,15 @@ test("venta con empleado existente aparece en el listado", async ({ page }) => {
   await page
     .getByLabel(/Documento de venta/i)
     .setInputFiles("public/icons/192.png");
+  const previewDocumento = page.getByRole("img", {
+    name: "Vista previa del documento de venta",
+  });
+  await expect(previewDocumento).toBeVisible();
+  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+    await expect
+      .poll(async () => (await previewDocumento.boundingBox())?.width ?? 0)
+      .toBeGreaterThan(100);
+  }
   await page.getByRole("button", { name: /guardar venta/i }).click();
   await expect(page.getByText(/venta registrada/i)).toBeVisible();
   await page.goto("/ventas");
