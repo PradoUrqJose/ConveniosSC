@@ -12,7 +12,7 @@ import { compararFechas, fechaLimaDe, hoyLima, sumarDias } from "@/lib/fechas";
 import type { TipoAdjunto } from "@/lib/archivos";
 import { verificarArchivoSubido } from "@/lib/blob-verificacion";
 import type { CodigoError, Resultado } from "@/lib/tipos";
-import { resolverTerminoVigente, textoFechaVenta } from "./query";
+import { textoFechaVenta } from "./query";
 
 export type ArchivoVenta = {
   blobPath: string;
@@ -53,6 +53,15 @@ type CtxVenta = {
   userAgent: string | null;
 };
 
+type VentaPreparada = {
+  convenioId: string;
+  terminoId: string;
+  descuentoBps: number;
+  empresaCompradoraId: string;
+  documento: ArchivoVenta;
+  evidencias: (ArchivoVenta & { descripcion: string | null })[];
+};
+
 function fallo(
   codigo: CodigoError,
   mensaje: string,
@@ -61,66 +70,130 @@ function fallo(
   return { ok: false, codigo, mensaje, campo };
 }
 
-/**
- * `crearVenta` — la action central (03 §7, algoritmo completo en 02 §2).
- * Los 12 pasos, en orden. El `ventaId` lo genera el cliente: reenviar el
- * mismo id es la idempotencia contra reintentos de red en móvil (D09).
- */
-export async function crearVentaCore(
-  tx: TransaccionAuditada,
+/** Busca una venta ya creada para que los reintentos de red sean idempotentes. */
+export async function buscarVentaExistente(
+  ejecutor: TransaccionAuditada,
   ctx: CtxVenta,
-  datos: DatosCrearVenta,
-): Promise<Resultado<VentaCreada>> {
-  // 2. Idempotencia.
+  ventaId: string,
+): Promise<Resultado<VentaCreada> | null> {
   const existentes = obtenerFilas(
-    await tx.execute(sql`
+    await ejecutor.execute(sql`
       SELECT id, vendedor_usuario_id, monto_bruto_centimos, descuento_bps,
              monto_descuento_centimos, monto_final_centimos, fecha_venta
-      FROM ventas WHERE id = ${datos.ventaId}
+      FROM ventas WHERE id = ${ventaId}
     `),
   );
   const existente = existentes[0];
-  if (existente) {
-    if (String(existente.vendedor_usuario_id) !== ctx.usuarioId) {
-      return fallo("CONFLICTO", "Ya existe una venta con ese identificador.");
-    }
-    return {
-      ok: true,
-      data: {
-        ventaId: datos.ventaId,
-        montoBrutoCentimos: Number(existente.monto_bruto_centimos),
-        descuentoBps: Number(existente.descuento_bps),
-        montoDescuentoCentimos: Number(existente.monto_descuento_centimos),
-        montoFinalCentimos: Number(existente.monto_final_centimos),
-        fechaVenta: String(existente.fecha_venta),
-        yaExistia: true,
-      },
-    };
+  if (!existente) return null;
+  if (String(existente.vendedor_usuario_id) !== ctx.usuarioId) {
+    return fallo("CONFLICTO", "Ya existe una venta con ese identificador.");
   }
+  return {
+    ok: true,
+    data: {
+      ventaId,
+      montoBrutoCentimos: Number(existente.monto_bruto_centimos),
+      descuentoBps: Number(existente.descuento_bps),
+      montoDescuentoCentimos: Number(existente.monto_descuento_centimos),
+      montoFinalCentimos: Number(existente.monto_final_centimos),
+      fechaVenta: String(existente.fecha_venta),
+      yaExistia: true,
+    },
+  };
+}
 
-  // 3-5. Empleado, convenio y término vigente A LA FECHA DE VENTA.
-  const resuelto = await resolverTerminoVigente(
-    tx,
-    ctx,
-    datos.empleadoCompradorId,
-    datos.fechaVenta,
+/**
+ * Validaciones que no escriben se realizan antes de abrir la transacción.
+ * La consulta CTE reúne empleado, término, sede y configuración; las llamadas
+ * a Blob también se lanzan en paralelo. `crearVentaCore` conserva el fallback
+ * sin preparación para los consumidores internos y los tests de aceptación.
+ */
+export async function prepararVenta(
+  ejecutor: TransaccionAuditada,
+  ctx: CtxVenta,
+  datos: DatosCrearVenta,
+): Promise<Resultado<VentaPreparada>> {
+  const filas = obtenerFilas(
+    await ejecutor.execute(sql`
+      WITH empleado AS (
+        SELECT id, empresa_id, estado
+        FROM empleados WHERE id = ${datos.empleadoCompradorId}
+      ),
+      termino AS (
+        SELECT c.id AS convenio_id, ct.id AS termino_id, ct.descuento_bps
+        FROM empleado e
+        JOIN convenios c
+          ON ((c.empresa_a_id = e.empresa_id AND c.empresa_b_id = ${ctx.empresaId})
+           OR (c.empresa_b_id = e.empresa_id AND c.empresa_a_id = ${ctx.empresaId}))
+        JOIN convenio_terminos ct
+          ON ct.convenio_id = c.id
+         AND ct.empresa_otorgante_id = ${ctx.empresaId}
+        WHERE c.estado = 'VIGENTE'
+          AND ${datos.fechaVenta} >= c.vigencia_desde
+          AND (c.vigencia_hasta IS NULL OR ${datos.fechaVenta} <= c.vigencia_hasta)
+          AND ct.vigencia_desde <= ${datos.fechaVenta}
+          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${datos.fechaVenta})
+        LIMIT 1
+      ),
+      sede AS (
+        SELECT empresa_id, activo FROM sedes WHERE id = ${datos.sedeId}
+      ),
+      empresa AS (
+        SELECT tope_monto_venta_centimos, dias_retroactivos_venta,
+               requiere_evidencia_en_venta
+        FROM empresas WHERE id = ${ctx.empresaId}
+      )
+      SELECT
+        (SELECT id FROM empleado) AS empleado_id,
+        (SELECT empresa_id FROM empleado) AS empleado_empresa_id,
+        (SELECT estado FROM empleado) AS empleado_estado,
+        (SELECT convenio_id FROM termino) AS convenio_id,
+        (SELECT termino_id FROM termino) AS termino_id,
+        (SELECT descuento_bps FROM termino) AS descuento_bps,
+        (SELECT empresa_id FROM sede) AS sede_empresa_id,
+        (SELECT activo FROM sede) AS sede_activa,
+        (SELECT tope_monto_venta_centimos FROM empresa) AS tope_monto_venta_centimos,
+        (SELECT dias_retroactivos_venta FROM empresa) AS dias_retroactivos_venta,
+        (SELECT requiere_evidencia_en_venta FROM empresa) AS requiere_evidencia_en_venta
+    `),
   );
-  if (!resuelto.ok) {
-    return resuelto;
+  const fila = filas[0];
+
+  // Se conserva el orden y los códigos de error del algoritmo original.
+  if (!fila?.empleado_id) {
+    return fallo(
+      "NO_ENCONTRADO",
+      "El empleado no existe.",
+      "empleadoCompradorId",
+    );
   }
-  const { convenioId, terminoId, descuentoBps } = resuelto.data;
-
-  // 6. Sede: de mi empresa y activa.
-  const sedeFilas = obtenerFilas(
-    await tx.execute(
-      sql`SELECT empresa_id, activo FROM sedes WHERE id = ${datos.sedeId}`,
-    ),
-  );
-  const sede = sedeFilas[0];
-  if (!sede) {
+  const empresaCompradoraId = String(fila.empleado_empresa_id);
+  const estadoEmpleado = String(fila.empleado_estado);
+  if (estadoEmpleado === "RECHAZADO" || estadoEmpleado === "INACTIVO") {
+    return fallo(
+      "REGLA_NEGOCIO",
+      "Este empleado no está habilitado para el beneficio.",
+      "empleadoCompradorId",
+    );
+  }
+  if (empresaCompradoraId === ctx.empresaId) {
+    return fallo(
+      "REGLA_NEGOCIO",
+      "No se registra una venta a un empleado de tu propia empresa.",
+      "empleadoCompradorId",
+    );
+  }
+  if (!fila.termino_id) {
+    return fallo(
+      "REGLA_NEGOCIO",
+      "El convenio no tiene un descuento definido para esa fecha.",
+      "fechaVenta",
+    );
+  }
+  if (!fila.sede_empresa_id) {
     return fallo("NO_ENCONTRADO", "La sede no existe.", "sedeId");
   }
-  if (String(sede.empresa_id) !== ctx.empresaId || !sede.activo) {
+  if (String(fila.sede_empresa_id) !== ctx.empresaId || !fila.sede_activa) {
     return fallo(
       "REGLA_NEGOCIO",
       "La sede seleccionada no está disponible.",
@@ -128,20 +201,10 @@ export async function crearVentaCore(
     );
   }
 
-  // Config de la empresa vendedora: tope, ventana retroactiva, evidencia obligatoria.
-  const empresaFilas = obtenerFilas(
-    await tx.execute(sql`
-      SELECT tope_monto_venta_centimos, dias_retroactivos_venta,
-             requiere_evidencia_en_venta
-      FROM empresas WHERE id = ${ctx.empresaId}
-    `),
-  );
-  const empresa = empresaFilas[0];
-  const tope = Number(empresa?.tope_monto_venta_centimos ?? 0);
-  const diasRetroactivos = Number(empresa?.dias_retroactivos_venta ?? 7);
-  const requiereEvidencia = Boolean(empresa?.requiere_evidencia_en_venta);
+  const tope = Number(fila.tope_monto_venta_centimos ?? 0);
+  const diasRetroactivos = Number(fila.dias_retroactivos_venta ?? 7);
+  const requiereEvidencia = Boolean(fila.requiere_evidencia_en_venta);
 
-  // 7. Fecha: no futura, dentro de la ventana retroactiva de la empresa.
   const hoy = hoyLima();
   const minima = sumarDias(hoy, -diasRetroactivos);
   if (compararFechas(datos.fechaVenta, hoy) === 1) {
@@ -158,8 +221,6 @@ export async function crearVentaCore(
       "fechaVenta",
     );
   }
-
-  // 8. Monto: mayor que cero y dentro del tope de la empresa.
   if (datos.montoBrutoCentimos <= 0) {
     return fallo("VALIDACION", "El monto debe ser mayor a cero.", "montoBruto");
   }
@@ -170,8 +231,6 @@ export async function crearVentaCore(
       "montoBruto",
     );
   }
-
-  // 9. Adjuntos: documento obligatorio + evidencias (obligatorias si la empresa lo exige).
   if (datos.evidencias.length > 5) {
     return fallo(
       "VALIDACION",
@@ -186,75 +245,142 @@ export async function crearVentaCore(
       "evidencias",
     );
   }
-  const archivos = [datos.documento, ...datos.evidencias];
-  const verificados: ArchivoVenta[] = [];
-  for (const [indice, archivo] of archivos.entries()) {
-    const tipo: TipoAdjunto = indice === 0 ? "documento" : "evidencia";
-    const verificado = await verificarAdjunto(tx, archivo, tipo);
-    if (!verificado.ok) {
-      return verificado;
-    }
-    verificados.push(verificado.data);
-  }
-  // A partir de aquí solo se usan los metadatos que calculó el servidor.
-  const documento = verificados[0]!;
-  const evidencias = datos.evidencias.map((evidencia, indice) => ({
-    ...verificados[indice + 1]!,
-    descripcion: evidencia.descripcion ?? null,
-  }));
 
-  // 10. Calcular, ignorando cualquier monto que haya mandado el cliente.
+  const archivos = [datos.documento, ...datos.evidencias];
+  const rutas = sql.join(
+    archivos.map((archivo) => sql`${archivo.blobPath}`),
+    sql`, `,
+  );
+  const usados = obtenerFilas(
+    await ejecutor.execute(sql`
+      SELECT blob_path FROM adjuntos
+      WHERE blob_path IN (${rutas})
+    `),
+  );
+  if (usados.length > 0) {
+    return fallo(
+      "CONFLICTO",
+      "Uno de los archivos ya fue usado en otra venta o empleado.",
+    );
+  }
+
+  const resultados = await Promise.all(
+    archivos.map((archivo, indice) =>
+      verificarAdjunto(archivo, indice === 0 ? "documento" : "evidencia"),
+    ),
+  );
+  const verificados: ArchivoVenta[] = [];
+  for (const resultado of resultados) {
+    if (!resultado.ok) return resultado;
+    verificados.push(resultado.data);
+  }
+
+  return {
+    ok: true,
+    data: {
+      convenioId: String(fila.convenio_id),
+      terminoId: String(fila.termino_id),
+      descuentoBps: Number(fila.descuento_bps),
+      empresaCompradoraId,
+      documento: verificados[0]!,
+      evidencias: datos.evidencias.map((evidencia, indice) => ({
+        ...verificados[indice + 1]!,
+        descripcion: evidencia.descripcion ?? null,
+      })),
+    },
+  };
+}
+
+/**
+ * `crearVenta` — la action central (03 §7, algoritmo completo en 02 §2).
+ * El `ventaId` lo genera el cliente: reenviar el mismo id es la idempotencia
+ * contra reintentos de red en móvil (D09).
+ */
+export async function crearVentaCore(
+  tx: TransaccionAuditada,
+  ctx: CtxVenta,
+  datos: DatosCrearVenta,
+  preparada?: VentaPreparada,
+): Promise<Resultado<VentaCreada>> {
+  let ventaPreparada = preparada;
+  if (!ventaPreparada) {
+    const existente = await buscarVentaExistente(tx, ctx, datos.ventaId);
+    if (existente) return existente;
+
+    const resultadoPreparacion = await prepararVenta(tx, ctx, datos);
+    if (!resultadoPreparacion.ok) return resultadoPreparacion;
+    ventaPreparada = resultadoPreparacion.data;
+  }
+
+  const {
+    convenioId,
+    terminoId,
+    descuentoBps,
+    empresaCompradoraId,
+    documento,
+    evidencias,
+  } = ventaPreparada;
+  const archivos = [documento, ...evidencias];
+
+  // Calcular, ignorando cualquier monto que haya mandado el cliente.
   const { descuento, final } = calcularDescuento(
     datos.montoBrutoCentimos,
     descuentoBps,
   );
 
-  // 11. Transacción: venta, adjuntos, auditoría.
-  await tx.execute(sql`
+  // Una carrera por el mismo ventaId conserva la idempotencia sin una lectura
+  // adicional en el camino normal; solo el perdedor consulta la venta creada.
+  const insertadas = obtenerFilas(
+    await tx.execute(sql`
     INSERT INTO ventas
       (id, empresa_vendedora_id, empresa_compradora_id, convenio_id, termino_id,
        sede_id, vendedor_usuario_id, empleado_comprador_id,
        monto_bruto_centimos, descuento_bps, monto_descuento_centimos,
        monto_final_centimos, fecha_venta, observacion)
     VALUES
-      (${datos.ventaId}, ${ctx.empresaId}, ${resuelto.data.empresaCompradoraId},
+      (${datos.ventaId}, ${ctx.empresaId}, ${empresaCompradoraId},
        ${convenioId}, ${terminoId}, ${datos.sedeId}, ${ctx.usuarioId},
        ${datos.empleadoCompradorId}, ${datos.montoBrutoCentimos}, ${descuentoBps},
        ${descuento}, ${final}, ${datos.fechaVenta}, ${datos.observacion ?? null})
-  `);
-
-  await tx.execute(sql`
-    INSERT INTO adjuntos
-      (venta_id, tipo, orden, blob_path, mime, size_bytes, sha256,
-       subido_por_usuario_id)
-    VALUES
-      (${datos.ventaId}, 'DOCUMENTO_VENTA', 0, ${documento.blobPath},
-       ${documento.mime}, ${documento.sizeBytes},
-       ${documento.sha256}, ${ctx.usuarioId})
-  `);
-  for (const [indice, evidencia] of evidencias.entries()) {
-    await tx.execute(sql`
-      INSERT INTO adjuntos
-        (venta_id, tipo, orden, descripcion, blob_path, mime, size_bytes,
-         sha256, subido_por_usuario_id)
-      VALUES
-        (${datos.ventaId}, 'EVIDENCIA', ${indice + 1}, ${evidencia.descripcion},
-         ${evidencia.blobPath}, ${evidencia.mime}, ${evidencia.sizeBytes},
-         ${evidencia.sha256}, ${ctx.usuarioId})
-    `);
+    ON CONFLICT (id) DO NOTHING
+    RETURNING id
+  `),
+  );
+  if (insertadas.length === 0) {
+    return (
+      (await buscarVentaExistente(tx, ctx, datos.ventaId)) ??
+      fallo("ERROR_INTERNO", "No se pudo confirmar la venta registrada.")
+    );
   }
 
-  // 11.d. Documentos reutilizados: no bloquea, solo queda rastro en la auditoría.
+  const filasAdjuntos = [
+    sql`(${datos.ventaId}, 'DOCUMENTO_VENTA', 0, ${null}, ${documento.blobPath},
+         ${documento.mime}, ${documento.sizeBytes}, ${documento.sha256}, ${ctx.usuarioId})`,
+    ...evidencias.map(
+      (evidencia, indice) =>
+        sql`(${datos.ventaId}, 'EVIDENCIA', ${indice + 1}, ${evidencia.descripcion},
+             ${evidencia.blobPath}, ${evidencia.mime}, ${evidencia.sizeBytes},
+             ${evidencia.sha256}, ${ctx.usuarioId})`,
+    ),
+  ];
+  await tx.execute(sql`
+    INSERT INTO adjuntos
+      (venta_id, tipo, orden, descripcion, blob_path, mime, size_bytes, sha256,
+       subido_por_usuario_id)
+    VALUES ${sql.join(filasAdjuntos, sql`, `)}
+  `);
+
+  // Documentos reutilizados: no bloquea, solo queda rastro en la auditoría.
   const posiblesDuplicados = await buscarShaReutilizado(
     tx,
     ctx.empresaId,
     datos.ventaId,
-    verificados.map((a) => a.sha256),
+    archivos.map((a) => a.sha256),
   );
 
   const datosDespues: Datos = {
     empresaVendedoraId: ctx.empresaId,
-    empresaCompradoraId: resuelto.data.empresaCompradoraId,
+    empresaCompradoraId,
     convenioId,
     terminoId,
     sedeId: datos.sedeId,
@@ -313,22 +439,9 @@ export async function crearVentaCore(
  * el cliente envíe la venta.
  */
 async function verificarAdjunto(
-  tx: TransaccionAuditada,
   archivo: ArchivoVenta,
   tipo: TipoAdjunto,
 ): Promise<Resultado<ArchivoVenta>> {
-  const yaUsado = obtenerFilas(
-    await tx.execute(
-      sql`SELECT 1 FROM adjuntos WHERE blob_path = ${archivo.blobPath} LIMIT 1`,
-    ),
-  );
-  if (yaUsado.length > 0) {
-    return fallo(
-      "CONFLICTO",
-      "Uno de los archivos ya fue usado en otra venta o empleado.",
-    );
-  }
-
   const verificado = await verificarArchivoSubido(archivo.blobPath, tipo);
   if (!verificado.ok) {
     return fallo(
@@ -361,25 +474,26 @@ async function buscarShaReutilizado(
   hashes: string[],
 ): Promise<{ sha256: string; ventaId: string }[]> {
   const desde = sumarDias(hoyLima(), -90);
-  const encontrados: { sha256: string; ventaId: string }[] = [];
-  for (const sha256 of hashes) {
-    const filas = obtenerFilas(
-      await tx.execute(sql`
-        SELECT v.id FROM adjuntos a
-        JOIN ventas v ON v.id = a.venta_id
-        WHERE a.sha256 = ${sha256}
-          AND v.empresa_vendedora_id = ${empresaVendedoraId}
-          AND v.id <> ${ventaIdActual}
-          AND v.fecha_venta >= ${desde}
-        LIMIT 1
-      `),
-    );
-    const fila = filas[0];
-    if (fila) {
-      encontrados.push({ sha256, ventaId: String(fila.id) });
-    }
-  }
-  return encontrados;
+  const hashesSql = sql.join(
+    hashes.map((sha256) => sql`${sha256}`),
+    sql`, `,
+  );
+  const filas = obtenerFilas(
+    await tx.execute(sql`
+      SELECT DISTINCT ON (a.sha256) a.sha256, v.id AS venta_id
+      FROM adjuntos a
+      JOIN ventas v ON v.id = a.venta_id
+      WHERE a.sha256 IN (${hashesSql})
+        AND v.empresa_vendedora_id = ${empresaVendedoraId}
+        AND v.id <> ${ventaIdActual}
+        AND v.fecha_venta >= ${desde}
+      ORDER BY a.sha256, v.id
+    `),
+  );
+  return filas.map((fila) => ({
+    sha256: String(fila.sha256),
+    ventaId: String(fila.venta_id),
+  }));
 }
 
 export type DatosAnularVenta = {

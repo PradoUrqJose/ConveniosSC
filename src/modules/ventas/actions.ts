@@ -3,14 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { dbTx } from "@/db";
+import { db, dbTx } from "@/db";
 import { MAX_BYTES_ARCHIVO, MIME_PERMITIDOS } from "@/lib/archivos";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { zFecha, zMontoSoles, zUuid } from "@/lib/zod";
 import type { Resultado } from "@/lib/tipos";
 import {
   anularVentaCore,
+  buscarVentaExistente,
   crearVentaCore,
+  prepararVenta,
   type DatosCrearVenta,
   type VentaCreada,
 } from "./acciones";
@@ -91,7 +93,8 @@ function campoInvalido<T extends { error: z.ZodError }>(
 
 /**
  * `crearVenta` (03 §7): valida y autoriza, arma `DatosCrearVenta` y delega el
- * algoritmo completo a `crearVentaCore` dentro de una única transacción.
+ * validaciones de solo lectura fuera de la transacción y deja dentro de ella
+ * únicamente las escrituras atómicas de `crearVentaCore`.
  */
 export async function crearVenta(
   _estadoAnterior: Resultado<VentaCreada>,
@@ -156,8 +159,16 @@ export async function crearVenta(
       userAgent: ctx.userAgent,
     };
 
+    // Responder al reintento antes de volver a verificar los Blob: una venta
+    // ya creada puede haber consumido legítimamente esas mismas rutas.
+    const existente = await buscarVentaExistente(db, ctxVenta, entrada.ventaId);
+    if (existente) return existente;
+
+    const preparada = await prepararVenta(db, ctxVenta, entrada);
+    if (!preparada.ok) return preparada;
+
     const res = await dbTx().transaction((tx) =>
-      crearVentaCore(tx, ctxVenta, entrada),
+      crearVentaCore(tx, ctxVenta, entrada, preparada.data),
     );
     if (!res.ok) {
       return res;
