@@ -1,7 +1,3 @@
-import { access } from "node:fs/promises";
-import path from "node:path";
-
-import { head } from "@vercel/blob";
 import { sql } from "drizzle-orm";
 
 import {
@@ -13,6 +9,8 @@ import type { Datos } from "@/lib/audit/canonico";
 import type { SessionContext } from "@/lib/auth/guardas";
 import { calcularDescuento, type Centimos } from "@/lib/dinero";
 import { compararFechas, fechaLimaDe, hoyLima, sumarDias } from "@/lib/fechas";
+import type { TipoAdjunto } from "@/lib/archivos";
+import { verificarArchivoSubido } from "@/lib/blob-verificacion";
 import type { CodigoError, Resultado } from "@/lib/tipos";
 import { resolverTerminoVigente, textoFechaVenta } from "./query";
 
@@ -189,12 +187,21 @@ export async function crearVentaCore(
     );
   }
   const archivos = [datos.documento, ...datos.evidencias];
-  for (const archivo of archivos) {
-    const validacion = await validarBlobDisponible(tx, archivo.blobPath);
-    if (!validacion.ok) {
-      return validacion;
+  const verificados: ArchivoVenta[] = [];
+  for (const [indice, archivo] of archivos.entries()) {
+    const tipo: TipoAdjunto = indice === 0 ? "documento" : "evidencia";
+    const verificado = await verificarAdjunto(tx, archivo, tipo);
+    if (!verificado.ok) {
+      return verificado;
     }
+    verificados.push(verificado.data);
   }
+  // A partir de aquí solo se usan los metadatos que calculó el servidor.
+  const documento = verificados[0]!;
+  const evidencias = datos.evidencias.map((evidencia, indice) => ({
+    ...verificados[indice + 1]!,
+    descripcion: evidencia.descripcion ?? null,
+  }));
 
   // 10. Calcular, ignorando cualquier monto que haya mandado el cliente.
   const { descuento, final } = calcularDescuento(
@@ -221,17 +228,17 @@ export async function crearVentaCore(
       (venta_id, tipo, orden, blob_path, mime, size_bytes, sha256,
        subido_por_usuario_id)
     VALUES
-      (${datos.ventaId}, 'DOCUMENTO_VENTA', 0, ${datos.documento.blobPath},
-       ${datos.documento.mime}, ${datos.documento.sizeBytes},
-       ${datos.documento.sha256}, ${ctx.usuarioId})
+      (${datos.ventaId}, 'DOCUMENTO_VENTA', 0, ${documento.blobPath},
+       ${documento.mime}, ${documento.sizeBytes},
+       ${documento.sha256}, ${ctx.usuarioId})
   `);
-  for (const [indice, evidencia] of datos.evidencias.entries()) {
+  for (const [indice, evidencia] of evidencias.entries()) {
     await tx.execute(sql`
       INSERT INTO adjuntos
         (venta_id, tipo, orden, descripcion, blob_path, mime, size_bytes,
          sha256, subido_por_usuario_id)
       VALUES
-        (${datos.ventaId}, 'EVIDENCIA', ${indice + 1}, ${evidencia.descripcion ?? null},
+        (${datos.ventaId}, 'EVIDENCIA', ${indice + 1}, ${evidencia.descripcion},
          ${evidencia.blobPath}, ${evidencia.mime}, ${evidencia.sizeBytes},
          ${evidencia.sha256}, ${ctx.usuarioId})
     `);
@@ -242,7 +249,7 @@ export async function crearVentaCore(
     tx,
     ctx.empresaId,
     datos.ventaId,
-    archivos.map((a) => a.sha256),
+    verificados.map((a) => a.sha256),
   );
 
   const datosDespues: Datos = {
@@ -289,24 +296,30 @@ export async function crearVentaCore(
 }
 
 /**
- * Un blob es válido para una venta si: no está ya asociado a otro adjunto
- * (documento u otra venta), y el archivo realmente existe.
+ * Un adjunto entra en la venta solo si: su blob no está ya asociado a otro
+ * adjunto, el archivo existe, y su contenido real coincide con lo declarado.
  *
- * No se usa el rastro `ADJUNTO_SUBIDO` de auditoría para esto: ese evento lo
- * escribe `onUploadCompleted` de Vercel Blob, un callback asíncrono que
- * Vercel invoca contra una URL pública — nunca llega en `localhost` y, aun en
- * producción, no hay garantía de que llegue antes de que el cliente envíe la
- * venta. En su lugar se confirma la existencia del archivo directamente:
- * contra Vercel Blob (`head`), o contra el respaldo local de desarrollo de
- * `subirArchivoLocal` (`public/uploads/...`).
+ * Nada de lo que manda el cliente se persiste tal cual (02 §8, P0-02): el
+ * `mime`, el tamaño y el `sha256` que se guardan salen de los bytes que el
+ * servidor leyó. El formulario los manda igual y aquí se contrastan: si no
+ * coinciden, el archivo que subió el navegador no es el que dice ser y la
+ * venta se rechaza en vez de guardar metadatos falsos. Un `sha256` inventado
+ * dejaría ciega la detección de documentos reutilizados de 02 §11.d.
+ *
+ * No se usa el rastro `ADJUNTO_SUBIDO` de auditoría para confirmar la subida:
+ * ese evento lo escribe `onUploadCompleted` de Vercel Blob, un callback
+ * asíncrono que Vercel invoca contra una URL pública — nunca llega en
+ * `localhost` y, aun en producción, no hay garantía de que llegue antes de que
+ * el cliente envíe la venta.
  */
-async function validarBlobDisponible(
+async function verificarAdjunto(
   tx: TransaccionAuditada,
-  blobPath: string,
-): Promise<Resultado<true>> {
+  archivo: ArchivoVenta,
+  tipo: TipoAdjunto,
+): Promise<Resultado<ArchivoVenta>> {
   const yaUsado = obtenerFilas(
     await tx.execute(
-      sql`SELECT 1 FROM adjuntos WHERE blob_path = ${blobPath} LIMIT 1`,
+      sql`SELECT 1 FROM adjuntos WHERE blob_path = ${archivo.blobPath} LIMIT 1`,
     ),
   );
   if (yaUsado.length > 0) {
@@ -316,34 +329,29 @@ async function validarBlobDisponible(
     );
   }
 
-  if (!(await blobExiste(blobPath))) {
+  const verificado = await verificarArchivoSubido(archivo.blobPath, tipo);
+  if (!verificado.ok) {
     return fallo(
-      "REGLA_NEGOCIO",
-      "No pudimos verificar la subida de uno de los archivos. Vuelve a adjuntarlo.",
+      verificado.motivo === "NO_EXISTE" ? "REGLA_NEGOCIO" : "VALIDACION",
+      verificado.mensaje,
+      tipo === "documento" ? "documento" : "evidencias",
     );
   }
 
-  return { ok: true, data: true };
-}
+  const real = verificado.data;
+  if (
+    real.mime !== archivo.mime ||
+    real.sizeBytes !== archivo.sizeBytes ||
+    real.sha256 !== archivo.sha256
+  ) {
+    return fallo(
+      "VALIDACION",
+      "Uno de los archivos no coincide con lo que se subió. Vuelve a adjuntarlo.",
+      tipo === "documento" ? "documento" : "evidencias",
+    );
+  }
 
-async function blobExiste(blobPath: string): Promise<boolean> {
-  if (blobPath.startsWith("/uploads/")) {
-    if (process.env.NODE_ENV === "production") {
-      return false;
-    }
-    try {
-      await access(path.join(process.cwd(), "public", blobPath));
-      return true;
-    } catch {
-      return false;
-    }
-  }
-  try {
-    await head(blobPath);
-    return true;
-  } catch {
-    return false;
-  }
+  return { ok: true, data: { blobPath: archivo.blobPath, ...real } };
 }
 
 async function buscarShaReutilizado(

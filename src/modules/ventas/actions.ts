@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
 import { dbTx } from "@/db";
-import { MIME_PERMITIDOS } from "@/lib/archivos";
+import { MAX_BYTES_ARCHIVO, MIME_PERMITIDOS } from "@/lib/archivos";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { zFecha, zMontoSoles, zUuid } from "@/lib/zod";
 import type { Resultado } from "@/lib/tipos";
@@ -23,7 +23,7 @@ const zArchivo = z.object({
   blobPath: z.string().min(1),
   sha256: z.string().regex(/^[a-f0-9]{64}$/),
   mime: z.enum(MIME_PERMITIDOS),
-  sizeBytes: z.number().int().positive().max(10_485_760),
+  sizeBytes: z.number().int().positive().max(MAX_BYTES_ARCHIVO),
 });
 
 const zEvidencia = zArchivo.extend({
@@ -55,7 +55,7 @@ const zCrearVenta = z.object({
   documentoBlobPath: z.string().min(1, "Falta el documento de venta."),
   documentoSha256: z.string().regex(/^[a-f0-9]{64}$/),
   documentoMime: z.enum(MIME_PERMITIDOS),
-  documentoSizeBytes: z.coerce.number().int().positive().max(10_485_760),
+  documentoSizeBytes: z.coerce.number().int().positive().max(MAX_BYTES_ARCHIVO),
   evidenciasJson: zEvidenciasJson,
 });
 

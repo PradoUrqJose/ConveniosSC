@@ -304,14 +304,27 @@ El checkbox se registra en auditoría junto con el evento `EMPLEADO_CREADO`.
 4. Cliente sube directo a Vercel Blob con access: 'private'.
 5. La ruta del blob queda en el estado del formulario. El registro en `adjuntos` se crea
    recién al guardar la venta o el empleado.
+6. Al guardar, el servidor verifica el archivo antes de insertarlo en `adjuntos`
+   (`verificarArchivoSubido`, `src/lib/blob-verificacion.ts`): `head()` para existencia y
+   metadatos del store, descarga del contenido con tope de 10 MB, magic bytes y sha256
+   calculado sobre esos bytes.
 ```
+
+### Nada de lo que declara el cliente se persiste
+El `mime`, el `size_bytes` y el `sha256` de `adjuntos` son siempre los que calculó el servidor.
+El formulario los envía igual y se contrastan: si no coinciden, la venta se rechaza en vez de
+guardar metadatos falsos. Un `sha256` inventado dejaría ciega la detección de documentos
+reutilizados de §11.d, y un `mime` inventado permitiría almacenar contenido arbitrario bajo una
+extensión inofensiva.
 
 ### Convención de rutas
 ```
 empleados/{empleadoId}/dni/{uuid}.jpg
-ventas/{ventaId}/documento/{uuid}.{ext}
-ventas/{ventaId}/evidencia/{orden}-{uuid}.jpg
+ventas/{ventaId}/documento/{uuid}.{ext}   ext: jpg | png | webp | pdf
+ventas/{ventaId}/evidencia/{orden}-{uuid}.jpg   ext: jpg | png | webp (sin PDF, 03 §7)
 ```
+La carpeta decide qué tipos se aceptan, tanto al emitir el token de subida como al verificar el
+archivo guardado.
 
 ### Blobs huérfanos
 Un blob subido cuya venta nunca se guardó queda huérfano. Job manual en v1, `cron` diario en

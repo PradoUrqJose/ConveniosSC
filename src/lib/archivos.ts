@@ -73,14 +73,43 @@ export function validarTipoReal(
  *   ventas/{ventaId}/evidencia/{orden}-{uuid}.jpg
  * El primer segmento identifica la entidad; los IDs reales aún no existen al
  * subir (la fila en `adjuntos` se crea al guardar), por eso se acepta cualquier
- * uuid como marcador.
+ * uuid como marcador. `addRandomSuffix` de Vercel Blob añade un sufijo al
+ * nombre antes de la extensión, así que el nombre se valida permisivo.
  */
-const RUTA_BLOB =
-  /^ventas\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(documento|evidencia)\/[^/]+\.(jpg|png|webp|pdf)$/i;
+const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 
-/** Valida que el pathname propuesto siga las convenciones de ruta de 02 §8. */
-export function validarRutaBlob(pathname: string): boolean {
-  return RUTA_BLOB.test(pathname);
+const RUTA_POR_TIPO: Record<TipoAdjunto, RegExp> = {
+  documento: new RegExp(
+    `^ventas/${UUID}/documento/[^/]+\\.(jpg|jpeg|png|webp|pdf)$`,
+    "i",
+  ),
+  // Las evidencias no admiten PDF (03 §7): son fotos del punto de venta.
+  evidencia: new RegExp(
+    `^ventas/${UUID}/evidencia/[^/]+\\.(jpg|jpeg|png|webp)$`,
+    "i",
+  ),
+};
+
+/**
+ * Valida que el pathname propuesto siga las convenciones de ruta de 02 §8.
+ * Con `tipo` se exige además que la carpeta y la extensión correspondan a esa
+ * clase de adjunto; sin él basta con que encaje en alguna.
+ */
+export function validarRutaBlob(pathname: string, tipo?: TipoAdjunto): boolean {
+  if (tipo) {
+    return RUTA_POR_TIPO[tipo].test(pathname);
+  }
+  return Object.values(RUTA_POR_TIPO).some((patron) => patron.test(pathname));
+}
+
+/** Clase de adjunto que declara la ruta, o `null` si no es una ruta válida. */
+export function tipoAdjuntoDeRuta(pathname: string): TipoAdjunto | null {
+  for (const [tipo, patron] of Object.entries(RUTA_POR_TIPO)) {
+    if (patron.test(pathname)) {
+      return tipo as TipoAdjunto;
+    }
+  }
+  return null;
 }
 
 export const MIME_PERMITIDOS = [
@@ -95,3 +124,22 @@ export type MimePermitido = (typeof MIME_PERMITIDOS)[number];
 export function esMimePermitido(mime: string): mime is MimePermitido {
   return MIME_PERMITIDOS.includes(mime as MimePermitido);
 }
+
+/** Clases de adjunto de una venta (01 §7: `DOCUMENTO_VENTA` y `EVIDENCIA`). */
+export type TipoAdjunto = "documento" | "evidencia";
+
+/**
+ * Qué MIME acepta cada clase de adjunto. El documento de la venta puede ser
+ * una boleta en PDF; las evidencias son siempre imágenes (03 §7).
+ */
+export const MIMES_POR_TIPO: Record<TipoAdjunto, readonly MimePermitido[]> = {
+  documento: MIME_PERMITIDOS,
+  evidencia: ["image/jpeg", "image/png", "image/webp"],
+};
+
+export function mimePermitidoPara(mime: string, tipo: TipoAdjunto): boolean {
+  return (MIMES_POR_TIPO[tipo] as readonly string[]).includes(mime);
+}
+
+/** Tope de tamaño de cualquier adjunto (02 §8): 10 MB. */
+export const MAX_BYTES_ARCHIVO = 10_485_760;

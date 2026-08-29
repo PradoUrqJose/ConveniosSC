@@ -469,9 +469,10 @@ Implementa `handleUpload` de `@vercel/blob/client`.
 onBeforeGenerateToken(pathname, clientPayload):
   1. requireSession()
   2. Rate limit upload:<usuarioId>
-  3. Validar que pathname coincide con las convenciones de ruta de 02 §8
+  3. Validar que pathname coincide con las convenciones de ruta de 02 §8 y deducir de su
+     carpeta la clase de adjunto (documento | evidencia)
   4. Devolver: {
-       allowedContentTypes: ['image/jpeg','image/png','image/webp','application/pdf'],
+       allowedContentTypes: los de esa clase — documento admite PDF, evidencia no,
        maximumSizeInBytes: 10_485_760,
        addRandomSuffix: true,
        access: 'private',
@@ -481,6 +482,11 @@ onBeforeGenerateToken(pathname, clientPayload):
 onUploadCompleted({ blob, tokenPayload }):
   Auditar ADJUNTO_SUBIDO con la ruta y el usuario.
   NO se crea fila en `adjuntos` aquí — eso ocurre al guardar la venta o el empleado.
+```
+
+El token es solo la primera barrera: el `Content-Type` de la subida lo elige el cliente, así que
+el contenido real se verifica al guardar (02 §8, `verificarArchivoSubido`).
+```
 ```
 
 ### `GET /api/adjuntos/[id]`

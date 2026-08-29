@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { config } from "dotenv";
@@ -205,13 +205,21 @@ async function documentoSubido(sufijo: string): Promise<ArchivoVenta> {
   const dir = path.join(process.cwd(), "public", "uploads");
   await mkdir(dir, { recursive: true });
   const absoluto = path.join(dir, nombre);
-  await writeFile(absoluto, Buffer.from([0xff, 0xd8, 0xff, 0xe0]));
+  // JPEG real (magic bytes FF D8 FF) más un relleno único por archivo: el
+  // servidor recalcula sha256 y tamaño sobre estos bytes y rechaza la venta si
+  // no coinciden con lo declarado, así que la declaración se deriva del mismo
+  // contenido en vez de inventarse.
+  const bytes = Buffer.concat([
+    Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+    Buffer.from(`${sufijo}-${randomUUID()}`),
+  ]);
+  await writeFile(absoluto, bytes);
   ARCHIVOS_TEMPORALES.push(absoluto);
   return {
     blobPath: `/uploads/${nombre}`,
-    sha256: randomUUID().replace(/-/g, "").repeat(2),
+    sha256: createHash("sha256").update(bytes).digest("hex"),
     mime: "image/jpeg",
-    sizeBytes: 1000,
+    sizeBytes: bytes.byteLength,
   };
 }
 
@@ -485,6 +493,83 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         [empleadoId],
       );
       expect(filas.rows[0].n).toBe(0);
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+  }, 60_000);
+
+  it("rechaza un adjunto cuyo sha256 declarado no es el del archivo", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const idA = await crearEmpresa(c, "20100070020");
+      const idB = await crearEmpresa(c, "20100070021");
+      const convenioId = await crearConvenio(c, idA, idB);
+      await crearTermino(c, convenioId, idA, 1500, "2000-01-01", null);
+      const sedeId = await crearSede(c, idA);
+      const vendedorId = await crearUsuario(c, "VENDEDOR", idA);
+      const empleadoId = await crearEmpleadoActivo(c, idB, "70000011");
+
+      const documento = await documentoSubido("j");
+      const res = await crearVentaCore(adaptador(c), ctx(vendedorId, idA), {
+        ventaId: randomUUID(),
+        empleadoCompradorId: empleadoId,
+        sedeId,
+        montoBrutoCentimos: 10_000,
+        fechaVenta: HOY,
+        // El archivo existe, pero el cliente miente sobre su contenido.
+        documento: { ...documento, sha256: "a".repeat(64), sizeBytes: 999 },
+        evidencias: [],
+      });
+      expect(res.ok).toBe(false);
+      if (!res.ok) expect(res.codigo).toBe("VALIDACION");
+
+      const filas = await c.query(
+        `SELECT count(*)::int AS n FROM ventas WHERE empleado_comprador_id = $1`,
+        [empleadoId],
+      );
+      expect(filas.rows[0].n).toBe(0);
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+  }, 60_000);
+
+  it("guarda el mime, tamaño y sha256 que calculó el servidor", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const idA = await crearEmpresa(c, "20100070022");
+      const idB = await crearEmpresa(c, "20100070023");
+      const convenioId = await crearConvenio(c, idA, idB);
+      await crearTermino(c, convenioId, idA, 1500, "2000-01-01", null);
+      const sedeId = await crearSede(c, idA);
+      const vendedorId = await crearUsuario(c, "VENDEDOR", idA);
+      const empleadoId = await crearEmpleadoActivo(c, idB, "70000012");
+
+      const documento = await documentoSubido("k");
+      const res = await crearVentaCore(adaptador(c), ctx(vendedorId, idA), {
+        ventaId: randomUUID(),
+        empleadoCompradorId: empleadoId,
+        sedeId,
+        montoBrutoCentimos: 10_000,
+        fechaVenta: HOY,
+        documento,
+        evidencias: [],
+      });
+      expect(res.ok).toBe(true);
+      if (!res.ok) return;
+
+      const adjunto = await c.query(
+        `SELECT mime, size_bytes, sha256 FROM adjuntos WHERE venta_id = $1`,
+        [res.data.ventaId],
+      );
+      expect(adjunto.rows[0]).toMatchObject({
+        mime: "image/jpeg",
+        size_bytes: documento.sizeBytes,
+        sha256: documento.sha256,
+      });
     } finally {
       await c.query("ROLLBACK").catch(() => undefined);
       await c.end();

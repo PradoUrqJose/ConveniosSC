@@ -9,7 +9,7 @@ import { CargadorArchivoVenta } from "@/components/cargador-archivo-venta";
 import { Button } from "@/components/ui/button";
 import { subirArchivoLocal } from "@/modules/empleados/actions";
 import type { Resultado } from "@/lib/tipos";
-import type { MimePermitido } from "@/lib/archivos";
+import { MAX_BYTES_ARCHIVO, type MimePermitido } from "@/lib/archivos";
 import { miniaturaPrimeraPagina } from "@/lib/miniatura-pdf";
 
 export type DatosSubida = {
@@ -64,7 +64,7 @@ export function useSubidaArchivo(tipo: TipoArchivo) {
 
   const procesar = async (file: File) => {
     setError(null);
-    if (file.size < 1 || file.size > 10_485_760) {
+    if (file.size < 1 || file.size > MAX_BYTES_ARCHIVO) {
       setError("El archivo debe pesar entre 1 byte y 10 MB.");
       return;
     }

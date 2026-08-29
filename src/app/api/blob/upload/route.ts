@@ -6,9 +6,12 @@ import { db, dbTx } from "@/db";
 import { obtenerFilas, registrar } from "@/lib/audit/registrar";
 import { requireSession } from "@/lib/auth/guardas";
 import { rateLimit } from "@/lib/rate-limit";
-import { MIME_PERMITIDOS, validarRutaBlob } from "@/lib/archivos";
+import {
+  MAX_BYTES_ARCHIVO,
+  MIMES_POR_TIPO,
+  tipoAdjuntoDeRuta,
+} from "@/lib/archivos";
 
-const MAX_BYTES = 10_485_760;
 const LIMITE_SUBIDAS = 60;
 const VENTANA_SUBIDAS_MS = 5 * 60 * 1000;
 
@@ -38,13 +41,19 @@ export async function POST(request: Request): Promise<NextResponse> {
           );
         }
 
-        if (!validarRutaBlob(pathname)) {
+        // La carpeta de la ruta decide qué tipos se aceptan: las evidencias
+        // son fotos y no admiten PDF (03 §7). Aun así el token es solo la
+        // primera barrera: el contenido real se verifica al guardar la venta
+        // (`verificarArchivoSubido`), porque el `Content-Type` de la subida lo
+        // elige el cliente.
+        const tipo = tipoAdjuntoDeRuta(pathname);
+        if (!tipo) {
           throw new Error("La ruta del archivo no es válida.");
         }
 
         return {
-          allowedContentTypes: [...MIME_PERMITIDOS],
-          maximumSizeInBytes: MAX_BYTES,
+          allowedContentTypes: [...MIMES_POR_TIPO[tipo]],
+          maximumSizeInBytes: MAX_BYTES_ARCHIVO,
           addRandomSuffix: true,
           tokenPayload: JSON.stringify({ usuarioId: ctx.usuarioId }),
         };

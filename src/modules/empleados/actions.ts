@@ -11,7 +11,11 @@ import { dbTx } from "@/db";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { zDocumentoIdentidad, zNombre, zTelefono, zUuid } from "@/lib/zod";
 import type { Resultado } from "@/lib/tipos";
-import { detectarTipoReal, MIME_PERMITIDOS } from "@/lib/archivos";
+import {
+  detectarTipoReal,
+  MAX_BYTES_ARCHIVO,
+  MIME_PERMITIDOS,
+} from "@/lib/archivos";
 import {
   actualizarEmpleadoCore,
   crearEmpleadoCore,
@@ -126,7 +130,7 @@ export async function subirArchivoLocal(
         mensaje: "No se recibió archivo.",
       };
     }
-    if (file.size < 1 || file.size > 10_485_760) {
+    if (file.size < 1 || file.size > MAX_BYTES_ARCHIVO) {
       return {
         ok: false,
         codigo: "VALIDACION",
