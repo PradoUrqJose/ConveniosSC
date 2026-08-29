@@ -38,11 +38,15 @@ export async function listarSedes(
   const filas = obtenerFilas(
     await db.execute(sql`
       SELECT s.id, s.nombre, s.direccion, s.activo,
-        (SELECT count(*)::int FROM ventas v
-          WHERE v.sede_id = s.id
-            AND v.estado = 'REGISTRADA'
-            AND v.fecha_venta >= ${desde}) AS total_ventas_30d
+        COALESCE(metricas.total_ventas_30d, 0)::int AS total_ventas_30d
       FROM sedes s
+      LEFT JOIN (
+        SELECT v.sede_id, count(*)::int AS total_ventas_30d
+        FROM ventas v
+        WHERE v.estado = 'REGISTRADA'
+          AND v.fecha_venta >= ${desde}
+        GROUP BY v.sede_id
+      ) metricas ON metricas.sede_id = s.id
       ${where}
       ORDER BY s.nombre ASC
     `),

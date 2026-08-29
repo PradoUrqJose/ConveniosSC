@@ -79,11 +79,16 @@ export async function listarUsuarios(
         e.nombre_comercial AS empresa_nombre, u.activo, u.ultimo_acceso_at,
         u.debe_cambiar_password, u.empleado_id, u.sede_por_defecto_id,
         (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > now()) AS bloqueado,
-        (SELECT count(*)::int FROM ventas v
-           WHERE v.vendedor_usuario_id = u.id AND v.estado = 'REGISTRADA'
-             AND v.fecha_venta >= ${sumarDias(HOY, -29)}) AS ventas_30d
+        COALESCE(metricas.ventas_30d, 0)::int AS ventas_30d
       FROM usuarios u
       LEFT JOIN empresas e ON e.id = u.empresa_id
+      LEFT JOIN (
+        SELECT v.vendedor_usuario_id, count(*)::int AS ventas_30d
+        FROM ventas v
+        WHERE v.estado = 'REGISTRADA'
+          AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+        GROUP BY v.vendedor_usuario_id
+      ) metricas ON metricas.vendedor_usuario_id = u.id
       ${where}
       ORDER BY u.username ASC, u.id ASC
       LIMIT ${POR_PAGINA + 1}

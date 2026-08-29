@@ -274,8 +274,7 @@ const CAMPOS_VENTA = sql`
   v.sede_id, s.nombre AS sede_nombre,
   v.vendedor_usuario_id, u.nombres AS vendedor_nombres, u.apellidos AS vendedor_apellidos,
   v.monto_bruto_centimos, v.descuento_bps, v.monto_descuento_centimos, v.monto_final_centimos,
-  v.estado, v.requiere_revision,
-  (SELECT count(*)::int FROM adjuntos a WHERE a.venta_id = v.id) AS total_adjuntos
+  v.estado, v.requiere_revision
 `;
 
 const JOINS_VENTA = sql`
@@ -500,11 +499,24 @@ export async function listarVentas(
       ${whereFiltros}
     `),
     ejecutor.execute(sql`
-      SELECT ${CAMPOS_VENTA}
+      WITH pagina AS (
+        SELECT v.id
+        FROM ventas v
+        JOIN empleados e ON e.id = v.empleado_comprador_id
+        ${wherePagina}
+        ORDER BY ${fragmentoOrden(orden)}
+        LIMIT ${POR_PAGINA_VENTAS + 1}
+      ), adjuntos_por_venta AS (
+        SELECT a.venta_id, count(*)::int AS total_adjuntos
+        FROM adjuntos a
+        JOIN pagina p ON p.id = a.venta_id
+        GROUP BY a.venta_id
+      )
+      SELECT ${CAMPOS_VENTA}, COALESCE(apv.total_adjuntos, 0)::int AS total_adjuntos
       ${JOINS_VENTA}
-      ${wherePagina}
+      JOIN pagina p ON p.id = v.id
+      LEFT JOIN adjuntos_por_venta apv ON apv.venta_id = v.id
       ORDER BY ${fragmentoOrden(orden)}
-      LIMIT ${POR_PAGINA_VENTAS + 1}
     `),
   ]);
   const resumenFila = obtenerFilas(resumenResultado)[0];
@@ -624,6 +636,7 @@ export async function obtenerVenta(
     ok: true,
     data: {
       ...mapearFilaVenta(fila),
+      totalAdjuntos: adjuntosFilas.length,
       observacion: (fila.observacion as string | null) ?? null,
       motivoAnulacion: (fila.motivo_anulacion as string | null) ?? null,
       anuladaAt: fila.anulada_at ? String(fila.anulada_at) : null,

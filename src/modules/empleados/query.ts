@@ -393,17 +393,20 @@ export async function listarEmpleados(
         em.empresa_id, em.created_at,
         emp.nombre_comercial AS empresa_nombre,
         (u.nombres || ' ' || u.apellidos) AS creado_por_nombre,
-        (SELECT count(*)::int FROM ventas v
-           WHERE v.empleado_comprador_id = em.id
-             AND v.estado = 'REGISTRADA'
-             AND v.fecha_venta >= ${sumarDias(HOY, -29)}) AS compras_30d,
-        (SELECT COALESCE(sum(v.monto_bruto_centimos), 0)::bigint FROM ventas v
-           WHERE v.empleado_comprador_id = em.id
-             AND v.estado = 'REGISTRADA'
-             AND v.fecha_venta >= ${sumarDias(HOY, -29)}) AS monto_30d
+        COALESCE(metricas.compras_30d, 0)::int AS compras_30d,
+        COALESCE(metricas.monto_30d, 0)::bigint AS monto_30d
       FROM empleados em
       JOIN empresas emp ON emp.id = em.empresa_id
       LEFT JOIN usuarios u ON u.id = em.creado_por_usuario_id
+      LEFT JOIN (
+        SELECT v.empleado_comprador_id,
+          count(*)::int AS compras_30d,
+          COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS monto_30d
+        FROM ventas v
+        WHERE v.estado = 'REGISTRADA'
+          AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+        GROUP BY v.empleado_comprador_id
+      ) metricas ON metricas.empleado_comprador_id = em.id
       ${where}
       ORDER BY em.apellidos ASC, em.nombres ASC, em.id ASC
       LIMIT ${POR_PAGINA + 1}

@@ -48,11 +48,29 @@ export async function listarEmpresas(
       SELECT e.id, e.ruc, e.nombre_comercial, e.razon_social, e.activo,
         e.tope_monto_venta_centimos, e.requiere_evidencia_en_venta,
         e.dias_retroactivos_venta,
-        (SELECT count(*)::int FROM usuarios u WHERE u.empresa_id = e.id) AS total_usuarios,
-        (SELECT count(*)::int FROM empleados em WHERE em.empresa_id = e.id) AS total_empleados,
-        (SELECT count(*)::int FROM convenios c
-          WHERE c.empresa_a_id = e.id OR c.empresa_b_id = e.id) AS total_convenios
+        COALESCE(u.total_usuarios, 0)::int AS total_usuarios,
+        COALESCE(em.total_empleados, 0)::int AS total_empleados,
+        COALESCE(c.total_convenios, 0)::int AS total_convenios
       FROM empresas e
+      LEFT JOIN (
+        SELECT empresa_id, count(*)::int AS total_usuarios
+        FROM usuarios
+        GROUP BY empresa_id
+      ) u ON u.empresa_id = e.id
+      LEFT JOIN (
+        SELECT empresa_id, count(*)::int AS total_empleados
+        FROM empleados
+        GROUP BY empresa_id
+      ) em ON em.empresa_id = e.id
+      LEFT JOIN (
+        SELECT empresa_id, count(*)::int AS total_convenios
+        FROM (
+          SELECT empresa_a_id AS empresa_id FROM convenios
+          UNION ALL
+          SELECT empresa_b_id AS empresa_id FROM convenios
+        ) empresas_convenio
+        GROUP BY empresa_id
+      ) c ON c.empresa_id = e.id
       ${where}
       ORDER BY e.nombre_comercial ASC, e.id ASC
       LIMIT ${POR_PAGINA + 1}
