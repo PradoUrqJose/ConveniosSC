@@ -377,7 +377,8 @@ la capa de aplicación además del `CHECK`.
 | `ip` | `INET` | sí | `NULL` | |
 | `user_agent` | `TEXT` | sí | `NULL` | |
 | `request_id` | `TEXT` | sí | `NULL` | Correlaciona varias filas de una misma petición |
-| `prev_hash` | `TEXT` | sí | `NULL` | `NULL` solo en la primera fila |
+| `cadena` | `TEXT` | sí | `NULL` | Identificador canónico de la cadena por recurso; `NULL` en filas históricas de la cadena global |
+| `prev_hash` | `TEXT` | sí | `NULL` | `NULL` solo en la primera fila de cada cadena |
 | `hash` | `TEXT` | no | — | Ver cálculo abajo |
 
 ```sql
@@ -385,6 +386,7 @@ CREATE INDEX auditoria_ts_idx        ON auditoria (ts DESC);
 CREATE INDEX auditoria_entidad_idx   ON auditoria (entidad, entidad_id, ts DESC);
 CREATE INDEX auditoria_actor_idx     ON auditoria (actor_usuario_id, ts DESC);
 CREATE INDEX auditoria_empresa_idx   ON auditoria (actor_empresa_id, ts DESC);
+CREATE INDEX auditoria_cadena_idx    ON auditoria (cadena, id DESC) WHERE cadena IS NOT NULL;
 ```
 
 ### Capa 1 — permisos
@@ -413,22 +415,33 @@ hash = sha256( prev_hash_o_cadena_vacia || '|' || json_canonico )
 
 json_canonico = JSON con las claves ordenadas alfabéticamente de:
   { accion, actor_empresa_id, actor_rol, actor_usuario_id,
-    datos_antes, datos_despues, entidad, entidad_id, ip, request_id, ts, user_agent }
+    cadena, datos_antes, datos_despues, entidad, entidad_id, ip, request_id, ts, user_agent }
 ```
 
-Para evitar carreras entre transacciones concurrentes, **toda inserción en `auditoria` debe**:
+Para evitar carreras sin convertir la auditoría en un cuello de botella, las filas nuevas se
+encadenan por recurso (`entidad` + `entidad_id`). Cada cadena es independiente: una venta no
+espera a una modificación de empleado distinto. Las filas históricas sin `cadena` conservan la
+cadena global original y se verifican como tal.
+
+Para cada inserción, **debe**:
 
 ```sql
-SELECT pg_advisory_xact_lock(hashtext('auditoria_cadena'));
-SELECT hash FROM auditoria ORDER BY id DESC LIMIT 1;   -- prev_hash
+WITH bloqueo AS MATERIALIZED (
+  SELECT pg_advisory_xact_lock(hashtext($1))
+)
+SELECT hash FROM bloqueo LEFT JOIN LATERAL (
+  SELECT hash FROM auditoria WHERE cadena = $1 ORDER BY id DESC LIMIT 1
+) ultima ON true; -- prev_hash
 INSERT INTO auditoria (...) VALUES (...);
 ```
 
-El lock es a nivel de transacción y se libera solo. Con < 2 000 ventas/mes el costo es
-despreciable.
+El lock es a nivel de transacción y se libera solo; solo contiende otra escritura sobre el mismo
+recurso. `cadena` también forma parte del contenido hasheado y tiene un índice parcial
+`(cadena, id DESC)` para hallar el extremo de la cadena sin recorrer la tabla. Lock y lectura se
+combinan en una consulta para reducir una ida y vuelta a la BD por auditoría.
 
-**Verificación**: un script recorre la tabla en orden de `id` y recalcula la cadena. Manual en
-v1, programado en fase 2.
+**Verificación**: un script recorre la tabla en orden de `id`, mantiene el extremo de cada cadena
+y recalcula los hashes. Manual en v1, programado en fase 2.
 
 ### Qué se audita
 

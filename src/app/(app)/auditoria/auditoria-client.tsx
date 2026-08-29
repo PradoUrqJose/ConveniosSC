@@ -39,8 +39,8 @@ export function AuditoriaClient({
                 const r = await verificarIntegridad();
                 setResultado(
                   r.rota
-                    ? `Cadena rota en el registro ${r.enId}.`
-                    : `Cadena íntegra: ${r.verificadas} registros verificados.`,
+                    ? `Cadenas rotas en el registro ${r.enId}.`
+                    : `Cadenas íntegras: ${r.verificadas} registros verificados.`,
                 );
               }}
             >

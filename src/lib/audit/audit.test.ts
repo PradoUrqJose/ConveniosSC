@@ -42,13 +42,15 @@ describe.skipIf(!ACTIVO)("Auditoría T04 — cadena de hash en BD", () => {
     await pool.end();
   });
 
-  it("100 inserciones concurrentes dejan ids consecutivos y cadena íntegra", async () => {
+  it("100 inserciones concurrentes dejan ids consecutivos y cadenas íntegras", async () => {
     const tareas = Array.from({ length: 100 }, (_, i) =>
       db.transaction(async (tx) => {
         await registrar(tx, {
           accion: "VENTA_CREADA",
           entidad: "venta",
-          entidadId: `venta-${i}`,
+          // Diez recursos repetidos prueban que también se preserva el orden
+          // dentro de cada cadena, aunque las transacciones sean concurrentes.
+          entidadId: `venta-${i % 10}`,
           actor: { usuarioId: adminId, empresaId: null, rol: "SUPERADMIN" },
           datosDespues: i % 2 === 0 ? { monto_centimos: i } : null,
           requestId: `req-${i}`,
@@ -66,6 +68,50 @@ describe.skipIf(!ACTIVO)("Auditoría T04 — cadena de hash en BD", () => {
     const resultado = await verificarCadena({}, db);
     expect(resultado).toEqual({ verificadas: 100, rota: false });
   }, 90_000);
+
+  it("no bloquea otra cadena mientras la primera transacción sigue abierta", async () => {
+    let liberarPrimera!: () => void;
+    const primeraPuedeCerrar = new Promise<void>((resolve) => {
+      liberarPrimera = resolve;
+    });
+    let primeraRegistro!: () => void;
+    const primeraRegistroHecho = new Promise<void>((resolve) => {
+      primeraRegistro = resolve;
+    });
+
+    const primera = db.transaction(async (tx) => {
+      await registrar(tx, {
+        accion: "VENTA_CREADA",
+        entidad: "venta",
+        entidadId: "venta-bloqueada",
+        actor: { usuarioId: adminId, empresaId: null, rol: "SUPERADMIN" },
+      });
+      primeraRegistro();
+      await primeraPuedeCerrar;
+    });
+    await primeraRegistroHecho;
+
+    const segunda = db.transaction(async (tx) => {
+      await registrar(tx, {
+        accion: "VENTA_CREADA",
+        entidad: "venta",
+        entidadId: "venta-independiente",
+        actor: { usuarioId: adminId, empresaId: null, rol: "SUPERADMIN" },
+      });
+      return "registrada";
+    });
+    const resultado = await Promise.race([
+      segunda,
+      new Promise<"timeout">((resolve) =>
+        setTimeout(() => resolve("timeout"), 5_000),
+      ),
+    ]);
+
+    liberarPrimera();
+    await primera;
+    await segunda;
+    expect(resultado).toBe("registrada");
+  }, 30_000);
 
   it("redacta password_hash y tokens al escribir", async () => {
     await db.transaction(async (tx) => {

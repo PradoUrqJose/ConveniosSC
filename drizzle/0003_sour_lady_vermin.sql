@@ -1,0 +1,2 @@
+ALTER TABLE "auditoria" ADD COLUMN "cadena" text;--> statement-breakpoint
+CREATE INDEX "auditoria_cadena_idx" ON "auditoria" USING btree ("cadena","id" DESC NULLS LAST) WHERE "auditoria"."cadena" is not null;

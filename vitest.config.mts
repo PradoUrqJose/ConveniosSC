@@ -11,8 +11,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts"],
     setupFiles: ["./vitest.setup.ts"],
-    // Los tests de BD comparten `pg_advisory_xact_lock` de la cadena de auditoría:
-    // con RUN_DB_TESTS=1 se ejecutan en serie para evitar contención entre archivos.
+    // Los tests de BD comparten fixtures y tablas: con RUN_DB_TESTS=1 se
+    // ejecutan en serie para evitar que sus limpiezas se interfieran.
     fileParallelism: process.env.RUN_DB_TESTS !== "1",
   },
 });

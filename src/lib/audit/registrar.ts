@@ -31,6 +31,17 @@ export type TransaccionAuditada = {
   execute(query: SQL): Promise<unknown>;
 };
 
+/**
+ * Identificador estable de una cadena por recurso. JSON evita colisiones por
+ * separadores que sí ocurrirían al concatenar `entidad` y `entidadId`.
+ */
+export function claveCadenaAuditoria(
+  entidad: string,
+  entidadId: string,
+): string {
+  return JSON.stringify([entidad, entidadId]);
+}
+
 /** Normaliza el resultado de `execute` de los distintos drivers (rows o { rows }). */
 export function obtenerFilas(resultado: unknown): Record<string, unknown>[] {
   if (Array.isArray(resultado)) {
@@ -54,21 +65,34 @@ export function obtenerFilas(resultado: unknown): Record<string, unknown>[] {
  * La escritura va en la misma transacción que el cambio auditado: si falla la
  * auditoría, falla la operación completa.
  *
- * Secuencia con el advisory lock para que la cadena nunca tenga carreras:
- *   1. lock de transacción sobre la cadena
- *   2. leer el hash de la última fila (después del lock)
- *   3. calcular y escribir
+ * Secuencia con un advisory lock por recurso para que cada cadena nunca tenga
+ * carreras, sin serializar escrituras de recursos distintos:
+ *   1. adquirir el lock y leer el hash de la última fila de esa cadena en una
+ *      sola consulta
+ *   2. calcular y escribir
  */
 export async function registrar(
   tx: TransaccionAuditada,
   entrada: EntradaAuditoria,
 ): Promise<void> {
-  await tx.execute(
-    sql`SELECT pg_advisory_xact_lock(hashtext('auditoria_cadena'))`,
-  );
+  const cadena = claveCadenaAuditoria(entrada.entidad, entrada.entidadId);
 
   const ultima = obtenerFilas(
-    await tx.execute(sql`SELECT hash FROM auditoria ORDER BY id DESC LIMIT 1`),
+    await tx.execute(
+      sql`
+        WITH bloqueo AS MATERIALIZED (
+          SELECT pg_advisory_xact_lock(hashtext(${cadena}))
+        )
+        SELECT ultima.hash
+        FROM bloqueo
+        LEFT JOIN LATERAL (
+          SELECT hash FROM auditoria
+          WHERE cadena = ${cadena}
+          ORDER BY id DESC
+          LIMIT 1
+        ) ultima ON true
+      `,
+    ),
   )[0];
   const prevHash = (ultima?.hash as string | undefined) ?? null;
 
@@ -81,6 +105,7 @@ export async function registrar(
     actor_empresa_id: entrada.actor?.empresaId ?? null,
     actor_rol: entrada.actor?.rol ?? null,
     actor_usuario_id: entrada.actor?.usuarioId ?? null,
+    cadena,
     datos_antes: datosAntes,
     datos_despues: datosDespues,
     entidad: entrada.entidad,
@@ -96,7 +121,7 @@ export async function registrar(
     INSERT INTO auditoria
       (ts, actor_usuario_id, actor_empresa_id, actor_rol, accion,
        entidad, entidad_id, datos_antes, datos_despues,
-       ip, user_agent, request_id, prev_hash, hash)
+       ip, user_agent, request_id, cadena, prev_hash, hash)
     VALUES
       (${ts.toISOString()}, ${entrada.actor?.usuarioId ?? null},
        ${entrada.actor?.empresaId ?? null}, ${entrada.actor?.rol ?? null},
@@ -104,6 +129,6 @@ export async function registrar(
        ${datosAntes === null ? null : JSON.stringify(datosAntes)},
        ${datosDespues === null ? null : JSON.stringify(datosDespues)},
        ${entrada.ip ?? null}, ${entrada.userAgent ?? null},
-       ${entrada.requestId ?? null}, ${prevHash}, ${hash})
+       ${entrada.requestId ?? null}, ${cadena}, ${prevHash}, ${hash})
   `);
 }

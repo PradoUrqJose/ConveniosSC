@@ -520,6 +520,11 @@ export const auditoria = pgTable(
     ip: inet("ip"),
     userAgent: text("user_agent"),
     requestId: text("request_id"),
+    /**
+     * Cadena de integridad a la que pertenece la fila. Las filas previas a la
+     * partición conservan `NULL` y se verifican como la cadena global legada.
+     */
+    cadena: text("cadena"),
     prevHash: text("prev_hash"),
     hash: text("hash").notNull(),
   },
@@ -528,6 +533,9 @@ export const auditoria = pgTable(
     index("auditoria_entidad_idx").on(t.entidad, t.entidadId, t.ts.desc()),
     index("auditoria_actor_idx").on(t.actorUsuarioId, t.ts.desc()),
     index("auditoria_empresa_idx").on(t.actorEmpresaId, t.ts.desc()),
+    index("auditoria_cadena_idx")
+      .on(t.cadena, t.id.desc())
+      .where(sql`${t.cadena} is not null`),
   ],
 );
 

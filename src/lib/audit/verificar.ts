@@ -6,6 +6,7 @@ import { obtenerFilas } from "./registrar";
 
 export type FilaCadena = {
   id: number;
+  cadena: string | null;
   prev_hash: string | null;
   hash: string;
   accion: string;
@@ -30,6 +31,12 @@ export type EjecutorLectura = {
   execute(query: SQL): Promise<unknown>;
 };
 
+const CADENA_LEGADA = "";
+
+function claveCadena(fila: Pick<FilaCadena, "cadena">): string {
+  return fila.cadena ?? CADENA_LEGADA;
+}
+
 /**
  * Verifica la cadena sobre filas ya cargadas (puras, sin tocar la BD).
  * `prevHashInicial` permite validar un tramo que no empieza en la primera fila.
@@ -37,10 +44,17 @@ export type EjecutorLectura = {
 export function verificarFilas(
   filas: FilaCadena[],
   prevHashInicial: string | null = null,
+  prevHashesIniciales: ReadonlyMap<string, string | null> = new Map(),
 ): ResultadoVerificacion {
-  let prevHash = prevHashInicial;
+  const prevHashes = new Map(prevHashesIniciales);
   for (let i = 0; i < filas.length; i++) {
     const fila = filas[i]!;
+    const cadena = claveCadena(fila);
+    const prevHash = prevHashes.has(cadena)
+      ? prevHashes.get(cadena)!
+      : fila.cadena === null
+        ? prevHashInicial
+        : null;
     const esperado = calcularHash(
       fila.prev_hash,
       canonicalizar(camposCadena(fila)),
@@ -48,7 +62,7 @@ export function verificarFilas(
     if (fila.hash !== esperado || fila.prev_hash !== prevHash) {
       return { verificadas: i, rota: true, enId: fila.id };
     }
-    prevHash = fila.hash;
+    prevHashes.set(cadena, fila.hash);
   }
   return { verificadas: filas.length, rota: false };
 }
@@ -65,30 +79,47 @@ export async function verificarCadena(
   const desdeId = opciones?.desdeId;
   const limite = opciones?.limite;
 
-  let prevHashInicial: string | null = null;
-  if (desdeId !== undefined) {
-    const previa = obtenerFilas(
-      await ejecutante.execute(
-        sql`SELECT hash FROM auditoria WHERE id < ${desdeId} ORDER BY id DESC LIMIT 1`,
-      ),
-    )[0];
-    prevHashInicial = (previa?.hash as string | undefined) ?? null;
-  }
-
   const condiciones =
     desdeId !== undefined ? sql` WHERE id >= ${desdeId}` : sql``;
   const limiteSql = limite !== undefined ? sql` LIMIT ${limite}` : sql``;
 
   const filas = obtenerFilas(
     await ejecutante.execute(sql`
-      SELECT id, prev_hash, hash, ts, actor_usuario_id, actor_empresa_id, actor_rol,
+      SELECT id, cadena, prev_hash, hash, ts, actor_usuario_id, actor_empresa_id, actor_rol,
              accion, entidad, entidad_id, datos_antes, datos_despues, ip, request_id,
              user_agent
       FROM auditoria${condiciones} ORDER BY id ASC${limiteSql}
     `),
   ) as FilaCadena[];
 
-  return verificarFilas(filas, prevHashInicial);
+  const prevHashes = new Map<string, string | null>();
+  if (desdeId !== undefined && filas.length > 0) {
+    const cadenas = new Map(
+      filas.map((fila) => [claveCadena(fila), fila.cadena] as const),
+    );
+    const condicionesPrevias = sql.join(
+      [...cadenas.values()].map((cadena) =>
+        cadena === null ? sql`cadena IS NULL` : sql`cadena = ${cadena}`,
+      ),
+      sql` OR `,
+    );
+    const previas = obtenerFilas(
+      await ejecutante.execute(sql`
+        SELECT DISTINCT ON (cadena) cadena, hash
+        FROM auditoria
+        WHERE id < ${desdeId} AND (${condicionesPrevias})
+        ORDER BY cadena, id DESC
+      `),
+    );
+    for (const previa of previas) {
+      prevHashes.set(
+        (previa.cadena as string | null) ?? CADENA_LEGADA,
+        (previa.hash as string | undefined) ?? null,
+      );
+    }
+  }
+
+  return verificarFilas(filas, null, prevHashes);
 }
 
 function camposCadena(fila: FilaCadena) {
@@ -97,6 +128,7 @@ function camposCadena(fila: FilaCadena) {
     actor_empresa_id: fila.actor_empresa_id,
     actor_rol: fila.actor_rol,
     actor_usuario_id: fila.actor_usuario_id,
+    ...(fila.cadena === null ? {} : { cadena: fila.cadena }),
     datos_antes: fila.datos_antes,
     datos_despues: fila.datos_despues,
     entidad: fila.entidad,

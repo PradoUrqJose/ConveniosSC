@@ -26,9 +26,11 @@ function construirFila(
   id: number,
   prev_hash: string | null,
   hash: string,
+  cadena: string | null = null,
 ): FilaCadena {
   return {
     id,
+    cadena,
     prev_hash,
     hash,
     accion: "LOGIN_OK",
@@ -92,6 +94,56 @@ describe("verificarFilas", () => {
     const f2 = construirFila(2, f1.hash, calcularHash(f1.hash, canon(2)));
     expect(verificarFilas([f2], f1.hash)).toEqual({
       verificadas: 1,
+      rota: false,
+    });
+  });
+
+  it("verifica cadenas por recurso aunque sus filas estén intercaladas", () => {
+    const cadenaA = '["empleado","a"]';
+    const cadenaB = '["empleado","b"]';
+    const canonA = (id: number) =>
+      canonicalizar({
+        accion: "LOGIN_OK",
+        actor_empresa_id: null,
+        actor_rol: null,
+        actor_usuario_id: null,
+        cadena: cadenaA,
+        datos_antes: null,
+        datos_despues: null,
+        entidad: "empresa",
+        entidad_id: `e${id}`,
+        ip: null,
+        request_id: null,
+        ts: TS,
+        user_agent: null,
+      });
+    const canonB = (id: number) =>
+      canonicalizar({
+        accion: "LOGIN_OK",
+        actor_empresa_id: null,
+        actor_rol: null,
+        actor_usuario_id: null,
+        cadena: cadenaB,
+        datos_antes: null,
+        datos_despues: null,
+        entidad: "empresa",
+        entidad_id: `e${id}`,
+        ip: null,
+        request_id: null,
+        ts: TS,
+        user_agent: null,
+      });
+    const a1 = construirFila(1, null, calcularHash(null, canonA(1)), cadenaA);
+    const b1 = construirFila(2, null, calcularHash(null, canonB(2)), cadenaB);
+    const a2 = construirFila(
+      3,
+      a1.hash,
+      calcularHash(a1.hash, canonA(3)),
+      cadenaA,
+    );
+
+    expect(verificarFilas([a1, b1, a2])).toEqual({
+      verificadas: 3,
       rota: false,
     });
   });
