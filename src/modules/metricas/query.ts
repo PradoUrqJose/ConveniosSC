@@ -94,10 +94,24 @@ export async function obtenerDashboard(
 
   const consultas = [
     ejecutor.execute(
-      sql`SELECT count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto, COALESCE(sum(v.monto_descuento_centimos),0)::bigint descuento, COALESCE(sum(v.monto_final_centimos),0)::bigint final FROM ventas v WHERE ${base} AND v.estado = 'REGISTRADA'`,
-    ),
-    ejecutor.execute(
-      sql`SELECT count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v WHERE ${base} AND v.estado = 'ANULADA'`,
+      sql`
+        SELECT
+          count(*) FILTER (WHERE v.estado = 'REGISTRADA')::int cantidad,
+          COALESCE(sum(v.monto_bruto_centimos) FILTER (WHERE v.estado = 'REGISTRADA'), 0)::bigint bruto,
+          COALESCE(sum(v.monto_descuento_centimos) FILTER (WHERE v.estado = 'REGISTRADA'), 0)::bigint descuento,
+          COALESCE(sum(v.monto_final_centimos) FILTER (WHERE v.estado = 'REGISTRADA'), 0)::bigint final,
+          count(*) FILTER (WHERE v.estado = 'ANULADA')::int anuladas_cantidad,
+          COALESCE(sum(v.monto_bruto_centimos) FILTER (WHERE v.estado = 'ANULADA'), 0)::bigint anuladas_bruto,
+          count(DISTINCT v.empleado_comprador_id) FILTER (WHERE v.estado = 'REGISTRADA')::int compradores,
+          (
+            SELECT count(*)::int
+            FROM empleados e
+            WHERE e.estado = 'ACTIVO'
+              ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND e.empresa_id = ${ctx.empresaId}` : sql``}
+          ) activos
+        FROM ventas v
+        WHERE ${base}
+      `,
     ),
     ejecutor.execute(
       sql`SELECT ${periodo} periodo, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto, COALESCE(sum(v.monto_descuento_centimos),0)::bigint descuento FROM ventas v WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY 1 ORDER BY 1`,
@@ -109,35 +123,49 @@ export async function obtenerDashboard(
       sql`SELECT u.id, concat_ws(' ',u.nombres,u.apellidos) nombre, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v JOIN usuarios u ON u.id=v.vendedor_usuario_id WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY u.id,u.nombres,u.apellidos ORDER BY bruto DESC LIMIT 10`,
     ),
     ejecutor.execute(
-      sql`SELECT e.id, concat_ws(' ',e.nombres,e.apellidos) nombre, e.tipo_documento, e.dni numero_documento, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v JOIN empleados e ON e.id=v.empleado_comprador_id WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY e.id,e.nombres,e.apellidos,e.tipo_documento,e.dni ORDER BY bruto DESC LIMIT 10`,
-    ),
-    ejecutor.execute(
-      sql`SELECT s.id, s.nombre, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v JOIN sedes s ON s.id=v.sede_id WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY s.id,s.nombre ORDER BY bruto DESC LIMIT 10`,
-    ),
-    ejecutor.execute(
-      sql`SELECT count(DISTINCT v.empleado_comprador_id)::int compradores, (SELECT count(*)::int FROM empleados e WHERE e.estado = 'ACTIVO' ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND e.empresa_id = ${ctx.empresaId}` : sql``}) activos FROM ventas v WHERE ${base} AND v.estado = 'REGISTRADA'`,
+      sql`
+        WITH agrupadas AS (
+          SELECT
+            CASE WHEN GROUPING(e.id) = 0 THEN 'empleado' ELSE 'sede' END tipo,
+            COALESCE(e.id, s.id) id,
+            CASE
+              WHEN GROUPING(e.id) = 0 THEN concat_ws(' ', e.nombres, e.apellidos)
+              ELSE s.nombre
+            END nombre,
+            e.tipo_documento,
+            e.dni numero_documento,
+            count(*)::int cantidad,
+            COALESCE(sum(v.monto_bruto_centimos), 0)::bigint bruto
+          FROM ventas v
+          JOIN empleados e ON e.id = v.empleado_comprador_id
+          JOIN sedes s ON s.id = v.sede_id
+          WHERE ${base} AND v.estado = 'REGISTRADA'
+          GROUP BY GROUPING SETS (
+            (e.id, e.nombres, e.apellidos, e.tipo_documento, e.dni),
+            (s.id, s.nombre)
+          )
+        ), clasificadas AS (
+          SELECT *, row_number() OVER (PARTITION BY tipo ORDER BY bruto DESC) posicion
+          FROM agrupadas
+        )
+        SELECT tipo, id, nombre, tipo_documento, numero_documento, cantidad, bruto
+        FROM clasificadas
+        WHERE posicion <= 10
+        ORDER BY tipo, posicion
+      `,
     ),
   ] as const;
-  const [
-    totalesR,
-    anuladasR,
-    serieR,
-    convenioR,
-    vendedoresR,
-    empleadosR,
-    sedesR,
-    adopcionR,
-  ] = await Promise.all(consultas);
-  const t = obtenerFilas(totalesR)[0] ?? {};
-  const a = obtenerFilas(anuladasR)[0] ?? {};
-  const ad = obtenerFilas(adopcionR)[0] ?? {};
+  const [resumenR, serieR, convenioR, vendedoresR, empleadosYSedesR] =
+    await Promise.all(consultas);
+  const t = obtenerFilas(resumenR)[0] ?? {};
   const lista = (r: unknown) => obtenerFilas(r);
   const n = (f: Record<string, unknown>, k: string) => Number(f[k] ?? 0);
   const map = <T>(r: unknown, fn: (f: Record<string, unknown>) => T): T[] =>
     lista(r).map(fn);
   const cantidad = n(t, "cantidad");
-  const activos = n(ad, "activos");
-  const compradores = n(ad, "compradores");
+  const activos = n(t, "activos");
+  const compradores = n(t, "compradores");
+  const empleadosYSedes = lista(empleadosYSedesR);
   return {
     totales: {
       cantidad,
@@ -148,7 +176,10 @@ export async function obtenerDashboard(
         ? Math.round(n(t, "final") / cantidad)
         : 0,
     },
-    anuladas: { cantidad: n(a, "cantidad"), sumaBrutoCentimos: n(a, "bruto") },
+    anuladas: {
+      cantidad: n(t, "anuladas_cantidad"),
+      sumaBrutoCentimos: n(t, "anuladas_bruto"),
+    },
     granularidad,
     serie: map(serieR, (f) => ({
       periodo: String(f.periodo),
@@ -169,20 +200,24 @@ export async function obtenerDashboard(
       cantidad: n(f, "cantidad"),
       brutoCentimos: n(f, "bruto"),
     })),
-    topEmpleados: map(empleadosR, (f) => ({
-      empleadoId: String(f.id),
-      nombre: String(f.nombre),
-      tipoDocumento: String(f.tipo_documento) as TipoDocumento,
-      numeroDocumento: String(f.numero_documento),
-      cantidad: n(f, "cantidad"),
-      brutoCentimos: n(f, "bruto"),
-    })),
-    porSede: map(sedesR, (f) => ({
-      sedeId: String(f.id),
-      nombre: String(f.nombre),
-      cantidad: n(f, "cantidad"),
-      brutoCentimos: n(f, "bruto"),
-    })),
+    topEmpleados: empleadosYSedes
+      .filter((f) => f.tipo === "empleado")
+      .map((f) => ({
+        empleadoId: String(f.id),
+        nombre: String(f.nombre),
+        tipoDocumento: String(f.tipo_documento) as TipoDocumento,
+        numeroDocumento: String(f.numero_documento),
+        cantidad: n(f, "cantidad"),
+        brutoCentimos: n(f, "bruto"),
+      })),
+    porSede: empleadosYSedes
+      .filter((f) => f.tipo === "sede")
+      .map((f) => ({
+        sedeId: String(f.id),
+        nombre: String(f.nombre),
+        cantidad: n(f, "cantidad"),
+        brutoCentimos: n(f, "bruto"),
+      })),
     adopcion: {
       empleadosQueCompraron: compradores,
       empleadosActivos: activos,

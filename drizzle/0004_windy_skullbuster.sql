@@ -1,0 +1,1 @@
+CREATE INDEX "ventas_fecha_registrada_idx" ON "ventas" USING btree ("fecha_venta" DESC NULLS LAST) WHERE "ventas"."estado" = 'REGISTRADA';

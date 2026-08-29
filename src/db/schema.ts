@@ -419,6 +419,9 @@ export const ventas = pgTable(
       t.fechaVenta.desc(),
     ),
     index("ventas_sede_fecha_idx").on(t.sedeId, t.fechaVenta.desc()),
+    index("ventas_fecha_registrada_idx")
+      .on(t.fechaVenta.desc())
+      .where(sql`${t.estado} = 'REGISTRADA'`),
     index("ventas_revision_idx")
       .on(t.empresaVendedoraId)
       .where(sql`${t.requiereRevision}`),
