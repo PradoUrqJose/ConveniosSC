@@ -328,47 +328,60 @@ export async function crearVentaCore(
     descuentoBps,
   );
 
+  const filasAdjuntos = [
+    sql`('DOCUMENTO_VENTA', 0, ${null}, ${documento.blobPath}, ${documento.mime},
+         ${documento.sizeBytes}, ${documento.sha256}, ${ctx.usuarioId})`,
+    ...evidencias.map(
+      (evidencia, indice) =>
+        sql`('EVIDENCIA', ${indice + 1}, ${evidencia.descripcion},
+             ${evidencia.blobPath}, ${evidencia.mime}, ${evidencia.sizeBytes},
+             ${evidencia.sha256}, ${ctx.usuarioId})`,
+    ),
+  ];
+
   // Una carrera por el mismo ventaId conserva la idempotencia sin una lectura
-  // adicional en el camino normal; solo el perdedor consulta la venta creada.
-  const insertadas = obtenerFilas(
+  // adicional en el camino normal; la venta y sus adjuntos se escriben juntos.
+  const escritura = obtenerFilas(
     await tx.execute(sql`
-    INSERT INTO ventas
-      (id, empresa_vendedora_id, empresa_compradora_id, convenio_id, termino_id,
-       sede_id, vendedor_usuario_id, empleado_comprador_id,
-       monto_bruto_centimos, descuento_bps, monto_descuento_centimos,
-       monto_final_centimos, fecha_venta, observacion)
-    VALUES
-      (${datos.ventaId}, ${ctx.empresaId}, ${empresaCompradoraId},
-       ${convenioId}, ${terminoId}, ${datos.sedeId}, ${ctx.usuarioId},
-       ${datos.empleadoCompradorId}, ${datos.montoBrutoCentimos}, ${descuentoBps},
-       ${descuento}, ${final}, ${datos.fechaVenta}, ${datos.observacion ?? null})
-    ON CONFLICT (id) DO NOTHING
-    RETURNING id
+      WITH venta_insertada AS (
+        INSERT INTO ventas
+          (id, empresa_vendedora_id, empresa_compradora_id, convenio_id, termino_id,
+           sede_id, vendedor_usuario_id, empleado_comprador_id,
+           monto_bruto_centimos, descuento_bps, monto_descuento_centimos,
+           monto_final_centimos, fecha_venta, observacion)
+        VALUES
+          (${datos.ventaId}, ${ctx.empresaId}, ${empresaCompradoraId},
+           ${convenioId}, ${terminoId}, ${datos.sedeId}, ${ctx.usuarioId},
+           ${datos.empleadoCompradorId}, ${datos.montoBrutoCentimos}, ${descuentoBps},
+           ${descuento}, ${final}, ${datos.fechaVenta}, ${datos.observacion ?? null})
+        ON CONFLICT (id) DO NOTHING
+        RETURNING id
+      ),
+      adjuntos_insertados AS (
+        INSERT INTO adjuntos
+          (venta_id, tipo, orden, descripcion, blob_path, mime, size_bytes, sha256,
+           subido_por_usuario_id)
+        SELECT venta_insertada.id, valores.tipo::tipo_adjunto,
+               valores.orden::smallint, valores.descripcion, valores.blob_path,
+               valores.mime, valores.size_bytes::integer, valores.sha256,
+               valores.subido_por_usuario_id::uuid
+        FROM venta_insertada
+        CROSS JOIN LATERAL (
+          VALUES ${sql.join(filasAdjuntos, sql`, `)}
+        ) AS valores
+          (tipo, orden, descripcion, blob_path, mime, size_bytes, sha256,
+           subido_por_usuario_id)
+      )
+      SELECT EXISTS (SELECT 1 FROM venta_insertada) AS insertada
   `),
   );
-  if (insertadas.length === 0) {
+  const insertada = escritura[0]?.insertada;
+  if (insertada !== true && insertada !== "t") {
     return (
       (await buscarVentaExistente(tx, ctx, datos.ventaId)) ??
       fallo("ERROR_INTERNO", "No se pudo confirmar la venta registrada.")
     );
   }
-
-  const filasAdjuntos = [
-    sql`(${datos.ventaId}, 'DOCUMENTO_VENTA', 0, ${null}, ${documento.blobPath},
-         ${documento.mime}, ${documento.sizeBytes}, ${documento.sha256}, ${ctx.usuarioId})`,
-    ...evidencias.map(
-      (evidencia, indice) =>
-        sql`(${datos.ventaId}, 'EVIDENCIA', ${indice + 1}, ${evidencia.descripcion},
-             ${evidencia.blobPath}, ${evidencia.mime}, ${evidencia.sizeBytes},
-             ${evidencia.sha256}, ${ctx.usuarioId})`,
-    ),
-  ];
-  await tx.execute(sql`
-    INSERT INTO adjuntos
-      (venta_id, tipo, orden, descripcion, blob_path, mime, size_bytes, sha256,
-       subido_por_usuario_id)
-    VALUES ${sql.join(filasAdjuntos, sql`, `)}
-  `);
 
   // Documentos reutilizados: no bloquea, solo queda rastro en la auditoría.
   const posiblesDuplicados = await buscarShaReutilizado(

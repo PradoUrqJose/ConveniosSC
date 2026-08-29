@@ -9,7 +9,7 @@ import {
 } from "./registrar";
 
 describe("registrar", () => {
-  it("usa la cadena del recurso tanto para el lock como para buscar el extremo", async () => {
+  it("adquiere el lock del recurso antes de buscar el extremo de su cadena", async () => {
     const consultas: SQL[] = [];
     const tx: TransaccionAuditada = {
       async execute(consulta) {
@@ -26,12 +26,14 @@ describe("registrar", () => {
     });
 
     const dialecto = new PgDialect();
-    const sqlUltima = dialecto.sqlToQuery(consultas[0]!);
-    const sqlInsert = dialecto.sqlToQuery(consultas[1]!);
+    const sqlBloqueo = dialecto.sqlToQuery(consultas[0]!);
+    const sqlUltima = dialecto.sqlToQuery(consultas[1]!);
+    const sqlInsert = dialecto.sqlToQuery(consultas[2]!);
 
-    expect(sqlUltima.sql).toContain("pg_advisory_xact_lock(hashtext($1))");
-    expect(sqlUltima.sql).toContain("WHERE cadena = $2");
-    expect(sqlUltima.params).toEqual([cadena, cadena]);
+    expect(sqlBloqueo.sql).toContain("pg_advisory_xact_lock(hashtext($1))");
+    expect(sqlUltima.sql).toContain("WHERE cadena = $1");
+    expect(sqlBloqueo.params).toEqual([cadena]);
+    expect(sqlUltima.params).toEqual([cadena]);
     expect(sqlInsert.sql).toContain("cadena, prev_hash, hash");
     expect(sqlInsert.params).toContain(cadena);
   });

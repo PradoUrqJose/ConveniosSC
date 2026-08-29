@@ -67,9 +67,9 @@ export function obtenerFilas(resultado: unknown): Record<string, unknown>[] {
  *
  * Secuencia con un advisory lock por recurso para que cada cadena nunca tenga
  * carreras, sin serializar escrituras de recursos distintos:
- *   1. adquirir el lock y leer el hash de la última fila de esa cadena en una
- *      sola consulta
- *   2. calcular y escribir
+ *   1. adquirir el lock de la cadena
+ *   2. leer el hash de su última fila una vez adquirido el lock
+ *   3. calcular y escribir
  */
 export async function registrar(
   tx: TransaccionAuditada,
@@ -77,22 +77,17 @@ export async function registrar(
 ): Promise<void> {
   const cadena = claveCadenaAuditoria(entrada.entidad, entrada.entidadId);
 
+  // Debe ser una sentencia separada: en una CTE el optimizador puede leer la
+  // última fila antes de evaluar el lock, dejando dos `prev_hash` iguales.
+  await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${cadena}))`);
+
   const ultima = obtenerFilas(
-    await tx.execute(
-      sql`
-        WITH bloqueo AS MATERIALIZED (
-          SELECT pg_advisory_xact_lock(hashtext(${cadena}))
-        )
-        SELECT ultima.hash
-        FROM bloqueo
-        LEFT JOIN LATERAL (
-          SELECT hash FROM auditoria
-          WHERE cadena = ${cadena}
-          ORDER BY id DESC
-          LIMIT 1
-        ) ultima ON true
-      `,
-    ),
+    await tx.execute(sql`
+      SELECT hash FROM auditoria
+      WHERE cadena = ${cadena}
+      ORDER BY id DESC
+      LIMIT 1
+    `),
   )[0];
   const prevHash = (ultima?.hash as string | undefined) ?? null;
 
