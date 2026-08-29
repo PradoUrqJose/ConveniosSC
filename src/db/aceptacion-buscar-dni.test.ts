@@ -125,7 +125,6 @@ describe.skipIf(!ACTIVO)("Aceptación T12 — búsqueda por DNI", () => {
       expect(res.data).toEqual({
         encontrado: false,
         motivo: "NO_EXISTE",
-        puedeCrear: true,
       });
     } finally {
       await c.query("ROLLBACK").catch(() => undefined);
@@ -180,33 +179,16 @@ describe.skipIf(!ACTIVO)("Aceptación T12 — búsqueda por DNI", () => {
       if (!res.data.encontrado) return;
       expect(res.data.empleado).toMatchObject({
         id: empleadoId,
-        dni: "22222222",
+        tipoDocumento: "DNI",
+        numeroDocumento: "22222222",
         nombres: "Ana",
         apellidos: "Bruno",
         empresaId: idB,
         empresaNombre: `Comercial ${"20100077300"}`,
         estado: "ACTIVO",
-        tieneFotoDni: false,
         descuentoBps: 1500,
       });
       expect(res.data.empleado.convenioId).toBeTruthy();
-
-      // Con foto del DNI cargada, tieneFotoDni pasa a true.
-      await c.query(
-        `INSERT INTO adjuntos
-           (empleado_id, tipo, blob_path, mime, size_bytes, sha256, subido_por_usuario_id)
-         VALUES ($1, 'FOTO_DNI', 'foto-1.jpg', 'image/jpeg', 10, $3, $2)`,
-        [empleadoId, adminId, "a".repeat(64)],
-      );
-      const conFoto = await buscarPorDni(
-        ctxSesion({ usuarioId: adminId, empresaId: idA, rol: "ADMIN_EMPRESA" }),
-        { dni: "22222222" },
-        adaptador(c),
-      );
-      expect(conFoto.ok).toBe(true);
-      if (conFoto.ok && conFoto.data.encontrado) {
-        expect(conFoto.data.empleado.tieneFotoDni).toBe(true);
-      }
     } finally {
       await c.query("ROLLBACK").catch(() => undefined);
       await c.end();

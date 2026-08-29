@@ -27,11 +27,9 @@ const ESTADO_VACIO: EstadoVacio = {
 
 const MIME_IMAGEN: MimePermitido[] = ["image/jpeg", "image/png", "image/webp"];
 
-export type TipoArchivo = "dni" | "documento" | "evidencia";
+export type TipoArchivo = "documento" | "evidencia";
 
 const CONVENCION: Record<TipoArchivo, (ext: string) => string> = {
-  dni: (ext) =>
-    `empleados/${crypto.randomUUID()}/dni/${crypto.randomUUID()}.${ext}`,
   documento: (ext) =>
     `ventas/${crypto.randomUUID()}/documento/${crypto.randomUUID()}.${ext}`,
   evidencia: (ext) =>
@@ -40,8 +38,8 @@ const CONVENCION: Record<TipoArchivo, (ext: string) => string> = {
 
 /**
  * Lógica compartida de selección, compresión, hash y subida a Blob (02 §8).
- * La usan tanto `<CampoArchivo>` (un solo archivo: DNI, documento de venta)
- * como `<CampoEvidencias>` (0..5 archivos), para no duplicar el flujo de
+ * La usan tanto `<CampoArchivo>` (documento de venta) como
+ * `<CampoEvidencias>` (0..5 archivos), para no duplicar el flujo de
  * compresión/sha256/subida con fallback local de desarrollo.
  */
 export function useSubidaArchivo(tipo: TipoArchivo) {

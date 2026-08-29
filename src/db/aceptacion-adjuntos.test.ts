@@ -116,23 +116,6 @@ async function crearEmpleado(
   return rows[0].id as string;
 }
 
-async function crearAdjuntoFotoDni(
-  c: pg.Client,
-  empleadoId: string,
-  subidoPor: string,
-): Promise<string> {
-  const { rows } = await c.query(
-    `INSERT INTO adjuntos
-       (empleado_id, tipo, orden, blob_path, mime, size_bytes, sha256,
-        subido_por_usuario_id)
-     VALUES ($1, 'FOTO_DNI', 0, 'empleados/x/dni/y.jpg', 'image/jpeg', 100,
-             $2, $3)
-     RETURNING id`,
-    [empleadoId, "a".repeat(64), subidoPor],
-  );
-  return rows[0].id as string;
-}
-
 async function crearVenta(
   c: pg.Client,
   datos: {
@@ -197,37 +180,23 @@ async function contarAdjuntovisto(
 }
 
 describe.skipIf(!ACTIVO)("Aceptación T11 — adjuntos", () => {
-  it("FOTO_DNI: la lee la empresa del empleado, 404 para otra empresa, y audita", async () => {
+  it("la base de datos rechaza nuevas fotos de identidad", async () => {
     const c = await conexion();
     try {
       await c.query("BEGIN");
       const idA = await crearEmpresa(c, "20100068000");
-      const idB = await crearEmpresa(c, "20100068100");
       const adminA = await crearUsuario(c, "ADMIN_EMPRESA", idA);
-      const adminB = await crearUsuario(c, "ADMIN_EMPRESA", idB);
       const empleado = await crearEmpleado(c, idA, "60000101", adminA);
-      const adjuntoId = await crearAdjuntoFotoDni(c, empleado, adminA);
-
-      const ok = await leerAdjunto(
-        adaptador(c),
-        ctxSesion({ usuarioId: adminA, empresaId: idA, rol: "ADMIN_EMPRESA" }),
-        adjuntoId,
-      );
-      expect(ok.ok).toBe(true);
-      if (!ok.ok) return;
-      expect(ok.data.blobPath).toContain("empleados/x/dni");
-
-      const cross = await leerAdjunto(
-        adaptador(c),
-        ctxSesion({ usuarioId: adminB, empresaId: idB, rol: "ADMIN_EMPRESA" }),
-        adjuntoId,
-      );
-      expect(cross.ok).toBe(false);
-      if (!cross.ok) {
-        expect(cross.codigo).toBe("NO_ENCONTRADO");
-      }
-
-      expect(await contarAdjuntovisto(c, adjuntoId)).toBe(1);
+      await expect(
+        c.query(
+          `INSERT INTO adjuntos
+             (empleado_id, tipo, orden, blob_path, mime, size_bytes, sha256,
+              subido_por_usuario_id)
+           VALUES ($1, 'FOTO_DNI', 0, 'empleados/x/dni/y.jpg', 'image/jpeg', 100,
+                   $2, $3)`,
+          [empleado, "a".repeat(64), adminA],
+        ),
+      ).rejects.toThrow(/adjuntos_sin_nuevas_fotos_identidad_check/i);
     } finally {
       await c.query("ROLLBACK");
       await c.end();

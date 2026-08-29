@@ -24,9 +24,18 @@ async function iniciarSesion(
 test("venta con empleado existente aparece en el listado", async ({ page }) => {
   await iniciarSesion(page);
   await page.goto("/ventas/nueva");
+  let solicitudesPost = 0;
+  page.on("request", (request) => {
+    if (request.method() === "POST") solicitudesPost += 1;
+  });
   await page
-    .getByLabel("DNI del empleado")
+    .getByLabel("Documento del empleado")
     .fill(process.env.E2E_DNI_EXISTENTE ?? "45678912");
+  await page.waitForTimeout(400);
+  expect(solicitudesPost).toBe(0);
+  await expect(page.getByLabel("Empresa convenio")).toHaveValue("");
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await expect.poll(() => solicitudesPost).toBe(1);
   await expect(page.getByText(/descuento/i)).toBeVisible();
   await page.getByLabel("Monto de venta (S/)").fill("120.00");
   await page
@@ -38,20 +47,19 @@ test("venta con empleado existente aparece en el listado", async ({ page }) => {
   await expect(page.getByText("120.00")).toBeVisible();
 });
 
-test("DNI nuevo crea empleado y queda pendiente de verificación", async ({
+test("el vendedor no puede crear un empleado desde el punto de venta", async ({
   page,
 }) => {
   await iniciarSesion(page);
   await page.goto("/ventas/nueva");
   await page
-    .getByLabel("DNI del empleado")
+    .getByLabel("Documento del empleado")
     .fill(process.env.E2E_DNI_NUEVO ?? "87654321");
-  await page.getByRole("button", { name: /crear empleado/i }).click();
-  await page.getByLabel(/nombres/i).fill("Empleado E2E");
-  await page.getByLabel(/apellidos/i).fill("Prueba");
-  await page.getByLabel(/foto.*DNI/i).setInputFiles("public/icons/192.png");
-  await page.getByRole("button", { name: /guardar empleado/i }).click();
-  await expect(page.getByText(/pendiente de verificación/i)).toBeVisible();
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await expect(page.getByText(/solicita a un administrador/i)).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /crear empleado/i }),
+  ).toHaveCount(0);
 });
 
 test("una venta conserva el descuento histórico tras cambiar el convenio", async ({
@@ -71,8 +79,9 @@ test("una venta conserva el descuento histórico tras cambiar el convenio", asyn
   await page.getByRole("button", { name: /guardar/i }).click();
   await page.goto("/ventas/nueva");
   await page
-    .getByLabel("DNI del empleado")
+    .getByLabel("Documento del empleado")
     .fill(process.env.E2E_DNI_EXISTENTE ?? "45678912");
+  await page.getByRole("button", { name: "Buscar" }).click();
   await expect(page.getByText(/12% de descuento/i)).toBeVisible();
   await page.goto("/ventas");
   await page

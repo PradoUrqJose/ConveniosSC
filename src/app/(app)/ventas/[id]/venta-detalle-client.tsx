@@ -123,7 +123,8 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
             {venta.empleado.apellidos.toUpperCase()}
           </p>
           <p className="text-muted-foreground mt-0.5 text-sm">
-            DNI {venta.empleado.dni} · {venta.empresaCompradora.nombre}
+            {venta.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+            {venta.empleado.numeroDocumento} · {venta.empresaCompradora.nombre}
           </p>
         </div>
       </div>

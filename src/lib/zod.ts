@@ -2,7 +2,41 @@ import { z } from "zod";
 
 import { parsearSoles } from "@/lib/dinero";
 
-export const zDni = z.string().regex(/^\d{8}$/, "El DNI debe tener 8 dígitos");
+export const TIPOS_DOCUMENTO = ["DNI", "CARNET_EXTRANJERIA"] as const;
+export type TipoDocumento = (typeof TIPOS_DOCUMENTO)[number];
+
+export const zTipoDocumento = z.enum(TIPOS_DOCUMENTO);
+
+const zDni = z.string().regex(/^\d{8}$/, "El DNI debe tener 8 dígitos");
+const zCarnetExtranjeria = z
+  .string()
+  .regex(
+    /^[A-Z0-9]([A-Z0-9-]{0,10}[A-Z0-9])?$/,
+    "El Carné de Extranjería debe tener hasta 12 caracteres alfanuméricos",
+  );
+
+/** Identidad normalizada y validada según el tipo de documento. */
+export const zDocumentoIdentidad = z
+  .object({
+    tipoDocumento: zTipoDocumento,
+    numeroDocumento: z.string(),
+  })
+  .transform((documento) => ({
+    ...documento,
+    numeroDocumento: documento.numeroDocumento.trim().toUpperCase(),
+  }))
+  .superRefine((documento, ctx) => {
+    const esquema =
+      documento.tipoDocumento === "DNI" ? zDni : zCarnetExtranjeria;
+    const resultado = esquema.safeParse(documento.numeroDocumento);
+    if (!resultado.success) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["numeroDocumento"],
+        message: resultado.error.issues[0]?.message ?? "Documento inválido",
+      });
+    }
+  });
 export const zRuc = z
   .string()
   .regex(/^\d{11}$/, "El RUC debe tener 11 dígitos");

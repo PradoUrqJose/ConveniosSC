@@ -17,10 +17,9 @@ import type { SessionContext } from "@/lib/auth/guardas";
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
 
 /**
- * Aceptación de T13 (06-BACKLOG.md): un empleado creado por el vendedor de la
- * empresa convenio nace `PENDIENTE_VERIFICACION`; creado por el admin de su
- * propia empresa nace `ACTIVO`; rechazar marca `requiere_revision` en sus
- * ventas registradas; el badge refleja el conteo real. Solo con
+ * Aceptación de empleados: un vendedor no puede crearlos; un admin de su
+ * propia empresa los crea `ACTIVO` y sin foto; rechazar marca
+ * `requiere_revision` en sus ventas registradas; el badge refleja el conteo. Solo con
  * `RUN_DB_TESTS=1`; cada caso corre en una transacción que se revierte.
  */
 const URL = process.env.DATABASE_URL_UNPOOLED;
@@ -156,12 +155,6 @@ describe.skipIf(!ACTIVO)("Aceptación T13 — empleados", () => {
           nombres: "Ana",
           apellidos: "Bruno",
           telefono: "987654321",
-          fotoDni: {
-            blobPath: "temporal/foto.jpg",
-            sha256: "a".repeat(64),
-            mime: "image/jpeg",
-            sizeBytes: 10,
-          },
           consentimiento: true,
         },
       );
@@ -177,14 +170,14 @@ describe.skipIf(!ACTIVO)("Aceptación T13 — empleados", () => {
          WHERE empleado_id = $1 AND tipo = 'FOTO_DNI'`,
         [res.empleadoId],
       );
-      expect(adjunto.rows[0].n).toBe(1);
+      expect(adjunto.rows[0].n).toBe(0);
     } finally {
       await c.query("ROLLBACK").catch(() => undefined);
       await c.end();
     }
   }, 60_000);
 
-  it("creado por el vendedor de la empresa convenio nace PENDIENTE_VERIFICACION", async () => {
+  it("un vendedor no puede crear empleados aunque exista convenio", async () => {
     const c = await conexion();
     try {
       await c.query("BEGIN");
@@ -193,60 +186,29 @@ describe.skipIf(!ACTIVO)("Aceptación T13 — empleados", () => {
       await crearConvenioVigente(c, idA, idB);
       const vendedorId = await crearUsuario(c, "VENDEDOR", idA);
 
-      const res = await crearEmpleadoCore(
-        adaptador(c),
-        ctxSesion({ usuarioId: vendedorId, empresaId: idA, rol: "VENDEDOR" }),
-        {
-          empresaId: idB,
-          dni: "60000002",
-          nombres: "Carla",
-          apellidos: "Diaz",
-          fotoDni: {
-            blobPath: "temporal/foto2.jpg",
-            sha256: "b".repeat(64),
-            mime: "image/jpeg",
-            sizeBytes: 10,
+      await expect(
+        crearEmpleadoCore(
+          adaptador(c),
+          ctxSesion({
+            usuarioId: vendedorId,
+            empresaId: idA,
+            rol: "VENDEDOR",
+          }),
+          {
+            empresaId: idB,
+            dni: "60000002",
+            nombres: "Carla",
+            apellidos: "Diaz",
+            consentimiento: true,
           },
-          consentimiento: true,
-        },
-      );
-      expect(res.ok).toBe(true);
-      if (!res.ok) return;
-      expect(res.estado).toBe("PENDIENTE_VERIFICACION");
+        ),
+      ).rejects.toMatchObject({ codigo: "SIN_PERMISO" });
 
-      const pendientes = await contarPendientesVerificacion(
-        ctxSesion({
-          usuarioId: vendedorId,
-          empresaId: idB,
-          rol: "ADMIN_EMPRESA",
-        }),
-        adaptador(c),
+      const filas = await c.query(
+        `SELECT count(*)::int AS n FROM empleados WHERE dni = $1`,
+        ["60000002"],
       );
-      expect(pendientes.total).toBe(1);
-
-      // Sin convenio vigente, el vendedor no puede crear en esa empresa.
-      const idC = await crearEmpresa(c, "20100066400");
-      const sinConvenio = await crearEmpleadoCore(
-        adaptador(c),
-        ctxSesion({ usuarioId: vendedorId, empresaId: idA, rol: "VENDEDOR" }),
-        {
-          empresaId: idC,
-          dni: "60000003",
-          nombres: "Ernesto",
-          apellidos: "Farias",
-          fotoDni: {
-            blobPath: "temporal/foto3.jpg",
-            sha256: "c".repeat(64),
-            mime: "image/jpeg",
-            sizeBytes: 10,
-          },
-          consentimiento: true,
-        },
-      );
-      expect(sinConvenio.ok).toBe(false);
-      if (!sinConvenio.ok) {
-        expect(sinConvenio.codigo).toBe("REGLA_NEGOCIO");
-      }
+      expect(filas.rows[0].n).toBe(0);
     } finally {
       await c.query("ROLLBACK").catch(() => undefined);
       await c.end();
@@ -272,12 +234,6 @@ describe.skipIf(!ACTIVO)("Aceptación T13 — empleados", () => {
           dni: "60000004",
           nombres: "Gina",
           apellidos: "Herrera",
-          fotoDni: {
-            blobPath: "temporal/foto4.jpg",
-            sha256: "d".repeat(64),
-            mime: "image/jpeg",
-            sizeBytes: 10,
-          },
           consentimiento: true,
         },
       );
@@ -337,12 +293,6 @@ describe.skipIf(!ACTIVO)("Aceptación T13 — empleados", () => {
           dni: "60000005",
           nombres: "Iris",
           apellidos: "Juarez",
-          fotoDni: {
-            blobPath: "temporal/foto5.jpg",
-            sha256: "e".repeat(64),
-            mime: "image/jpeg",
-            sizeBytes: 10,
-          },
           consentimiento: true,
         },
       );
@@ -356,12 +306,6 @@ describe.skipIf(!ACTIVO)("Aceptación T13 — empleados", () => {
           dni: "60000005",
           nombres: "Karla",
           apellidos: "Lopez",
-          fotoDni: {
-            blobPath: "temporal/foto6.jpg",
-            sha256: "f".repeat(64),
-            mime: "image/jpeg",
-            sizeBytes: 10,
-          },
           consentimiento: true,
         },
       );
@@ -396,25 +340,14 @@ describe.skipIf(!ACTIVO)("Aceptación T13 — empleados", () => {
       expect(nombres).toContain("Comercial 20100067000");
       expect(nombres).not.toContain("Comercial 20100067100");
 
-      // Vendedor de A crea un empleado de B (convenio) → PENDIENTE en B.
-      const vendedorId = await crearUsuario(c, "VENDEDOR", idA);
-      await crearEmpleadoCore(
-        adaptador(c),
-        ctxSesion({ usuarioId: vendedorId, empresaId: idA, rol: "VENDEDOR" }),
-        {
-          empresaId: idB,
-          dni: "60000006",
-          nombres: "Marta",
-          apellidos: "Nuñez",
-          fotoDni: {
-            blobPath: "temporal/foto7.jpg",
-            sha256: "1".repeat(64),
-            mime: "image/jpeg",
-            sizeBytes: 10,
-          },
-          consentimiento: true,
-        },
-      );
+      // Admin de A crea un empleado de B (convenio) → PENDIENTE en B.
+      await crearEmpleadoCore(adaptador(c), ctx, {
+        empresaId: idB,
+        dni: "60000006",
+        nombres: "Marta",
+        apellidos: "Nuñez",
+        consentimiento: true,
+      });
 
       // El badge del admin de B lo cuenta; el del admin de A, no.
       const adminB = await crearUsuario(c, "ADMIN_EMPRESA", idB);

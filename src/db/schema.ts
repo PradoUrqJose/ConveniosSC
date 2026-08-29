@@ -39,6 +39,11 @@ export const estadoEmpleado = pgEnum("estado_empleado", [
   "INACTIVO",
 ]);
 
+export const tipoDocumentoIdentidad = pgEnum("tipo_documento_identidad", [
+  "DNI",
+  "CARNET_EXTRANJERIA",
+]);
+
 export const estadoConvenio = pgEnum("estado_convenio", [
   "BORRADOR",
   "VIGENTE",
@@ -76,6 +81,7 @@ export const accionAuditoria = pgEnum("accion_auditoria", [
   "EMPLEADO_VERIFICADO",
   "EMPLEADO_RECHAZADO",
   "BUSQUEDA_DNI",
+  "BUSQUEDA_DOCUMENTO",
   "VENTA_CREADA",
   "VENTA_ANULADA",
   "ADJUNTO_SUBIDO",
@@ -278,7 +284,12 @@ export const empleados = pgTable(
     empresaId: uuid("empresa_id")
       .notNull()
       .references(() => empresas.id, { onDelete: "restrict" }),
-    dni: text("dni").notNull(),
+    tipoDocumento: tipoDocumentoIdentidad("tipo_documento")
+      .notNull()
+      .default("DNI"),
+    // La columna física conserva `dni` durante la fase de expansión para que
+    // versiones anteriores puedan convivir durante un despliegue gradual.
+    numeroDocumento: text("dni").notNull(),
     nombres: text("nombres").notNull(),
     apellidos: text("apellidos").notNull(),
     telefono: text("telefono"),
@@ -295,10 +306,13 @@ export const empleados = pgTable(
     updatedAt: timestamptz("updated_at").notNull().defaultNow(),
   },
   (t) => [
-    unique("empleados_dni_uk").on(t.dni),
+    unique("empleados_documento_uk").on(t.tipoDocumento, t.numeroDocumento),
     index("empleados_empresa_idx").on(t.empresaId),
     index("empleados_estado_idx").on(t.empresaId, t.estado),
-    check("empleados_dni_check", sql`${t.dni} ~ '^[0-9]{8}$'`),
+    check(
+      "empleados_documento_check",
+      sql`(${t.tipoDocumento} = 'DNI' AND ${t.numeroDocumento} ~ '^[0-9]{8}$') OR (${t.tipoDocumento} = 'CARNET_EXTRANJERIA' AND ${t.numeroDocumento} ~ '^[A-Z0-9]([A-Z0-9-]{0,10}[A-Z0-9])?$')`,
+    ),
     check(
       "empleados_nombres_check",
       sql`length(${t.nombres}) between 2 and 80`,

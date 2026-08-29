@@ -118,4 +118,69 @@ describe.skipIf(!ACTIVO)("Aceptación T02 — constraints en BD", () => {
       await c.end();
     }
   });
+
+  it("d) migración de identidad conserva DNI y aísla la unicidad por tipo", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const empresa = await c.query(
+        `INSERT INTO empresas (ruc, razon_social, nombre_comercial)
+         VALUES ('20100000033', 'Empresa Documentos', 'Empresa Documentos')
+         RETURNING id`,
+      );
+      const empresaId = empresa.rows[0]!.id as string;
+
+      const dni = await c.query(
+        `INSERT INTO empleados (empresa_id, dni, nombres, apellidos)
+         VALUES ($1, '12345678', 'Dina', 'Nacional')
+         RETURNING tipo_documento, dni`,
+        [empresaId],
+      );
+      expect(dni.rows[0]).toMatchObject({
+        tipo_documento: "DNI",
+        dni: "12345678",
+      });
+
+      await expect(
+        c.query(
+          `INSERT INTO empleados
+             (empresa_id, tipo_documento, dni, nombres, apellidos)
+           VALUES ($1, 'CARNET_EXTRANJERIA', '12345678', 'Celia', 'Extranjera')`,
+          [empresaId],
+        ),
+      ).resolves.toBeDefined();
+
+      await expect(
+        c.query(
+          `INSERT INTO empleados
+             (empresa_id, tipo_documento, dni, nombres, apellidos)
+           VALUES ($1, 'CARNET_EXTRANJERIA', 'N-123456', 'Noa', 'Migrante')`,
+          [empresaId],
+        ),
+      ).resolves.toBeDefined();
+
+      await c.query("SAVEPOINT documento_duplicado");
+      await expect(
+        c.query(
+          `INSERT INTO empleados
+             (empresa_id, tipo_documento, dni, nombres, apellidos)
+           VALUES ($1, 'CARNET_EXTRANJERIA', 'N-123456', 'Otra', 'Persona')`,
+          [empresaId],
+        ),
+      ).rejects.toThrow(/duplicate|llave|key/i);
+      await c.query("ROLLBACK TO SAVEPOINT documento_duplicado");
+
+      await expect(
+        c.query(
+          `INSERT INTO empleados
+             (empresa_id, tipo_documento, dni, nombres, apellidos)
+           VALUES ($1, 'CARNET_EXTRANJERIA', 'CE/123', 'Formato', 'Inválido')`,
+          [empresaId],
+        ),
+      ).rejects.toThrow(/empleados_documento_check/i);
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+  });
 });

@@ -181,10 +181,10 @@ export function EmpleadosClient({
 
   const exportar = () => {
     const filas = [
-      ["Nombre", "DNI", "Teléfono", "Compras", "Monto", "Estado"],
+      ["Nombre", "Documento", "Teléfono", "Compras", "Monto", "Estado"],
       ...empleados.map((empleado) => [
         `${empleado.nombres} ${empleado.apellidos}`,
-        empleado.dni,
+        `${empleado.tipoDocumento === "DNI" ? "DNI" : "CE"} ${empleado.numeroDocumento}`,
         empleado.telefono ?? "",
         empleado.comprasUltimos30d,
         (empleado.montoUltimos30d / 100).toFixed(2),
@@ -268,7 +268,7 @@ export function EmpleadosClient({
               <input
                 value={texto}
                 onChange={(e) => setTexto(e.target.value)}
-                placeholder="Buscar por nombre o DNI"
+                placeholder="Buscar por nombre o documento"
                 className="border-input bg-background focus:border-primary focus:ring-primary/15 h-10 w-full rounded-lg border pr-9 pl-9 text-sm outline-none focus:ring-4"
               />
               {texto ? (
@@ -606,7 +606,8 @@ function FilaEmpleadoTabla({
           <div className="min-w-0">
             <p className="truncate text-sm font-bold uppercase">{nombre}</p>
             <p className="text-muted-foreground mt-0.5 flex items-center gap-1 text-xs">
-              DNI {empleado.dni}
+              {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+              {empleado.numeroDocumento}
               {empleado.telefono ? (
                 <>
                   <span>·</span>
@@ -709,7 +710,8 @@ function TarjetaEmpleado({
             <div className="min-w-0">
               <h3 className="truncate text-sm font-bold uppercase">{nombre}</h3>
               <p className="text-muted-foreground mt-0.5 text-xs">
-                DNI {empleado.dni}
+                {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+                {empleado.numeroDocumento}
                 {esSuperadmin ? ` · ${empleado.empresaNombre}` : ""}
               </p>
             </div>
@@ -781,22 +783,11 @@ function DetalleEmpleado({
           {empleado.nombres.toUpperCase()} {empleado.apellidos.toUpperCase()}
         </DialogTitle>
         <DialogDescription>
-          DNI {empleado.dni} · {empleado.empresaNombre}
+          {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+          {empleado.numeroDocumento} · {empleado.empresaNombre}
         </DialogDescription>
       </DialogHeader>
       <div className="flex flex-col gap-4">
-        {empleado.fotoDniBlobPath ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={empleado.fotoDniBlobPath}
-            alt="Foto del DNI"
-            className="mx-auto max-h-56 rounded-xl border object-cover"
-          />
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            Sin foto del DNI registrada.
-          </p>
-        )}
         <dl className="text-sm">
           <Detalle etiqueta="Estado">
             <Badge variant={VARIANTE_ESTADO[empleado.estado]}>

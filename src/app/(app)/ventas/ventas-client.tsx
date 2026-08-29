@@ -274,7 +274,7 @@ export function VentasClient({
           <Input
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
-            placeholder="DNI o nombre del empleado"
+            placeholder="Documento o nombre del empleado"
             className="bg-muted/70 focus-visible:bg-background h-11 rounded-xl border-0 pl-10 shadow-none"
           />
         </div>
@@ -809,7 +809,8 @@ function TarjetaVenta({
         ) : null}
       </div>
       <p className="text-muted-foreground text-sm">
-        {venta.empleado.dni} · {contraparte.nombre}
+        {venta.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+        {venta.empleado.numeroDocumento} · {contraparte.nombre}
       </p>
       <p className="text-muted-foreground text-sm">
         {formatearHoraLima(venta.createdAt)} · {venta.sede.nombre}
@@ -916,7 +917,8 @@ function TablaVentas({
                       {v.empleado.apellidos.toUpperCase()}
                     </div>
                     <div className="text-muted-foreground text-xs">
-                      {v.empleado.dni}
+                      {v.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+                      {v.empleado.numeroDocumento}
                     </div>
                   </TableCell>
                   <TableCell>{contraparte.nombre}</TableCell>

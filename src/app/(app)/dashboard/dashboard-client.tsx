@@ -215,9 +215,9 @@ export function DashboardClient({
             <Lista
               titulo="Top empleados beneficiarios"
               filas={datos.topEmpleados.map((x) => ({
-                clave: x.dni,
+                clave: `${x.tipoDocumento}:${x.numeroDocumento}`,
                 etiqueta: x.nombre,
-                detalle: `DNI ${x.dni} · ${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
+                detalle: `${x.tipoDocumento === "DNI" ? "DNI" : "CE"} ${x.numeroDocumento} · ${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
                 valor: formatearSoles(x.brutoCentimos),
                 peso: x.brutoCentimos,
               }))}

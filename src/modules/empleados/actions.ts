@@ -9,7 +9,7 @@ import { z } from "zod";
 
 import { dbTx } from "@/db";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
-import { zDni, zNombre, zTelefono, zUuid } from "@/lib/zod";
+import { zDocumentoIdentidad, zNombre, zTelefono, zUuid } from "@/lib/zod";
 import type { Resultado } from "@/lib/tipos";
 import { detectarTipoReal, MIME_PERMITIDOS } from "@/lib/archivos";
 import {
@@ -21,16 +21,9 @@ import {
   type DatosCrearEmpleado,
 } from "./acciones";
 import {
-  buscarPorDni as buscarPorDniQuery,
-  type ResultadoBusquedaDni,
+  buscarPorDocumento as buscarPorDocumentoQuery,
+  type ResultadoBusquedaDocumento,
 } from "./query";
-
-const zFotoDni = z.object({
-  fotoDniBlobPath: z.string().min(1),
-  fotoDniSha256: z.string().regex(/^[a-f0-9]{64}$/),
-  fotoDniMime: z.enum(MIME_PERMITIDOS),
-  fotoDniSizeBytes: z.number().int().positive().max(10_485_760),
-});
 
 const zConsentimiento = z.preprocess(
   (v) => v === "on" || v === true,
@@ -39,15 +32,16 @@ const zConsentimiento = z.preprocess(
   }),
 );
 
-const zCrearEmpleado = z.object({
-  empresaId: zUuid,
-  dni: zDni,
-  nombres: zNombre,
-  apellidos: zNombre,
-  telefono: zTelefono,
-  ...zFotoDni.shape,
-  consentimiento: zConsentimiento,
-});
+const zCrearEmpleado = z.intersection(
+  z.object({
+    empresaId: zUuid,
+    nombres: zNombre,
+    apellidos: zNombre,
+    telefono: zTelefono,
+    consentimiento: zConsentimiento,
+  }),
+  zDocumentoIdentidad,
+);
 
 const zActualizarEmpleado = z.object({
   empleadoId: zUuid,
@@ -102,7 +96,7 @@ function campoInvalido<T extends { error: z.ZodError }>(
  * como estático público sin control de acceso, cifrado ni TTL (a diferencia
  * de la URL firmada de `GET /api/adjuntos/[id]`). Si `upload()` al Blob falla
  * en prod, este fallback debe fallar también, no degradar silenciosamente la
- * seguridad de documentos sensibles (fotos de DNI).
+ * seguridad de documentos sensibles.
  */
 export async function subirArchivoLocal(
   _estadoAnterior: Resultado<Record<string, never>>,
@@ -190,17 +184,17 @@ function extensionDe(mime: string): string {
 }
 
 /**
- * Envoltura `"use server"` de `query.ts::buscarPorDni` (03 §6): el
- * formulario de venta la llama directo (sin `FormData`) en cada búsqueda de
- * DNI, con su propio debounce en el cliente.
+ * Envoltura `"use server"` de la búsqueda por documento. El formulario de
+ * venta la llama únicamente cuando el usuario pulsa el botón de búsqueda.
  */
-export async function buscarPorDni(
-  dni: string,
-): Promise<Resultado<ResultadoBusquedaDni>> {
+export async function buscarPorDocumento(
+  tipoDocumento: "DNI" | "CARNET_EXTRANJERIA",
+  numeroDocumento: string,
+): Promise<Resultado<ResultadoBusquedaDocumento>> {
   return capturarErrores(async () => {
     const ctx = await requireSession();
     requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"]);
-    return buscarPorDniQuery(ctx, { dni });
+    return buscarPorDocumentoQuery(ctx, { tipoDocumento, numeroDocumento });
   });
 }
 
@@ -210,18 +204,15 @@ export async function crearEmpleado(
 ): Promise<Resultado<{ empleadoId: string; estado: string }>> {
   return capturarErrores(async () => {
     const ctx = await requireSession();
-    requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"]);
+    requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
 
     const parse = zCrearEmpleado.safeParse({
       empresaId: formData.get("empresaId"),
-      dni: formData.get("dni"),
+      tipoDocumento: formData.get("tipoDocumento"),
+      numeroDocumento: formData.get("numeroDocumento"),
       nombres: formData.get("nombres"),
       apellidos: formData.get("apellidos"),
       telefono: formData.get("telefono") || undefined,
-      fotoDniBlobPath: formData.get("fotoDniBlobPath"),
-      fotoDniSha256: formData.get("fotoDniSha256"),
-      fotoDniMime: formData.get("fotoDniMime"),
-      fotoDniSizeBytes: Number(formData.get("fotoDniSizeBytes")),
       consentimiento: formData.get("consentimiento"),
     });
     if (!parse.success) {
@@ -230,16 +221,11 @@ export async function crearEmpleado(
     const d = parse.data;
     const entrada: DatosCrearEmpleado = {
       empresaId: d.empresaId,
-      dni: d.dni,
+      tipoDocumento: d.tipoDocumento,
+      numeroDocumento: d.numeroDocumento,
       nombres: d.nombres,
       apellidos: d.apellidos,
       telefono: d.telefono ?? null,
-      fotoDni: {
-        blobPath: d.fotoDniBlobPath,
-        sha256: d.fotoDniSha256,
-        mime: d.fotoDniMime,
-        sizeBytes: d.fotoDniSizeBytes,
-      },
       consentimiento: true,
     };
 

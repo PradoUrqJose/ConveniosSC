@@ -16,7 +16,7 @@ const VENTANA_SUBIDAS_MS = 5 * 60 * 1000;
  * `POST /api/blob/upload` (03 §10): implementa `handleUpload` de Vercel Blob.
  * Emite tokens de subida con restricciones y, al completarse la subida,
  * audita `ADJUNTO_SUBIDO`. La fila en `adjuntos` se crea recién al guardar
- * la venta o el empleado.
+ * la venta. Los documentos de identidad ya no se cargan.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   const body = (await request.json()) as HandleUploadBody;

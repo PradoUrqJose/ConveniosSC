@@ -69,7 +69,6 @@ export function validarTipoReal(
 
 /**
  * Convenciones de ruta de blob de 02 §8:
- *   empleados/{empleadoId}/dni/{uuid}.jpg
  *   ventas/{ventaId}/documento/{uuid}.{ext}
  *   ventas/{ventaId}/evidencia/{orden}-{uuid}.jpg
  * El primer segmento identifica la entidad; los IDs reales aún no existen al
@@ -77,7 +76,7 @@ export function validarTipoReal(
  * uuid como marcador.
  */
 const RUTA_BLOB =
-  /^(empleados|ventas)\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(dni|documento|evidencia)\/[^/]+\.(jpg|png|webp|pdf)$/i;
+  /^ventas\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/(documento|evidencia)\/[^/]+\.(jpg|png|webp|pdf)$/i;
 
 /** Valida que el pathname propuesto siga las convenciones de ruta de 02 §8. */
 export function validarRutaBlob(pathname: string): boolean {

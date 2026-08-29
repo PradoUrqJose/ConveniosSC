@@ -6,24 +6,31 @@ import {
   type TransaccionAuditada,
 } from "@/lib/audit/registrar";
 import { ErrorAuth, type SessionContext } from "@/lib/auth/guardas";
+import type { TipoDocumento } from "@/lib/zod";
 import { existeConvenioVigenteCon, type EstadoEmpleado } from "./query";
 
-export type DatosFotoDni = {
-  blobPath: string;
-  sha256: string;
-  mime: string;
-  sizeBytes: number;
-};
-
-export type DatosCrearEmpleado = {
+type DatosBaseEmpleado = {
   empresaId: string;
-  dni: string;
   nombres: string;
   apellidos: string;
   telefono?: string | null;
-  fotoDni: DatosFotoDni;
   consentimiento: true;
 };
+
+export type DatosCrearEmpleado = DatosBaseEmpleado &
+  (
+    | {
+        tipoDocumento: TipoDocumento;
+        numeroDocumento: string;
+        dni?: never;
+      }
+    | {
+        /** @deprecated Compatibilidad transitoria para llamadas internas antiguas. */
+        dni: string;
+        tipoDocumento?: never;
+        numeroDocumento?: never;
+      }
+  );
 
 export type DatosActualizarEmpleado = {
   empleadoId: string;
@@ -44,16 +51,23 @@ export type ResultadoEmpleado =
 
 /**
  * Crea un empleado (03 §6). Estado resultante (D23): `ACTIVO` solo si lo crea
- * el admin de la propia empresa; en cualquier otro caso (vendedor, otra
- * empresa, SUPERADMIN) nace `PENDIENTE_VERIFICACION`. Si la empresa no es la
- * del actor, debe existir convenio vigente con la suya. La foto del DNI se
- * registra como adjunto `FOTO_DNI` en la misma transacción.
+ * el admin de la propia empresa; en cualquier otro caso nace
+ * `PENDIENTE_VERIFICACION`. Solo SUPERADMIN y ADMIN_EMPRESA pueden crear. Si
+ * la empresa no es la del actor, debe existir convenio vigente con la suya.
  */
 export async function crearEmpleadoCore(
   tx: TransaccionAuditada,
   ctx: SessionContext,
   datos: DatosCrearEmpleado,
 ): Promise<ResultadoEmpleado> {
+  if (ctx.rol === "VENDEDOR") {
+    throw new ErrorAuth(
+      "SIN_PERMISO",
+      "Los vendedores no pueden crear empleados.",
+    );
+  }
+  const tipoDocumento = datos.tipoDocumento ?? "DNI";
+  const numeroDocumento = datos.numeroDocumento ?? datos.dni ?? "";
   const esPropia = ctx.empresaId !== null && datos.empresaId === ctx.empresaId;
   const esAdminDueño = ctx.rol === "ADMIN_EMPRESA" && esPropia;
 
@@ -76,15 +90,16 @@ export async function crearEmpleadoCore(
     await tx.execute(
       sql`SELECT emp.nombre_comercial FROM empleados e
           JOIN empresas emp ON emp.id = e.empresa_id
-          WHERE e.dni = ${datos.dni} LIMIT 1`,
+          WHERE e.tipo_documento = ${tipoDocumento}
+            AND e.dni = ${numeroDocumento} LIMIT 1`,
     ),
   )[0];
   if (existente) {
     return {
       ok: false,
       codigo: "CONFLICTO",
-      mensaje: `El DNI ya está registrado en ${String(existente.nombre_comercial)}.`,
-      campo: "dni",
+      mensaje: `El documento ya está registrado en ${String(existente.nombre_comercial)}.`,
+      campo: "numeroDocumento",
     };
   }
 
@@ -95,9 +110,9 @@ export async function crearEmpleadoCore(
   const filas = obtenerFilas(
     await tx.execute(sql`
       INSERT INTO empleados
-        (empresa_id, dni, nombres, apellidos, telefono, estado,
+        (empresa_id, tipo_documento, dni, nombres, apellidos, telefono, estado,
          creado_por_usuario_id)
-      VALUES (${datos.empresaId}, ${datos.dni}, ${datos.nombres},
+      VALUES (${datos.empresaId}, ${tipoDocumento}, ${numeroDocumento}, ${datos.nombres},
               ${datos.apellidos}, ${datos.telefono ?? null}, ${estado},
               ${ctx.usuarioId})
       RETURNING id
@@ -105,22 +120,14 @@ export async function crearEmpleadoCore(
   );
   const empleadoId = String(filas[0]?.id);
 
-  await tx.execute(sql`
-    INSERT INTO adjuntos
-      (empleado_id, tipo, blob_path, mime, size_bytes, sha256,
-       subido_por_usuario_id)
-    VALUES (${empleadoId}, 'FOTO_DNI', ${datos.fotoDni.blobPath},
-            ${datos.fotoDni.mime}, ${datos.fotoDni.sizeBytes},
-            ${datos.fotoDni.sha256}, ${ctx.usuarioId})
-  `);
-
   await registrar(tx, {
     accion: "EMPLEADO_CREADO",
     entidad: "empleado",
     entidadId: empleadoId,
     actor: ctx,
     datosDespues: {
-      dni: datos.dni,
+      tipoDocumento,
+      numeroDocumento,
       nombres: datos.nombres,
       apellidos: datos.apellidos,
       telefono: datos.telefono ?? null,

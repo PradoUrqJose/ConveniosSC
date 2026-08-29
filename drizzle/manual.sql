@@ -23,6 +23,22 @@ CREATE UNIQUE INDEX IF NOT EXISTS sedes_empresa_nombre_uk
 CREATE INDEX IF NOT EXISTS empleados_nombre_trgm_idx
   ON empleados USING gin ((nombres || ' ' || apellidos) gin_trgm_ops);
 
+-- Las fotos históricas de identidad se conservan por retención, pero desde
+-- esta versión ninguna operación puede crear una nueva. NOT VALID evita
+-- invalidar las filas antiguas y sí protege INSERT/UPDATE futuros.
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'adjuntos_sin_nuevas_fotos_identidad_check'
+      AND conrelid = 'adjuntos'::regclass
+  ) THEN
+    ALTER TABLE adjuntos
+      ADD CONSTRAINT adjuntos_sin_nuevas_fotos_identidad_check
+      CHECK (tipo <> 'FOTO_DNI') NOT VALID;
+  END IF;
+END $$;
+
 -- No puede haber dos términos solapados por dirección del mismo convenio (01 §5)
 ALTER TABLE convenio_terminos DROP CONSTRAINT IF EXISTS convenio_terminos_sin_solape;
 ALTER TABLE convenio_terminos ADD CONSTRAINT convenio_terminos_sin_solape

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -31,7 +31,6 @@ import {
 } from "@/modules/empleados/actions";
 import type { FilaEmpleado, EmpresaOpcion } from "@/modules/empleados/query";
 import type { Resultado } from "@/lib/tipos";
-import { CampoArchivo } from "./campo-archivo";
 
 type Estado = Resultado<{ empleadoId?: string; estado?: string }>;
 
@@ -48,33 +47,18 @@ const INICIO_ACCION = {
 } as const;
 
 const TEXTO_CONSENTIMIENTO =
-  "Declaro que el titular de los datos ha sido informado y autoriza el registro de sus nombres, apellidos, documento de identidad, teléfono, la imagen de su documento de identidad y, cuando corresponda, su fotografía, con la finalidad exclusiva de administrar y controlar el beneficio de convenio institucional. Los datos se conservarán mientras dure el vínculo con la empresa y podrán ser consultados por los administradores de las empresas participantes.";
+  "Declaro que el titular de los datos ha sido informado y autoriza el registro de sus nombres, apellidos, documento de identidad y teléfono, con la finalidad exclusiva de administrar y controlar el beneficio de convenio institucional. Los datos se conservarán mientras dure el vínculo con la empresa y podrán ser consultados por los administradores de las empresas participantes.";
 
 export function FormEmpleado({
   empleado,
   empresas,
   miEmpresaId,
   onCerrar,
-  dniInicial,
-  empresaBloqueada,
-  onExito,
 }: {
   empleado?: FilaEmpleado | null;
   empresas: EmpresaOpcion[];
   miEmpresaId: string | null;
   onCerrar: () => void;
-  /** DNI ya buscado desde el formulario de venta: bloqueado, no editable. */
-  dniInicial?: string;
-  /** Empresa fijada desde el formulario de venta (la del convenio elegido). */
-  empresaBloqueada?: { id: string; nombre: string };
-  /** Si se pasa, se llama al crear con éxito en vez de solo cerrar el modal. */
-  onExito?: (resultado: {
-    empleadoId: string;
-    estado: string;
-    nombres: string;
-    apellidos: string;
-    empresaId: string;
-  }) => void;
 }) {
   const esCrear = !empleado;
   const router = useRouter();
@@ -84,18 +68,13 @@ export function FormEmpleado({
   );
   const [activo, setActivo] = useState(true);
   const [empresaId, setEmpresaId] = useState(miEmpresaId ?? "");
-  const ultimosDatosRef = useRef<{ nombres: string; apellidos: string }>({
-    nombres: "",
-    apellidos: "",
-  });
+  const [tipoDocumento, setTipoDocumento] = useState<
+    "DNI" | "CARNET_EXTRANJERIA"
+  >("DNI");
 
   const [estado, formAction, pendiente] = useActionState(
     async (estadoAnterior: Estado, formData: FormData): Promise<Estado> => {
       if (esCrear) {
-        ultimosDatosRef.current = {
-          nombres: String(formData.get("nombres") ?? ""),
-          apellidos: String(formData.get("apellidos") ?? ""),
-        };
         return crearEmpleado(INICIO_ACCION, formData);
       }
       const res = await actualizarEmpleado(INICIO_ACCION, formData);
@@ -119,15 +98,6 @@ export function FormEmpleado({
     }
     toast.success(esCrear ? "Empleado creado" : "Empleado actualizado");
     router.refresh();
-    if (esCrear && onExito && estado.data.empleadoId && estado.data.estado) {
-      onExito({
-        empleadoId: estado.data.empleadoId,
-        estado: estado.data.estado,
-        nombres: ultimosDatosRef.current.nombres,
-        apellidos: ultimosDatosRef.current.apellidos,
-        empresaId,
-      });
-    }
     onCerrar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [estado, router]);
@@ -144,7 +114,7 @@ export function FormEmpleado({
         <DialogDescription>
           {esCrear
             ? "Los empleados de otra empresa quedan pendientes de verificación por su administrador."
-            : "El DNI y la empresa no se pueden modificar."}
+            : "El documento de identidad y la empresa no se pueden modificar."}
         </DialogDescription>
       </DialogHeader>
 
@@ -155,21 +125,7 @@ export function FormEmpleado({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="empresa">Empresa</Label>
-          {empresaBloqueada ? (
-            <>
-              <Input
-                id="empresa"
-                value={empresaBloqueada.nombre}
-                disabled
-                readOnly
-              />
-              <input
-                type="hidden"
-                name="empresaId"
-                value={empresaBloqueada.id}
-              />
-            </>
-          ) : esCrear ? (
+          {esCrear ? (
             <Select
               value={empresaId}
               onValueChange={(valor) => setEmpresaId(valor ?? "")}
@@ -203,30 +159,44 @@ export function FormEmpleado({
         </div>
 
         <div className="flex flex-col gap-2">
-          <Label htmlFor="dni">DNI</Label>
+          <Label htmlFor="numeroDocumento">Documento de identidad</Label>
           {esCrear ? (
-            dniInicial ? (
-              <Input
-                id="dni"
-                name="dni"
-                value={dniInicial}
-                readOnly
-                className="bg-muted"
-              />
-            ) : (
-              <Input
-                id="dni"
-                name="dni"
+            <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-2">
+              <input type="hidden" name="tipoDocumento" value={tipoDocumento} />
+              <Select
+                value={tipoDocumento}
+                onValueChange={(valor) =>
+                  setTipoDocumento(valor as "DNI" | "CARNET_EXTRANJERIA")
+                }
                 required
-                inputMode="numeric"
+              >
+                <SelectTrigger aria-label="Tipo de documento">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DNI">DNI</SelectItem>
+                  <SelectItem value="CARNET_EXTRANJERIA">
+                    Carné de Extranjería
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
+                id="numeroDocumento"
+                name="numeroDocumento"
+                required
                 autoComplete="off"
                 disabled={pendiente}
-                maxLength={8}
-                placeholder="8 dígitos"
+                maxLength={12}
+                placeholder="Número"
               />
-            )
+            </div>
           ) : (
-            <Input id="dni" value={empleado!.dni} disabled readOnly />
+            <Input
+              id="numeroDocumento"
+              value={`${empleado!.tipoDocumento === "DNI" ? "DNI" : "CE"} ${empleado!.numeroDocumento}`}
+              disabled
+              readOnly
+            />
           )}
         </div>
 
@@ -266,13 +236,6 @@ export function FormEmpleado({
             placeholder="9xxxxxxxx"
           />
         </div>
-
-        {esCrear ? (
-          <div className="flex flex-col gap-2">
-            <Label>Foto del DNI *</Label>
-            <CampoArchivo prefijo="fotoDni" etiqueta="foto" tipo="dni" />
-          </div>
-        ) : null}
 
         {esCrear ? (
           <div className="flex flex-col gap-2">

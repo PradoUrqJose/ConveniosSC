@@ -60,7 +60,8 @@ export function DialogoRechazo({
           <span className="text-foreground font-medium">
             {empleado.nombres} {empleado.apellidos}
           </span>{" "}
-          · DNI {empleado.dni}
+          · {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+          {empleado.numeroDocumento}
         </DialogDescription>
       </DialogHeader>
 

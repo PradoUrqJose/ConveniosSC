@@ -6,6 +6,7 @@ import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import type { RolUsuario } from "@/lib/auth/sesion";
 import { hoyLima, sumarDias } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
+import type { TipoDocumento } from "@/lib/zod";
 
 export type FilaUsuario = {
   id: string;
@@ -29,7 +30,8 @@ export type EmpresaOpcion = { id: string; nombreComercial: string };
 export type EmpleadoOpcion = {
   id: string;
   empresaId: string;
-  dni: string;
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
   nombres: string;
   apellidos: string;
 };
@@ -157,7 +159,7 @@ export async function listarEmpleadosOpciones(
       : sql``;
   const filas = obtenerFilas(
     await db.execute(sql`
-      SELECT em.id, em.empresa_id, em.dni, em.nombres, em.apellidos
+      SELECT em.id, em.empresa_id, em.tipo_documento, em.dni AS numero_documento, em.nombres, em.apellidos
       FROM empleados em
       ${condicion}
       ORDER BY em.apellidos ASC, em.nombres ASC
@@ -166,7 +168,8 @@ export async function listarEmpleadosOpciones(
   return filas.map((f) => ({
     id: String(f.id),
     empresaId: String(f.empresa_id),
-    dni: String(f.dni),
+    tipoDocumento: String(f.tipo_documento) as TipoDocumento,
+    numeroDocumento: String(f.numero_documento),
     nombres: String(f.nombres),
     apellidos: String(f.apellidos),
   }));

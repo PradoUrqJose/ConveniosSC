@@ -1,0 +1,1 @@
+ALTER TYPE "public"."accion_auditoria" ADD VALUE 'BUSQUEDA_DOCUMENTO' BEFORE 'VENTA_CREADA';

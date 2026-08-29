@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { detectarTipoReal, validarTipoReal } from "./archivos";
+import { detectarTipoReal, validarRutaBlob, validarTipoReal } from "./archivos";
 
 function desdeHex(hex: string): Uint8Array {
   return new Uint8Array(
@@ -57,5 +57,20 @@ describe("validarTipoReal", () => {
   it("rechaza un PNG declarado como PDF", () => {
     const buf = desdeHex("89 50 4E 47 0D 0A 1A 0A");
     expect(validarTipoReal(buf, "application/pdf")).toBe(false);
+  });
+});
+
+describe("validarRutaBlob", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+
+  it.each(["documento/venta.pdf", "evidencia/foto.jpg"])(
+    "acepta adjuntos de venta: %s",
+    (ruta) => {
+      expect(validarRutaBlob(`ventas/${id}/${ruta}`)).toBe(true);
+    },
+  );
+
+  it("rechaza nuevas fotos de documentos de empleados", () => {
+    expect(validarRutaBlob(`empleados/${id}/dni/foto.jpg`)).toBe(false);
   });
 });

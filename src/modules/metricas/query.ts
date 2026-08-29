@@ -5,6 +5,7 @@ import { obtenerFilas, type TransaccionAuditada } from "@/lib/audit/registrar";
 import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import type { Centimos } from "@/lib/dinero";
 import type { DireccionVentas } from "@/modules/ventas/query";
+import type { TipoDocumento } from "@/lib/zod";
 
 export type Dashboard = {
   totales: {
@@ -38,7 +39,8 @@ export type Dashboard = {
   topEmpleados: Array<{
     empleadoId: string;
     nombre: string;
-    dni: string;
+    tipoDocumento: TipoDocumento;
+    numeroDocumento: string;
     cantidad: number;
     brutoCentimos: Centimos;
   }>;
@@ -107,7 +109,7 @@ export async function obtenerDashboard(
       sql`SELECT u.id, concat_ws(' ',u.nombres,u.apellidos) nombre, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v JOIN usuarios u ON u.id=v.vendedor_usuario_id WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY u.id,u.nombres,u.apellidos ORDER BY bruto DESC LIMIT 10`,
     ),
     ejecutor.execute(
-      sql`SELECT e.id, concat_ws(' ',e.nombres,e.apellidos) nombre, e.dni, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v JOIN empleados e ON e.id=v.empleado_comprador_id WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY e.id,e.nombres,e.apellidos,e.dni ORDER BY bruto DESC LIMIT 10`,
+      sql`SELECT e.id, concat_ws(' ',e.nombres,e.apellidos) nombre, e.tipo_documento, e.dni numero_documento, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v JOIN empleados e ON e.id=v.empleado_comprador_id WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY e.id,e.nombres,e.apellidos,e.tipo_documento,e.dni ORDER BY bruto DESC LIMIT 10`,
     ),
     ejecutor.execute(
       sql`SELECT s.id, s.nombre, count(*)::int cantidad, COALESCE(sum(v.monto_bruto_centimos),0)::bigint bruto FROM ventas v JOIN sedes s ON s.id=v.sede_id WHERE ${base} AND v.estado = 'REGISTRADA' GROUP BY s.id,s.nombre ORDER BY bruto DESC LIMIT 10`,
@@ -170,7 +172,8 @@ export async function obtenerDashboard(
     topEmpleados: map(empleadosR, (f) => ({
       empleadoId: String(f.id),
       nombre: String(f.nombre),
-      dni: String(f.dni),
+      tipoDocumento: String(f.tipo_documento) as TipoDocumento,
+      numeroDocumento: String(f.numero_documento),
       cantidad: n(f, "cantidad"),
       brutoCentimos: n(f, "bruto"),
     })),

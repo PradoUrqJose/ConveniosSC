@@ -20,7 +20,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Dialog } from "@/components/ui/dialog";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -39,10 +38,9 @@ import {
   CampoArchivo,
   type DatosSubida,
 } from "@/app/(app)/empleados/campo-archivo";
-import { FormEmpleado } from "@/app/(app)/empleados/form-empleado";
 import { bpsAPorcentaje } from "@/app/(app)/admin/convenios/dialogo-cambiar-termino";
-import { buscarPorDni } from "@/modules/empleados/actions";
-import type { ResultadoBusquedaDni } from "@/modules/empleados/query";
+import { buscarPorDocumento } from "@/modules/empleados/actions";
+import type { ResultadoBusquedaDocumento } from "@/modules/empleados/query";
 import { crearVenta, previsualizarDescuento } from "@/modules/ventas/actions";
 import type { ConvenioVigenteMio } from "@/modules/convenios/query";
 import type { ConfiguracionVenta, SedeOpcion } from "@/modules/ventas/query";
@@ -50,6 +48,7 @@ import type { VentaCreada } from "@/modules/ventas/acciones";
 import { calcularDescuento, formatearSoles, parsearSoles } from "@/lib/dinero";
 import { formatearFechaUI, hoyLima, sumarDias } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
+import { zDocumentoIdentidad, type TipoDocumento } from "@/lib/zod";
 import {
   borradorVigente,
   borrarBorrador,
@@ -61,7 +60,8 @@ import { CampoEvidencias, type EvidenciaItem } from "./campo-evidencias";
 
 type EmpleadoResuelto = {
   id: string;
-  dni: string;
+  tipoDocumento: TipoDocumento;
+  numeroDocumento: string;
   nombres: string;
   apellidos: string;
   empresaId: string;
@@ -96,12 +96,12 @@ export function FormVenta({
   const [ventaId, setVentaId] = useState(() => crypto.randomUUID());
 
   const [empresaConvenioId, setEmpresaConvenioId] = useState("");
-  const [dni, setDni] = useState("");
+  const [tipoDocumento, setTipoDocumento] = useState<TipoDocumento>("DNI");
+  const [numeroDocumento, setNumeroDocumento] = useState("");
   const [buscando, setBuscando] = useState(false);
   const [resultadoBusqueda, setResultadoBusqueda] =
-    useState<ResultadoBusquedaDni | null>(null);
+    useState<ResultadoBusquedaDocumento | null>(null);
   const [empleado, setEmpleado] = useState<EmpleadoResuelto | null>(null);
-  const [mostrarCrearEmpleado, setMostrarCrearEmpleado] = useState(false);
   const [resumenAbierto, setResumenAbierto] = useState(false);
 
   const [sedeId, setSedeId] = useState(sedePorDefectoId ?? sedes[0]?.id ?? "");
@@ -149,7 +149,8 @@ export function FormVenta({
         empleado: empleado
           ? {
               id: empleado.id,
-              dni: empleado.dni,
+              tipoDocumento: empleado.tipoDocumento,
+              numeroDocumento: empleado.numeroDocumento,
               nombres: empleado.nombres,
               apellidos: empleado.apellidos,
               empresaId: empleado.empresaId,
@@ -186,10 +187,19 @@ export function FormVenta({
     setVentaId(borrador.ventaId);
     setEmpresaConvenioId(borrador.empresaConvenioId ?? "");
     if (borrador.empleado) {
-      setDni(borrador.empleado.dni);
+      setTipoDocumento(borrador.empleado.tipoDocumento ?? "DNI");
+      setNumeroDocumento(
+        borrador.empleado.numeroDocumento ??
+          (borrador.empleado as unknown as { dni?: string }).dni ??
+          "",
+      );
       setEmpleado({
         id: borrador.empleado.id,
-        dni: borrador.empleado.dni,
+        tipoDocumento: borrador.empleado.tipoDocumento ?? "DNI",
+        numeroDocumento:
+          borrador.empleado.numeroDocumento ??
+          (borrador.empleado as unknown as { dni?: string }).dni ??
+          "",
         nombres: borrador.empleado.nombres,
         apellidos: borrador.empleado.apellidos,
         empresaId: borrador.empleado.empresaId,
@@ -217,49 +227,78 @@ export function FormVenta({
     setBorrador(null);
   };
 
-  // Búsqueda de DNI: automática a los 8 dígitos, con debounce 300 ms.
-  useEffect(() => {
-    if (dni.length !== 8) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- limpia el resultado anterior al borrar dígitos del DNI
-      setResultadoBusqueda(null);
-      if (empleado) setEmpleado(null);
-      if (empresaConvenioId) setEmpresaConvenioId("");
+  const invalidarBusquedaDocumento = () => {
+    busquedaIdRef.current += 1;
+    setBuscando(false);
+    setResultadoBusqueda(null);
+    setEmpleado(null);
+    setEmpresaConvenioId("");
+  };
+
+  const cambiarTipoDocumento = (valor: TipoDocumento) => {
+    invalidarBusquedaDocumento();
+    setTipoDocumento(valor);
+    setNumeroDocumento("");
+  };
+
+  const cambiarNumeroDocumento = (valorIngresado: string) => {
+    invalidarBusquedaDocumento();
+    const valor = valorIngresado.toUpperCase();
+    setNumeroDocumento(
+      tipoDocumento === "DNI"
+        ? valor.replace(/\D/g, "").slice(0, 8)
+        : valor.replace(/[^A-Z0-9-]/g, "").slice(0, 12),
+    );
+  };
+
+  const documentoValido = zDocumentoIdentidad.safeParse({
+    tipoDocumento,
+    numeroDocumento,
+  }).success;
+
+  const buscarEmpleado = async () => {
+    const documento = zDocumentoIdentidad.safeParse({
+      tipoDocumento,
+      numeroDocumento,
+    });
+    if (!documento.success) {
+      toast.error(documento.error.issues[0]?.message ?? "Documento inválido.");
       return;
     }
+
     const idActual = ++busquedaIdRef.current;
     setBuscando(true);
-    const timer = setTimeout(() => {
-      void buscarPorDni(dni).then((res) => {
-        if (busquedaIdRef.current !== idActual) return;
-        setBuscando(false);
-        if (!res.ok) {
-          setResultadoBusqueda(null);
-          setEmpleado(null);
-          toast.error(res.mensaje);
-          return;
-        }
-        setResultadoBusqueda(res.data);
-        if (res.data.encontrado) {
-          const e = res.data.empleado;
-          setEmpleado({
-            id: e.id,
-            dni: e.dni,
-            nombres: e.nombres,
-            apellidos: e.apellidos,
-            empresaId: e.empresaId,
-            empresaNombre: e.empresaNombre,
-            estado: e.estado,
-            descuentoBps: e.descuentoBps,
-          });
-          setEmpresaConvenioId(e.empresaId);
-        } else {
-          setEmpleado(null);
-        }
-      });
-    }, 300);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dni]);
+    setResultadoBusqueda(null);
+    setEmpleado(null);
+    setEmpresaConvenioId("");
+
+    const res = await buscarPorDocumento(
+      documento.data.tipoDocumento,
+      documento.data.numeroDocumento,
+    );
+    if (busquedaIdRef.current !== idActual) return;
+    setBuscando(false);
+    if (!res.ok) {
+      toast.error(res.mensaje);
+      return;
+    }
+    setResultadoBusqueda(res.data);
+    if (!res.data.encontrado) return;
+
+    const e = res.data.empleado;
+    setEmpleado({
+      id: e.id,
+      tipoDocumento: e.tipoDocumento,
+      numeroDocumento: e.numeroDocumento,
+      nombres: e.nombres,
+      apellidos: e.apellidos,
+      empresaId: e.empresaId,
+      empresaNombre: e.empresaNombre,
+      estado: e.estado,
+      descuentoBps: e.descuentoBps,
+    });
+    setEmpresaConvenioId(e.empresaId);
+  };
 
   // Venta retroactiva: el término vigente pudo ser otro (04 §4).
   useEffect(() => {
@@ -345,7 +384,8 @@ export function FormVenta({
     setFase("formulario");
     setConfirmacion(null);
     setVentaId(crypto.randomUUID());
-    setDni("");
+    setTipoDocumento("DNI");
+    setNumeroDocumento("");
     setResultadoBusqueda(null);
     setEmpleado(null);
     setEmpresaConvenioId("");
@@ -452,26 +492,54 @@ export function FormVenta({
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="dni">DNI del empleado</Label>
-              <div className="relative">
-                <Input
-                  id="dni"
-                  value={dni}
-                  onChange={(e) =>
-                    setDni(e.target.value.replace(/\D/g, "").slice(0, 8))
+              <Label htmlFor="numeroDocumento">Documento del empleado</Label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,0.8fr)_minmax(0,1.5fr)_auto]">
+                <Select
+                  value={tipoDocumento}
+                  onValueChange={(valor) =>
+                    cambiarTipoDocumento(valor as TipoDocumento)
                   }
-                  inputMode="numeric"
-                  maxLength={8}
+                >
+                  <SelectTrigger
+                    aria-label="Tipo de documento"
+                    className="h-14 rounded-2xl"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="DNI">DNI</SelectItem>
+                    <SelectItem value="CARNET_EXTRANJERIA">CE</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="numeroDocumento"
+                  value={numeroDocumento}
+                  onChange={(e) => cambiarNumeroDocumento(e.target.value)}
+                  inputMode={tipoDocumento === "DNI" ? "numeric" : "text"}
+                  maxLength={tipoDocumento === "DNI" ? 8 : 12}
                   autoFocus={convenios.length === 1}
-                  placeholder="8 dígitos"
+                  placeholder={
+                    tipoDocumento === "DNI"
+                      ? "8 dígitos"
+                      : "Hasta 12 caracteres"
+                  }
                   autoComplete="off"
                   className="h-14 rounded-2xl px-4 text-base"
                 />
-                {buscando ? (
-                  <Loader2 className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2 animate-spin" />
-                ) : (
-                  <Search className="text-muted-foreground absolute top-1/2 right-3 size-4 -translate-y-1/2" />
-                )}
+                <Button
+                  type="button"
+                  size="lg"
+                  disabled={!documentoValido || buscando}
+                  onClick={() => void buscarEmpleado()}
+                  className="h-14 rounded-2xl px-5"
+                >
+                  {buscando ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Search className="size-4" />
+                  )}
+                  {buscando ? "Buscando…" : "Buscar"}
+                </Button>
               </div>
             </div>
 
@@ -511,10 +579,7 @@ export function FormVenta({
                 ) : null}
               </div>
             ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
-              <ResultadoNegativo
-                resultado={resultadoBusqueda}
-                onCrear={() => setMostrarCrearEmpleado(true)}
-              />
+              <ResultadoNegativo resultado={resultadoBusqueda} />
             ) : null}
           </section>
 
@@ -862,38 +927,6 @@ export function FormVenta({
           </Button>
         </SheetContent>
       </Sheet>
-
-      {mostrarCrearEmpleado ? (
-        <Dialog open onOpenChange={(a) => !a && setMostrarCrearEmpleado(false)}>
-          <FormEmpleado
-            empresas={convenios.map((convenio) => ({
-              id: convenio.empresaId,
-              nombreComercial: convenio.empresaNombre,
-            }))}
-            miEmpresaId={null}
-            dniInicial={dni}
-            onCerrar={() => setMostrarCrearEmpleado(false)}
-            onExito={(resultado) => {
-              const empresa = convenios.find(
-                (convenio) => convenio.empresaId === resultado.empresaId,
-              );
-              if (!empresa) return;
-              setEmpleado({
-                id: resultado.empleadoId,
-                dni,
-                nombres: resultado.nombres,
-                apellidos: resultado.apellidos,
-                empresaId: empresa.empresaId,
-                empresaNombre: empresa.empresaNombre,
-                estado: resultado.estado as EmpleadoResuelto["estado"],
-                descuentoBps: empresa.descuentoBps,
-              });
-              setEmpresaConvenioId(empresa.empresaId);
-              setResultadoBusqueda(null);
-            }}
-          />
-        </Dialog>
-      ) : null}
     </section>
   );
 }
@@ -911,32 +944,30 @@ function ResumenFila({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 
 function ResultadoNegativo({
   resultado,
-  onCrear,
 }: {
-  resultado: Extract<ResultadoBusquedaDni, { encontrado: false }>;
-  onCrear: () => void;
+  resultado: Extract<ResultadoBusquedaDocumento, { encontrado: false }>;
 }) {
   if (resultado.motivo === "NO_EXISTE") {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-4">
+      <div className="flex flex-col items-start gap-2 rounded-xl border border-dashed p-4">
         <p className="text-muted-foreground text-sm">
-          No encontramos este DNI.
+          No encontramos este documento.
         </p>
-        <Button type="button" variant="outline" onClick={onCrear}>
-          <Plus className="size-4" />
-          Crear empleado
-        </Button>
+        <p className="text-muted-foreground text-xs">
+          Solicita a un administrador que registre al empleado antes de
+          continuar con la venta.
+        </p>
       </div>
     );
   }
 
   const mensajes: Record<string, string> = {
     PROPIA_EMPRESA:
-      "Este DNI pertenece a un empleado de tu propia empresa. El beneficio de convenio aplica solo a empleados de la empresa aliada.",
+      "Este documento pertenece a un empleado de tu propia empresa. El beneficio de convenio aplica solo a empleados de la empresa aliada.",
     SIN_CONVENIO:
       "empresaNombre" in resultado
-        ? `Este DNI está registrado en ${resultado.empresaNombre}, que no tiene convenio vigente con tu empresa.`
-        : "Este DNI no tiene convenio vigente con tu empresa.",
+        ? `Este documento está registrado en ${resultado.empresaNombre}, que no tiene convenio vigente con tu empresa.`
+        : "Este documento no tiene convenio vigente con tu empresa.",
     NO_HABILITADO:
       "Este empleado no está habilitado para el beneficio. Contacta al administrador de su empresa.",
   };
@@ -945,7 +976,8 @@ function ResultadoNegativo({
     <Alert variant="destructive">
       <AlertTriangle />
       <AlertDescription>
-        {mensajes[resultado.motivo] ?? "No se puede continuar con este DNI."}
+        {mensajes[resultado.motivo] ??
+          "No se puede continuar con este documento."}
       </AlertDescription>
     </Alert>
   );

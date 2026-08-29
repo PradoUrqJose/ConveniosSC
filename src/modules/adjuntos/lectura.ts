@@ -26,8 +26,6 @@ type FilaAdjunto = {
   venta_id: string | null;
   venta_empresa_vendedora: string | null;
   venta_vendedor: string | null;
-  empleado_id: string | null;
-  empleado_empresa: string | null;
 };
 
 /**
@@ -37,7 +35,6 @@ type FilaAdjunto = {
  * Reglas de autorización (02 §3):
  * - Adjuntos de venta (DOCUMENTO_VENTA / EVIDENCIA): solo la empresa vendedora;
  *   el VENDEDOR solo los de sus propias ventas.
- * - FOTO_DNI de un empleado: solo la empresa del empleado.
  * - SUPERADMIN siempre.
  *
  * No distingue 404 de 403 en el resultado: el route devuelve el mismo cuerpo
@@ -66,12 +63,9 @@ export async function leerAdjunto(
       SELECT a.id, a.tipo, a.blob_path, a.mime, a.size_bytes,
              a.venta_id,
              v.empresa_vendedora_id AS venta_empresa_vendedora,
-             v.vendedor_usuario_id AS venta_vendedor,
-             a.empleado_id,
-             e.empresa_id AS empleado_empresa
+             v.vendedor_usuario_id AS venta_vendedor
       FROM adjuntos a
       LEFT JOIN ventas v ON v.id = a.venta_id
-      LEFT JOIN empleados e ON e.id = a.empleado_id
       WHERE a.id = ${adjuntoId}
       LIMIT 1
     `),
@@ -121,20 +115,19 @@ export async function leerAdjunto(
 }
 
 function tienePermiso(ctx: SessionContext, fila: FilaAdjunto): boolean {
+  // Los adjuntos históricos de empleados ya no forman parte del producto.
+  // Se conservan por retención, pero no se exponen ni siquiera a SUPERADMIN.
+  if (fila.venta_id === null) {
+    return false;
+  }
   if (ctx.rol === "SUPERADMIN") {
     return true;
   }
-  if (fila.venta_id !== null) {
-    if (fila.venta_empresa_vendedora !== ctx.empresaId) {
-      return false;
-    }
-    if (ctx.rol === "VENDEDOR" && fila.venta_vendedor !== ctx.usuarioId) {
-      return false;
-    }
-    return true;
+  if (fila.venta_empresa_vendedora !== ctx.empresaId) {
+    return false;
   }
-  if (fila.empleado_id !== null) {
-    return fila.empleado_empresa === ctx.empresaId;
+  if (ctx.rol === "VENDEDOR" && fila.venta_vendedor !== ctx.usuarioId) {
+    return false;
   }
-  return false;
+  return true;
 }

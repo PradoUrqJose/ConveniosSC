@@ -222,7 +222,9 @@ export function FormUsuario({
                 <option value="">Sin empleado</option>
                 {empleadosDeEmpresa.map((em) => (
                   <option key={em.id} value={em.id}>
-                    {em.apellidos}, {em.nombres} ({em.dni})
+                    {em.apellidos}, {em.nombres} (
+                    {em.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+                    {em.numeroDocumento})
                   </option>
                 ))}
               </select>

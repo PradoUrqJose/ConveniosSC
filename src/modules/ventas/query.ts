@@ -7,6 +7,7 @@ import { calcularDescuento, type Centimos } from "@/lib/dinero";
 import { fechaLimaDe, hoyLima } from "@/lib/fechas";
 import type { CodigoError, Pagina, Resultado } from "@/lib/tipos";
 import type { EstadoEmpleado } from "@/modules/empleados/query";
+import type { TipoDocumento } from "@/lib/zod";
 
 export type SedeOpcion = { id: string; nombre: string };
 
@@ -218,7 +219,13 @@ export type FilaVenta = {
   id: string;
   fechaVenta: string;
   createdAt: string;
-  empleado: { id: string; dni: string; nombres: string; apellidos: string };
+  empleado: {
+    id: string;
+    tipoDocumento: TipoDocumento;
+    numeroDocumento: string;
+    nombres: string;
+    apellidos: string;
+  };
   empresaCompradora: { id: string; nombre: string };
   empresaVendedora: { id: string; nombre: string };
   sede: { id: string; nombre: string };
@@ -259,7 +266,8 @@ export const POR_PAGINA_VENTAS = 25;
 
 const CAMPOS_VENTA = sql`
   v.id, v.fecha_venta, v.created_at,
-  e.id AS empleado_id, e.dni AS empleado_dni, e.nombres AS empleado_nombres,
+  e.id AS empleado_id, e.tipo_documento AS empleado_tipo_documento,
+  e.dni AS empleado_numero_documento, e.nombres AS empleado_nombres,
   e.apellidos AS empleado_apellidos,
   v.empresa_compradora_id, ecomp.nombre_comercial AS empresa_compradora_nombre,
   v.empresa_vendedora_id, evend.nombre_comercial AS empresa_vendedora_nombre,
@@ -300,7 +308,8 @@ function mapearFilaVenta(f: Record<string, unknown>): FilaVenta {
     createdAt: String(f.created_at),
     empleado: {
       id: String(f.empleado_id),
-      dni: String(f.empleado_dni),
+      tipoDocumento: String(f.empleado_tipo_documento) as TipoDocumento,
+      numeroDocumento: String(f.empleado_numero_documento),
       nombres: String(f.empleado_nombres),
       apellidos: String(f.empleado_apellidos),
     },

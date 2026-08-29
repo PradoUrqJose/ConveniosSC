@@ -16,7 +16,8 @@ export type EvidenciaBorrador = {
 
 export type EmpleadoBorrador = {
   id: string;
-  dni: string;
+  tipoDocumento: "DNI" | "CARNET_EXTRANJERIA";
+  numeroDocumento: string;
   nombres: string;
   apellidos: string;
   empresaId: string;
