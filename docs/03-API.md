@@ -245,16 +245,16 @@ salida:  Pagina<{ id, username, nombres, apellidos, rol, empresaNombre, activo,
 
 ## 6. `modules/empleados`
 
-### `buscarPorDni` *(query, la más usada)*
+### `buscarPorDocumento` *(query, la más usada)*
 ```ts
-entrada: { dni: zDni }
+entrada: { tipoDocumento: 'DNI' | 'CARNET_EXTRANJERIA', numeroDocumento: string }
 salida:
   | { encontrado: true; empleado: {
-        id, dni, nombres, apellidos, telefono,
-        empresaId, empresaNombre, estado, tieneFotoDni: boolean,
+        id, tipoDocumento, numeroDocumento, nombres, apellidos, telefono,
+        empresaId, empresaNombre, estado,
         convenioId, descuentoBps            // el término vigente hoy, para el preview
       } }
-  | { encontrado: false; motivo: 'NO_EXISTE'; puedeCrear: true }
+  | { encontrado: false; motivo: 'NO_EXISTE' }
   | { encontrado: false; motivo: 'PROPIA_EMPRESA' }
   | { encontrado: false; motivo: 'SIN_CONVENIO'; empresaNombre: string }
   | { encontrado: false; motivo: 'NO_HABILITADO' }
@@ -265,21 +265,20 @@ Lógica completa en [`02 §4`](./02-LOGICA-NEGOCIO.md). Rate limit 20/min. Audit
 ```ts
 entrada: {
   empresaId: zUuid,
-  dni: zDni,
+  tipoDocumento: 'DNI' | 'CARNET_EXTRANJERIA',
+  numeroDocumento: string,
   nombres: zNombre,
   apellidos: zNombre,
   telefono: zTelefono,
-  fotoDniBlobPath: z.string().min(1),
-  fotoDniSha256: z.string().regex(/^[a-f0-9]{64}$/),
-  fotoDniMime: z.enum(['image/jpeg','image/png','image/webp']),
-  fotoDniSizeBytes: z.number().int().positive().max(10_485_760),
   consentimiento: z.literal(true, { message: 'Debes confirmar la autorización de datos' }),
 }
 salida: { empleadoId: string; estado: EstadoEmpleado }
 ```
+Solo `SUPERADMIN` y `ADMIN_EMPRESA` pueden crear empleados. El vendedor no
+dispone de esta acción ni de un flujo alternativo desde el punto de venta.
 Estado resultante: `ACTIVO` si `empresaId` es la del actor y el actor es admin;
 `PENDIENTE_VERIFICACION` en cualquier otro caso (D23).
-Si `empresaId` no es la del actor, debe existir convenio vigente. DNI duplicado → `CONFLICTO`
+Si `empresaId` no es la del actor, debe existir convenio vigente. Documento duplicado → `CONFLICTO`
 con mensaje que indica en qué empresa está registrado.
 
 ### `actualizarEmpleado` *(admin de la empresa dueña)*
@@ -352,7 +351,7 @@ entrada: { empleadoCompradorId: zUuid, montoBruto: zMontoSoles, fechaVenta: zFec
 salida:  { descuentoBps, montoDescuentoCentimos, montoFinalCentimos }
 ```
 Solo cosmético. `crearVenta` recalcula todo desde cero.
-Se puede calcular en el cliente con el `descuentoBps` que ya devolvió `buscarPorDni`; esta action
+Se puede calcular en el cliente con el `descuentoBps` que ya devolvió `buscarPorDocumento`; esta action
 existe para el caso de venta retroactiva, donde el término vigente puede ser otro.
 
 ### `anularVenta`
@@ -499,7 +498,7 @@ no filtrar existencia).
 - **Nunca** exponer un ID de una entidad de otra empresa en una respuesta de error.
 - Toda action que modifica llama a `revalidatePath` de las rutas afectadas antes de retornar.
 - Las queries de listado son Server Components con `searchParams`; no hay fetching en cliente
-  salvo `buscarPorDni` y `previsualizarDescuento`, que sí son interactivas.
+  salvo `buscarPorDocumento` y `previsualizarDescuento`, que sí son interactivas.
 - Ninguna action confía en `empresaId` recibido del cliente cuando el actor no es `SUPERADMIN`:
   se usa siempre el de la sesión.
 - Todo `Resultado` de error se registra en el log del servidor con `requestId`, rol y acción.
