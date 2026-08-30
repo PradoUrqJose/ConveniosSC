@@ -137,9 +137,10 @@ Entrada validada (ver [`03-API.md`](./03-API.md) → `crearVenta`).
 | Crear / editar convenio y términos | ✅ | ❌ | ❌ |
 | Ver convenios de su empresa | ✅ | ✅ lectura | ❌ |
 | Crear / editar sedes | ✅ | E | ❌ |
-| Crear usuario | ✅ | E, solo rol `VENDEDOR` o `ADMIN_EMPRESA` | ❌ |
-| Resetear contraseña de usuario | ✅ | E | ❌ |
-| Desactivar usuario | ✅ | E | ❌ |
+| Crear usuario | ✅ | ❌ | ❌ |
+| Editar usuario | ✅ | ❌ | ❌ |
+| Resetear contraseña de usuario | ✅ | ❌ | ❌ |
+| Desactivar usuario | ✅ | ❌ | ❌ |
 | Crear empleado de su empresa | ✅ | E → `ACTIVO` | E → `ACTIVO` |
 | Crear empleado de empresa convenio | ✅ | ✅ → `PENDIENTE` | ✅ → `PENDIENTE` |
 | Editar empleado | ✅ | E | ❌ |

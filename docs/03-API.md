@@ -199,10 +199,13 @@ correspondiente y no permite continuar.
 
 ## 5. `modules/usuarios`
 
+Todo el módulo de gestión de usuarios —listado, creación, edición, activación,
+desactivación y restablecimiento de contraseña— es exclusivo de `SUPERADMIN`.
+
 ### `crearUsuario`
 ```ts
 entrada: {
-  empresaId: zUuid.nullable(),          // ignorado si el actor es ADMIN_EMPRESA
+  empresaId: zUuid.nullable(),          // null únicamente si rol = SUPERADMIN
   username: zUsername,
   nombres: zNombre,
   apellidos: zNombre,
@@ -212,8 +215,9 @@ entrada: {
 }
 salida: { usuarioId: string; passwordTemporal: string }
 ```
-- `ADMIN_EMPRESA` solo puede crear `VENDEDOR` o `ADMIN_EMPRESA`, y solo en su empresa.
-- Solo `SUPERADMIN` puede crear `SUPERADMIN` (y entonces `empresaId` debe ser `null`).
+- Solo `SUPERADMIN` puede crear usuarios de cualquier rol.
+- Un usuario `SUPERADMIN` debe tener `empresaId = null`; los demás roles deben
+  pertenecer a una empresa.
 - Genera contraseña temporal legible de 3 bloques (ej. `verde-42-lima`), `debe_cambiar_password = true`.
 - **La contraseña temporal se devuelve una sola vez** y no se persiste en claro. La UI la muestra
   con botón de copiar y un aviso de que no se volverá a mostrar.
@@ -226,6 +230,8 @@ salida:  {}
 ```
 `username` es **inmutable**. Un usuario no puede cambiar su propio rol ni desactivarse a sí mismo.
 Desactivar revoca todas sus sesiones en la misma transacción.
+Crear, actualizar, restablecer la contraseña, activar o desactivar usuarios son
+operaciones exclusivas de `SUPERADMIN`.
 
 ### `resetearPassword`
 ```ts
@@ -240,6 +246,7 @@ entrada: { empresaId?, rol?, activo?, q?, cursor? }
 salida:  Pagina<{ id, username, nombres, apellidos, rol, empresaNombre, activo,
                   ultimoAccesoAt, debeCambiarPassword, ventas30d }>
 ```
+Solo `SUPERADMIN` puede consultar este listado.
 
 ---
 

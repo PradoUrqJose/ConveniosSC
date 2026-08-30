@@ -58,9 +58,10 @@ especificación original.
 | Crear empleado | No | Propio activo; otros según convenio | Queda pendiente |
 | Verificar/rechazar empleado | No | Solo de su empresa | Sí |
 | Gestionar sedes | No | Las de su empresa | Las actions lo permiten; la UI es de consulta global |
-| Gestionar usuarios | No | No en la UI ni en las actions públicas actuales | Sí |
+| Gestionar usuarios | No | No | Sí |
 | Gestionar empresas/convenios | No | No | Sí |
-| Ver/verificar auditoría | No | No | Sí |
+| Ver auditoría | No | No actualmente; el contrato exige la de su empresa | Vista global |
+| Verificar integridad de auditoría | No | No | Sí |
 
 ### Rutas principales
 
@@ -74,10 +75,10 @@ especificación original.
 | `/ventas/[id]` | Detalle y, si corresponde, anulación |
 | `/empleados` | Gestión y bandeja de verificación |
 | `/sedes` | Sedes |
-| `/usuarios` | Usuarios; actualmente solo `SUPERADMIN` |
+| `/usuarios` | Gestión de usuarios; solo `SUPERADMIN` |
 | `/admin/empresas` | Empresas; solo `SUPERADMIN` |
 | `/admin/convenios` | Convenios y términos; solo `SUPERADMIN` |
-| `/auditoria` | Visor y verificación de cadena; solo `SUPERADMIN` |
+| `/auditoria` | Actualmente solo `SUPERADMIN`; está pendiente habilitar el visor acotado para `ADMIN_EMPRESA` |
 | `/perfil` | Perfil del usuario actual |
 | `/perfil/password` | Cambio obligatorio o voluntario de contraseña |
 
@@ -591,9 +592,9 @@ de integridad.
 
 Estos puntos deben recordarse al planificar refactorizaciones:
 
-1. La especificación original permite que `ADMIN_EMPRESA` gestione usuarios de
-   su empresa, pero las actions públicas y `/usuarios` están restringidas hoy a
-   `SUPERADMIN`.
+1. El contrato permite que `ADMIN_EMPRESA` vea la auditoría de su empresa, pero
+   la página y la query siguen restringidas a `SUPERADMIN`. La verificación de
+   integridad sí debe continuar exclusiva de `SUPERADMIN`.
 2. El rol PostgreSQL `app_user` recibe permisos limitados, pero la aplicación se
    conecta actualmente como `neondb_owner`; esa capa de mínimo privilegio no
    está activa en runtime.

@@ -86,7 +86,7 @@ Todas las decisiones estructurales están tomadas. No re-abrir durante la implem
 | Rol | Alcance |
 |---|---|
 | `SUPERADMIN` | Todo el sistema. Empresas, convenios y sus %, usuarios de cualquier empresa, auditoría global. `empresa_id` nulo. |
-| `ADMIN_EMPRESA` | Su empresa. Empleados, usuarios, sedes, todas las ventas de su empresa (vendidas y compradas), métricas, anulaciones, bandeja de verificación, auditoría de su empresa. **No** crea convenios ni cambia %. |
+| `ADMIN_EMPRESA` | Su empresa. Empleados, sedes, todas las ventas de su empresa (vendidas y compradas), métricas, anulaciones, bandeja de verificación y auditoría de su empresa. **No** gestiona usuarios, crea convenios ni cambia %. |
 | `VENDEDOR` | Registrar ventas, buscar empleados de convenios vigentes, crear empleados (pendientes), ver y filtrar **solo sus** ventas, anular las suyas el mismo día. |
 
 La matriz de permisos exacta, por acción, está en [`02-LOGICA-NEGOCIO.md §3`](./02-LOGICA-NEGOCIO.md).
@@ -176,7 +176,7 @@ Ver desglose con criterios de aceptación en [`06-BACKLOG.md`](./06-BACKLOG.md).
 1. Proyecto, BD, esquema, migraciones, seed
 2. Auth (login, sesión, guardas) + auditoría transversal
 3. Superadmin: empresas, convenios y términos, usuarios
-4. Admin: sedes, empleados, usuarios de su empresa
+4. Admin: sedes, empleados y auditoría de su empresa
 5. Búsqueda por DNI + creación de empleado pendiente
 6. Registro de venta completo
 7. Listado de ventas con filtros + detalle + anulación

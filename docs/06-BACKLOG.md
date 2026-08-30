@@ -107,7 +107,7 @@ solape. `misConveniosVigentes` con una fecha pasada devuelve el término que est
 Módulo `usuarios` completo, con generación de contraseña temporal legible y el diálogo de
 [`04 §9`](./04-UI.md).
 
-**Aceptación**: un `ADMIN_EMPRESA` no puede crear un `SUPERADMIN` ni un usuario en otra empresa.
+**Aceptación**: solo `SUPERADMIN` puede crear, editar, activar, desactivar o restablecer usuarios.
 Desactivar un usuario invalida sus sesiones de inmediato. La contraseña temporal nunca aparece en
 la BD ni en los logs.
 
