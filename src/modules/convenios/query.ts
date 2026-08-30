@@ -30,7 +30,6 @@ export type ConvenioVigenteMio = {
   terminoId: string;
 };
 
-const HOY = hoyLima();
 const POR_PAGINA = 20;
 
 /** `listarConvenios` (03 §4). Términos vigentes a hoy y ventas de 30 días. */
@@ -40,6 +39,7 @@ export async function listarConvenios(
   ejecutor: TransaccionAuditada = db,
 ): Promise<Pagina<FilaConvenio>> {
   requireRol(ctx, ["SUPERADMIN"]);
+  const hoy = hoyLima();
 
   const cursor = decodificarCursor(entrada.cursor);
   const where = cursor
@@ -52,7 +52,7 @@ export async function listarConvenios(
         SELECT v.convenio_id, count(*)::int AS total
         FROM ventas v
         WHERE v.estado = 'REGISTRADA'
-          AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+          AND v.fecha_venta >= ${sumarDias(hoy, -29)}
         GROUP BY v.convenio_id
       )
       SELECT c.id, c.created_at, c.estado, c.vigencia_desde, c.vigencia_hasta, c.notas,
@@ -69,8 +69,8 @@ export async function listarConvenios(
         FROM convenio_terminos ct
         WHERE ct.convenio_id = c.id
           AND ct.empresa_otorgante_id = ea.id
-          AND ct.vigencia_desde <= ${HOY}
-          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
+          AND ct.vigencia_desde <= ${hoy}
+          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${hoy})
         ORDER BY ct.vigencia_desde DESC
         LIMIT 1
       ) ta ON TRUE
@@ -79,8 +79,8 @@ export async function listarConvenios(
         FROM convenio_terminos ct
         WHERE ct.convenio_id = c.id
           AND ct.empresa_otorgante_id = eb.id
-          AND ct.vigencia_desde <= ${HOY}
-          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
+          AND ct.vigencia_desde <= ${hoy}
+          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${hoy})
         ORDER BY ct.vigencia_desde DESC
         LIMIT 1
       ) tb ON TRUE

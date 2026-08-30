@@ -43,7 +43,6 @@ export type ResumenEmpleados = {
 };
 
 const POR_PAGINA = 20;
-const HOY = hoyLima();
 
 export type EmpleadoEncontrado = {
   id: string;
@@ -367,6 +366,7 @@ export async function listarEmpleados(
   },
 ): Promise<Pagina<FilaEmpleado>> {
   requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+  const hoy = hoyLima();
 
   const { empresaId, estado, q, cursor } = entrada;
   const empresaFiltro =
@@ -404,7 +404,7 @@ export async function listarEmpleados(
           COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS monto_30d
         FROM ventas v
         WHERE v.estado = 'REGISTRADA'
-          AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+          AND v.fecha_venta >= ${sumarDias(hoy, -29)}
         GROUP BY v.empleado_comprador_id
       ) metricas ON metricas.empleado_comprador_id = em.id
       ${where}
@@ -478,6 +478,7 @@ export async function resumirEmpleados(
   ctx: SessionContext,
 ): Promise<ResumenEmpleados> {
   requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+  const hoy = hoyLima();
 
   const condicion =
     ctx.rol === "ADMIN_EMPRESA"
@@ -496,7 +497,7 @@ export async function resumirEmpleados(
           FROM ventas v
           JOIN empleados comprador ON comprador.id = v.empleado_comprador_id
           WHERE v.estado = 'REGISTRADA'
-            AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+            AND v.fecha_venta >= ${sumarDias(hoy, -29)}
             ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND comprador.empresa_id = ${ctx.empresaId}` : sql``}
         ), 0)::int AS ventas_30d,
         COALESCE((
@@ -504,7 +505,7 @@ export async function resumirEmpleados(
           FROM ventas v
           JOIN empleados comprador ON comprador.id = v.empleado_comprador_id
           WHERE v.estado = 'REGISTRADA'
-            AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+            AND v.fecha_venta >= ${sumarDias(hoy, -29)}
             ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND comprador.empresa_id = ${ctx.empresaId}` : sql``}
         ), 0)::bigint AS monto_30d
       FROM empleados em

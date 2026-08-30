@@ -76,8 +76,8 @@ if (DEBE_CAMBIAR) {
   );
 }
 
-const HOY = hoyLima();
-const HACE_90 = sumarDias(HOY, -90);
+const FECHA_HOY = hoyLima();
+const HACE_90 = sumarDias(FECHA_HOY, -90);
 
 /** PRNG determinista para que el seed sea reproducible. */
 function mulberry32(seed: number) {
@@ -379,7 +379,7 @@ async function main() {
 
       const bruto = randInt(2000, 80000);
       const { descuento, final } = calcularDescuento(bruto, bps);
-      const fechaVenta = sumarDias(HOY, -randInt(0, 89));
+      const fechaVenta = sumarDias(FECHA_HOY, -randInt(0, 89));
 
       const esAnulada = anuladas.has(i);
       const ventaId = randomUUID();

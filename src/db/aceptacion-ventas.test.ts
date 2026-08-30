@@ -235,7 +235,7 @@ afterEach(async () => {
   }
 });
 
-const HOY = hoyLima();
+const FECHA_HOY = hoyLima();
 
 describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
   it("doble envío del mismo ventaId crea una sola venta (idempotencia)", async () => {
@@ -257,7 +257,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         documento: await documentoSubido("a"),
         evidencias: [],
       };
@@ -311,7 +311,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 3333,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         documento: await documentoSubido("b"),
         evidencias: [],
       });
@@ -344,7 +344,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: sumarDias(HOY, -30),
+        fechaVenta: sumarDias(FECHA_HOY, -30),
         documento: await documentoSubido("c"),
         evidencias: [],
       });
@@ -363,8 +363,8 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
       const idA = await crearEmpresa(c, "20100070009");
       const idB = await crearEmpresa(c, "20100070010");
       const convenioId = await crearConvenio(c, idA, idB);
-      const ayer = sumarDias(HOY, -1);
-      const anteayer = sumarDias(HOY, -2);
+      const ayer = sumarDias(FECHA_HOY, -1);
+      const anteayer = sumarDias(FECHA_HOY, -2);
       // Término "viejo" vigente hasta anteayer, término "nuevo" desde ayer.
       await crearTermino(c, convenioId, idA, 1000, "2000-01-01", anteayer);
       await crearTermino(c, convenioId, idA, 2500, ayer, null);
@@ -408,7 +408,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         documento: await documentoSubido("f"),
         evidencias: [],
       });
@@ -421,9 +421,9 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
       await c.query(
         `UPDATE convenio_terminos SET vigencia_hasta = $1
          WHERE convenio_id = $2 AND empresa_otorgante_id = $3 AND vigencia_hasta IS NULL`,
-        [sumarDias(HOY, -1), convenioId, idA],
+        [sumarDias(FECHA_HOY, -1), convenioId, idA],
       );
-      await crearTermino(c, convenioId, idA, 3000, HOY, null);
+      await crearTermino(c, convenioId, idA, 3000, FECHA_HOY, null);
 
       const relectura = await c.query(
         `SELECT descuento_bps, monto_descuento_centimos FROM ventas WHERE id = $1`,
@@ -451,7 +451,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoPropio,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         documento: await documentoSubido("g"),
         evidencias: [],
       });
@@ -480,7 +480,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         // Nunca se escribió este archivo: ni en Blob ni en el respaldo local.
         documento: {
           blobPath: `/uploads/no-existe-${randomUUID()}.jpg`,
@@ -522,7 +522,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         // El archivo existe, pero el cliente miente sobre su contenido.
         documento: { ...documento, sha256: "a".repeat(64), sizeBytes: 999 },
         evidencias: [],
@@ -559,7 +559,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         documento,
         evidencias: [],
       });
@@ -598,7 +598,7 @@ describe.skipIf(!ACTIVO)("Aceptación T14 — crearVenta", () => {
         empleadoCompradorId: empleadoId,
         sedeId,
         montoBrutoCentimos: 10_000,
-        fechaVenta: HOY,
+        fechaVenta: FECHA_HOY,
         documento: await documentoSubido("h"),
         evidencias: [await documentoSubido("i")],
       });
@@ -665,7 +665,7 @@ describe.skipIf(!ACTIVO)(
           empleadoId,
           montoBruto: 10_000,
           bps: 1500,
-          fechaVenta: HOY,
+          fechaVenta: FECHA_HOY,
         });
         await crearVentaDirecta(c, {
           empresaVendedoraId: idA,
@@ -677,7 +677,7 @@ describe.skipIf(!ACTIVO)(
           empleadoId,
           montoBruto: 20_000,
           bps: 1500,
-          fechaVenta: HOY,
+          fechaVenta: FECHA_HOY,
         });
 
         const pagina = await listarVentas(
@@ -724,7 +724,7 @@ describe.skipIf(!ACTIVO)(
           empleadoId,
           montoBruto: 10_000,
           bps: 1500,
-          fechaVenta: HOY,
+          fechaVenta: FECHA_HOY,
         });
         await c.query(
           `INSERT INTO adjuntos
@@ -792,7 +792,7 @@ describe.skipIf(!ACTIVO)(
             empleadoId,
             montoBruto: 1000 + i,
             bps: 1500,
-            fechaVenta: sumarDias(HOY, -i),
+            fechaVenta: sumarDias(FECHA_HOY, -i),
           });
         }
 
@@ -881,7 +881,7 @@ describe.skipIf(!ACTIVO)(
           empleadoId,
           montoBruto: 10_000,
           bps: 1500,
-          fechaVenta: HOY,
+          fechaVenta: FECHA_HOY,
         });
         // La venta se registró "ayer" (hora Lima): fuera de la ventana del VENDEDOR.
         await c.query(

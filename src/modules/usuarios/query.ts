@@ -38,7 +38,6 @@ export type EmpleadoOpcion = {
 export type SedeOpcion = { id: string; empresaId: string; nombre: string };
 
 const POR_PAGINA = 20;
-const HOY = hoyLima();
 const LIMITE_OPCIONES = 50;
 
 /** `listarUsuarios` (03 §5). El ADMIN_EMPRESA ve solo su empresa. */
@@ -53,6 +52,7 @@ export async function listarUsuarios(
   },
 ): Promise<Pagina<FilaUsuario>> {
   requireRol(ctx, ["SUPERADMIN"]);
+  const hoy = hoyLima();
 
   const { empresaId, rol, activo, q, cursor } = entrada;
   const empresaFiltro =
@@ -87,7 +87,7 @@ export async function listarUsuarios(
         SELECT v.vendedor_usuario_id, count(*)::int AS ventas_30d
         FROM ventas v
         WHERE v.estado = 'REGISTRADA'
-          AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+          AND v.fecha_venta >= ${sumarDias(hoy, -29)}
         GROUP BY v.vendedor_usuario_id
       ) metricas ON metricas.vendedor_usuario_id = u.id
       ${where}
