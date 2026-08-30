@@ -377,7 +377,7 @@ export async function listarEmpleados(
     empresaFiltro ? sql`em.empresa_id = ${empresaFiltro}` : undefined,
     estado ? sql`em.estado = ${estado}` : undefined,
     q
-      ? sql`(em.dni = ${q} OR em.nombres ILIKE ${`%${q}%`} OR em.apellidos ILIKE ${`%${q}%`})`
+      ? sql`(em.dni = ${q} OR (em.nombres || ' ' || em.apellidos) ILIKE ${`%${q}%`})`
       : undefined,
     cursorDatos
       ? sql`(em.apellidos, em.nombres, em.id) > (${cursorDatos.apellidos}, ${cursorDatos.nombres}, ${cursorDatos.id})`

@@ -63,7 +63,7 @@ export async function listarUsuarios(
     rol ? sql`u.rol = ${rol}` : undefined,
     activo !== undefined ? sql`u.activo = ${activo}` : undefined,
     q
-      ? sql`(u.username ILIKE ${`%${q}%`} OR u.nombres ILIKE ${`%${q}%`} OR u.apellidos ILIKE ${`%${q}%`})`
+      ? sql`((u.username || ' ' || u.nombres || ' ' || u.apellidos) ILIKE ${`%${q}%`})`
       : undefined,
     cursorDatos
       ? sql`(u.username, u.id) > (${cursorDatos.username}, ${cursorDatos.id})`

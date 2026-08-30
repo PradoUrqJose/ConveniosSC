@@ -32,7 +32,7 @@ export async function listarEmpresas(
   const cursorDatos = decodificarCursor(cursor);
   const condicion = [
     q
-      ? sql`(e.nombre_comercial ILIKE ${`%${q}%`} OR e.razon_social ILIKE ${`%${q}%`} OR e.ruc LIKE ${`%${q}%`})`
+      ? sql`((e.nombre_comercial || ' ' || e.razon_social) ILIKE ${`%${q}%`} OR e.ruc LIKE ${`%${q}%`})`
       : undefined,
     activo !== undefined ? sql`e.activo = ${activo}` : undefined,
     cursorDatos

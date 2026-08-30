@@ -23,6 +23,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS sedes_empresa_nombre_uk
 CREATE INDEX IF NOT EXISTS empleados_nombre_trgm_idx
   ON empleados USING gin ((nombres || ' ' || apellidos) gin_trgm_ops);
 
+-- Búsqueda de usuarios y empresas por sus nombres compuestos.
+CREATE INDEX IF NOT EXISTS usuarios_busqueda_trgm_idx
+  ON usuarios USING gin ((username || ' ' || nombres || ' ' || apellidos) gin_trgm_ops);
+
+CREATE INDEX IF NOT EXISTS empresas_busqueda_trgm_idx
+  ON empresas USING gin ((nombre_comercial || ' ' || razon_social) gin_trgm_ops);
+
 -- Las fotos históricas de identidad se conservan por retención, pero desde
 -- esta versión ninguna operación puede crear una nueva. NOT VALID evita
 -- invalidar las filas antiguas y sí protege INSERT/UPDATE futuros.

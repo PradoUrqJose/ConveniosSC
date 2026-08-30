@@ -465,7 +465,7 @@ export async function listarVentas(
   }
   if (entrada.q) {
     filtros.push(
-      sql`(e.dni = ${entrada.q} OR e.nombres ILIKE ${`%${entrada.q}%`} OR e.apellidos ILIKE ${`%${entrada.q}%`})`,
+      sql`(e.dni = ${entrada.q} OR (e.nombres || ' ' || e.apellidos) ILIKE ${`%${entrada.q}%`})`,
     );
   }
   if (entrada.montoMinCentimos !== undefined) {
