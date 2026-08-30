@@ -118,6 +118,36 @@
      es para superficies que son oscuras siempre, como el sidebar. */
   --brand: #283c73;
   --brand-on-dark: #8da0d6;
+
+  /* Elevación — docs/09-GUIA-REDISENO-UI-DESKTOP.md §3.4 y §4. Tres niveles:
+     superficie en reposo, hover de esa misma superficie y elementos
+     flotantes (hero, modal, popover). No son colores: no necesitan variante
+     oscura, igual que la sombra que ya usaba `Metrica` antes de tokenizarse. */
+  --shadow-elevation-1: 0 10px 30px rgba(15, 23, 42, 0.045);
+  --shadow-elevation-2: 0 18px 45px rgba(15, 23, 42, 0.09);
+  --shadow-elevation-3: 0 24px 65px rgba(29, 78, 216, 0.22);
+
+  /* Duración/easing — docs/09-GUIA-REDISENO-UI-DESKTOP.md §3.5. */
+  --duration-fast: 160ms;
+  --duration-base: 220ms;
+  --duration-slow: 300ms;
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Radios de referencia por rol — docs/09-GUIA-REDISENO-UI-DESKTOP.md §4.
+     `--radius` (0.75rem) sigue siendo la base de la escala `--radius-*` de
+     shadcn/ui; estos tres nombran el punto de esa escala que corresponde a
+     cada rol para no repetir `rounded-[Npx]` sueltos en pantallas nuevas. */
+  --radius-panel: 1.5rem; /* 24px: surface-panel, cards de hero secundario */
+  --radius-control: 1.05rem; /* ~17px: inputs, selects, botones de formulario */
+  --radius-modal: 1.5rem; /* 24px: Dialog/Sheet desktop */
+
+  /* Capas de apilamiento — docs/09-GUIA-REDISENO-UI-DESKTOP.md §7.2 y §9.
+     Un único lugar para coordinar overlay, popover y toast y evitar que el
+     aviso PWA u otro elemento fijo quede sobre un modal real. */
+  --z-popover: 40;
+  --z-overlay: 50;
+  --z-modal: 51;
+  --z-toast: 60;
 }
 
 .dark {
@@ -201,6 +231,40 @@
   }
 }
 
+/* Utilities de elevación — ver tokens `--shadow-elevation-*` arriba.
+   `elevation-normal` fija la sombra en reposo y prepara la transición;
+   `elevation-hover` añade el estado hover con su propio selector para poder
+   desactivarlo por completo bajo reduced motion (abajo). `elevation-floating`
+   es de un solo nivel, sin hover: hero, modal y demás superficies flotantes. */
+@utility elevation-normal {
+  box-shadow: var(--shadow-elevation-1);
+  transition:
+    box-shadow var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard);
+}
+
+@utility elevation-hover {
+  &:hover {
+    box-shadow: var(--shadow-elevation-2);
+    transform: translateY(-2px);
+  }
+}
+
+@utility elevation-floating {
+  box-shadow: var(--shadow-elevation-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .elevation-normal {
+    transition: none;
+  }
+  .elevation-hover:hover {
+    /* La guía pide eliminar el desplazamiento, no solo suavizarlo: se
+       conserva el cambio de sombra como único feedback de hover. */
+    transform: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -232,7 +296,8 @@
   }
 
   .surface-panel {
-    @apply bg-card/90 ring-foreground/7 overflow-hidden rounded-[1.5rem] shadow-[0_14px_40px_rgba(15,23,42,.055)] ring-1;
+    @apply bg-card/90 ring-foreground/7 overflow-hidden shadow-[0_14px_40px_rgba(15,23,42,.055)] ring-1;
+    border-radius: var(--radius-panel);
   }
 
   .control-bar {

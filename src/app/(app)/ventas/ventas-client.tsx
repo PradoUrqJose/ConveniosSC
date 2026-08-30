@@ -64,8 +64,12 @@ import type {
 import type { SearchParamsVentas } from "./page";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  ariaSortDe,
   CabeceraPagina,
+  EncabezadoOrdenable,
+  EstadoBadge,
   EstadoVacio,
+  IndicadorPendienteSuperficie,
   Metrica,
 } from "@/components/shell/pagina-ui";
 
@@ -766,9 +770,9 @@ function ListaMovil({
         ))}
       </div>
       {pendiente ? (
-        <div className="bg-background/70 animate-in fade-in-0 absolute inset-0 duration-150">
+        <IndicadorPendienteSuperficie>
           <EsqueletoTarjetas cantidad={items.length || 4} />
-        </div>
+        </IndicadorPendienteSuperficie>
       ) : null}
     </div>
   );
@@ -803,9 +807,9 @@ function TarjetaVenta({
           {venta.empleado.apellidos.toUpperCase()}
         </p>
         {anulada ? (
-          <Badge variant="destructive" className="shrink-0">
+          <EstadoBadge tono="destructive" className="shrink-0">
             Anulada
-          </Badge>
+          </EstadoBadge>
         ) : null}
       </div>
       <p className="text-muted-foreground text-sm">
@@ -859,7 +863,9 @@ function TablaVentas({
         <Table>
           <TableHeader className="bg-muted/45">
             <TableRow>
-              <TableHead>
+              <TableHead
+                aria-sort={ariaSortDe(orden, "fecha_asc", "fecha_desc")}
+              >
                 <EncabezadoOrdenable
                   label="Fecha"
                   campoAsc="fecha_asc"
@@ -873,7 +879,10 @@ function TablaVentas({
               <TableHead>Empresa</TableHead>
               <TableHead>Sede</TableHead>
               {esAdmin ? <TableHead>Vendedor</TableHead> : null}
-              <TableHead className="text-right">
+              <TableHead
+                className="text-right"
+                aria-sort={ariaSortDe(orden, "monto_asc", "monto_desc")}
+              >
                 <EncabezadoOrdenable
                   label="Monto"
                   campoAsc="monto_asc"
@@ -941,13 +950,11 @@ function TablaVentas({
                   </TableCell>
                   <TableCell>
                     {anulada ? (
-                      <Badge variant="destructive">Anulada</Badge>
+                      <EstadoBadge tono="destructive">Anulada</EstadoBadge>
                     ) : v.requiereRevision ? (
-                      <Badge className="bg-warning/10 text-warning border-warning/20 border">
-                        Revisión
-                      </Badge>
+                      <EstadoBadge tono="warning">Revisión</EstadoBadge>
                     ) : (
-                      <Badge variant="outline">Registrada</Badge>
+                      <EstadoBadge tono="success">Registrada</EstadoBadge>
                     )}
                   </TableCell>
                 </TableRow>
@@ -956,9 +963,9 @@ function TablaVentas({
           </TableBody>
         </Table>
         {pendiente ? (
-          <div className="bg-background/70 animate-in fade-in-0 absolute inset-0 top-11 duration-150">
+          <IndicadorPendienteSuperficie top="top-11">
             <FilasEsqueleto columnas={columnas} filas={items.length || 6} />
-          </div>
+          </IndicadorPendienteSuperficie>
         ) : null}
       </div>
 
@@ -1077,36 +1084,5 @@ function Paginador({
         </div>
       </div>
     </footer>
-  );
-}
-
-function EncabezadoOrdenable({
-  label,
-  campoAsc,
-  campoDesc,
-  orden,
-  urlDe,
-  onNavegar,
-  alinearDerecha,
-}: {
-  label: string;
-  campoAsc: string;
-  campoDesc: string;
-  orden: string;
-  urlDe: (cambios: Record<string, string | null>) => string;
-  onNavegar: (url: string) => void;
-  alinearDerecha?: boolean;
-}) {
-  const activo = orden === campoAsc || orden === campoDesc;
-  const siguiente = orden === campoDesc ? campoAsc : campoDesc;
-  return (
-    <button
-      type="button"
-      onClick={() => onNavegar(urlDe({ orden: siguiente }))}
-      className={`inline-flex items-center gap-1 hover:underline ${alinearDerecha ? "flex-row-reverse" : ""} ${activo ? "text-foreground" : ""}`}
-    >
-      {label}
-      {activo ? (orden === campoDesc ? "↓" : "↑") : null}
-    </button>
   );
 }

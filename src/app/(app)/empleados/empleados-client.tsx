@@ -23,8 +23,12 @@ import {
   X,
 } from "lucide-react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  CabeceraPagina,
+  EstadoBadge,
+  Metrica,
+} from "@/components/shell/pagina-ui";
 import {
   Dialog,
   DialogContent,
@@ -66,14 +70,19 @@ type Dialogo =
   | { tipo: "rechazar"; empleado: FilaEmpleado }
   | null;
 
-const VARIANTE_ESTADO: Record<
+// Semántica de color de docs/05-DESIGN-SYSTEM.md §1: ACTIVO → success,
+// PENDIENTE_VERIFICACION → warning, RECHAZADO → destructive, INACTIVO →
+// neutro. Un único mapa consumido por `EstadoBadge` en las tres vistas
+// (tarjeta móvil, fila de tabla y detalle) evita que cada una invente su
+// propio color, como ocurría antes.
+const TONO_ESTADO: Record<
   FilaEmpleado["estado"],
-  "default" | "secondary" | "destructive" | "outline"
+  "success" | "warning" | "destructive" | "neutral"
 > = {
-  ACTIVO: "default",
-  PENDIENTE_VERIFICACION: "secondary",
+  ACTIVO: "success",
+  PENDIENTE_VERIFICACION: "warning",
   RECHAZADO: "destructive",
-  INACTIVO: "outline",
+  INACTIVO: "neutral",
 };
 
 const TEXTO_ESTADO: Record<FilaEmpleado["estado"], string> = {
@@ -81,13 +90,6 @@ const TEXTO_ESTADO: Record<FilaEmpleado["estado"], string> = {
   PENDIENTE_VERIFICACION: "Pendiente",
   RECHAZADO: "Rechazado",
   INACTIVO: "Inactivo",
-};
-
-const CLASE_ESTADO: Record<FilaEmpleado["estado"], string> = {
-  ACTIVO: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  PENDIENTE_VERIFICACION: "border-amber-200 bg-amber-50 text-amber-700",
-  RECHAZADO: "border-red-200 bg-red-50 text-red-700",
-  INACTIVO: "border-slate-200 bg-slate-100 text-slate-600",
 };
 
 export function EmpleadosClient({
@@ -209,54 +211,50 @@ export function EmpleadosClient({
 
   return (
     <section className="page-shell">
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p className="text-primary flex items-center gap-2 text-xs font-bold tracking-[0.06em] uppercase">
-            <UsersRound className="size-4" /> Gestión de convenios
-          </p>
-          <h1 className="mt-2 text-3xl font-bold tracking-tight">Empleados</h1>
-          <p className="text-muted-foreground mt-2 text-sm">
-            Administra los empleados afiliados, revisa su actividad y controla
-            el estado de cada registro.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={exportar}>
-            <Download className="size-4" /> Exportar
-          </Button>
-          <Button onClick={() => setDialogo({ tipo: "crear" })}>
-            <Plus className="size-4" /> Nuevo empleado
-          </Button>
-        </div>
-      </header>
+      <CabeceraPagina
+        kicker="Gestión de convenios"
+        icono={<UsersRound className="size-5" />}
+        titulo="Empleados"
+        descripcion="Administra los empleados afiliados, revisa su actividad y controla el estado de cada registro."
+        acciones={
+          <>
+            <Button variant="outline" onClick={exportar}>
+              <Download className="size-4" /> Exportar
+            </Button>
+            <Button onClick={() => setDialogo({ tipo: "crear" })}>
+              <Plus className="size-4" /> Nuevo empleado
+            </Button>
+          </>
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Estadistica
+        <Metrica
           etiqueta="Total de empleados"
           valor={resumen.total}
-          nota="Registros encontrados"
-          icono={<Users className="size-5" />}
+          detalle="Registros encontrados"
+          icono={<Users className="size-4.5" />}
         />
-        <Estadistica
+        <Metrica
           etiqueta="Empleados activos"
           valor={resumen.activos}
-          nota={`${resumen.total ? Math.round((resumen.activos / resumen.total) * 100) : 0}% del total`}
+          detalle={`${resumen.total ? Math.round((resumen.activos / resumen.total) * 100) : 0}% del total`}
           tono="success"
-          icono={<Check className="size-5" />}
+          icono={<Check className="size-4.5" />}
         />
-        <Estadistica
+        <Metrica
           etiqueta="Pendientes"
           valor={resumen.pendientes}
-          nota="Requieren validación"
+          detalle="Requieren validación"
           tono="warning"
-          icono={<Clock3 className="size-5" />}
+          icono={<Clock3 className="size-4.5" />}
         />
-        <Estadistica
+        <Metrica
           etiqueta="Ventas últimos 30 días"
           valor={resumen.ventasUltimos30d}
-          nota={`${formatearSoles(resumen.montoUltimos30d)} acumulado`}
+          detalle={`${formatearSoles(resumen.montoUltimos30d)} acumulado`}
           tono="neutral"
-          icono={<ReceiptText className="size-5" />}
+          icono={<ReceiptText className="size-4.5" />}
         />
       </div>
 
@@ -330,7 +328,7 @@ export function EmpleadosClient({
             >
               <span>{item.label}</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] ${tab === item.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
+                className={`rounded-full px-2 py-0.5 text-xs ${tab === item.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}
               >
                 {resumen[item.resumen]}
               </span>
@@ -384,7 +382,7 @@ export function EmpleadosClient({
             </div>
             <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[1040px] table-fixed text-left">
-                <thead className="bg-muted/45 text-muted-foreground text-[11px] tracking-[0.035em] uppercase">
+                <thead className="bg-muted/45 text-muted-foreground text-xs tracking-[0.035em] uppercase">
                   <tr>
                     <th className="w-13 px-5 py-4 text-center">
                       <input
@@ -529,45 +527,6 @@ export function EmpleadosClient({
   );
 }
 
-function Estadistica({
-  etiqueta,
-  valor,
-  nota,
-  icono,
-  tono = "primary",
-}: {
-  etiqueta: string;
-  valor: number;
-  nota: string;
-  icono: React.ReactNode;
-  tono?: "primary" | "success" | "warning" | "neutral";
-}) {
-  const tonos = {
-    primary: "bg-primary/10 text-primary",
-    success: "bg-emerald-50 text-emerald-700",
-    warning: "bg-amber-50 text-amber-700",
-    neutral: "bg-muted text-muted-foreground",
-  };
-  return (
-    <article className="bg-card flex items-center justify-between gap-4 rounded-2xl border p-4 shadow-sm">
-      <div>
-        <p className="text-muted-foreground text-xs font-semibold">
-          {etiqueta}
-        </p>
-        <p className="mt-1 text-2xl leading-none font-bold tracking-tight">
-          {valor}
-        </p>
-        <p className="text-muted-foreground mt-2 text-[11px]">{nota}</p>
-      </div>
-      <span
-        className={`grid size-11 place-items-center rounded-xl ${tonos[tono]}`}
-      >
-        {icono}
-      </span>
-    </article>
-  );
-}
-
 function FilaEmpleadoTabla({
   empleado,
   seleccionado,
@@ -635,29 +594,25 @@ function FilaEmpleadoTabla({
           {empleado.comprasUltimos30d} compra
           {empleado.comprasUltimos30d === 1 ? "" : "s"}
         </p>
-        <p className="text-muted-foreground text-[10px]">Últimos 30 días</p>
+        <p className="text-muted-foreground text-xs">Últimos 30 días</p>
       </td>
       <td className="px-3 py-3">
         <p className="text-sm font-semibold">
           {formatearSoles(empleado.montoUltimos30d)}
         </p>
-        <p className="text-muted-foreground text-[10px]">
-          Acumulado del período
-        </p>
+        <p className="text-muted-foreground text-xs">Acumulado del período</p>
       </td>
       <td className="px-3 py-3">
-        <span
-          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold ${CLASE_ESTADO[empleado.estado]}`}
-        >
+        <EstadoBadge tono={TONO_ESTADO[empleado.estado]}>
           <span className="size-1.5 rounded-full bg-current" />
           {TEXTO_ESTADO[empleado.estado]}
-        </span>
+        </EstadoBadge>
       </td>
       <td className="px-3 py-3">
         <p className="text-sm font-semibold">
           {fechaRelativa(empleado.createdAt)}
         </p>
-        <p className="text-muted-foreground text-[10px]">Registrado</p>
+        <p className="text-muted-foreground text-xs">Registrado</p>
       </td>
       <td className="px-4 py-3 text-right">
         <DropdownMenu>
@@ -715,11 +670,12 @@ function TarjetaEmpleado({
                 {esSuperadmin ? ` · ${empleado.empresaNombre}` : ""}
               </p>
             </div>
-            <span
-              className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-bold ${CLASE_ESTADO[empleado.estado]}`}
+            <EstadoBadge
+              tono={TONO_ESTADO[empleado.estado]}
+              className="shrink-0"
             >
               {TEXTO_ESTADO[empleado.estado]}
-            </span>
+            </EstadoBadge>
           </div>
           <div className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-xs">
             <span className="bg-muted/60 rounded-lg px-2.5 py-2">
@@ -790,9 +746,9 @@ function DetalleEmpleado({
       <div className="flex flex-col gap-4">
         <dl className="text-sm">
           <Detalle etiqueta="Estado">
-            <Badge variant={VARIANTE_ESTADO[empleado.estado]}>
+            <EstadoBadge tono={TONO_ESTADO[empleado.estado]}>
               {TEXTO_ESTADO[empleado.estado]}
-            </Badge>
+            </EstadoBadge>
           </Detalle>
           <Detalle etiqueta="Teléfono">{empleado.telefono ?? "—"}</Detalle>
           <Detalle etiqueta="Compras (30 días)">

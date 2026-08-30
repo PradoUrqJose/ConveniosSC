@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 export function CabeceraPagina({
@@ -113,7 +115,7 @@ export function Metrica({
   }[tono];
 
   return (
-    <article className="group bg-card/90 ring-foreground/7 relative min-w-0 overflow-hidden rounded-[1.25rem] p-3.5 shadow-[0_10px_30px_rgba(15,23,42,.045)] ring-1 transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_45px_rgba(15,23,42,.09)] sm:p-5">
+    <article className="group bg-card/90 ring-foreground/7 elevation-normal elevation-hover relative min-w-0 overflow-hidden rounded-[1.25rem] p-3.5 ring-1 sm:p-5">
       <div className="flex items-start justify-between gap-2">
         <p className="text-muted-foreground min-w-0 truncate text-[0.65rem] leading-5 font-bold tracking-[0.05em] uppercase sm:text-xs">
           {etiqueta}
@@ -138,5 +140,233 @@ export function Metrica({
         </div>
       ) : null}
     </article>
+  );
+}
+
+/**
+ * Hero de apertura de página: gradiente diagonal, kicker, título dominante y
+ * acción principal opcional en alto contraste. Extraído del Dashboard
+ * Vendedor (`src/app/(app)/page.tsx`), la referencia aprobada — ver
+ * `docs/09-GUIA-REDISENO-UI-DESKTOP.md` §4.1. Se reserva para cabeceras de
+ * alto valor: no convertir cada card en un banner.
+ */
+export function HeroPagina({
+  kicker,
+  titulo,
+  descripcion,
+  accion,
+  className,
+}: {
+  kicker?: ReactNode;
+  titulo: ReactNode;
+  descripcion?: ReactNode;
+  accion?: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "from-primary via-primary elevation-floating relative overflow-hidden rounded-[1.25rem] bg-linear-to-br to-blue-950 px-4 py-4 text-white sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9",
+        className,
+      )}
+    >
+      <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:18px_18px] opacity-20" />
+      <div className="absolute -top-20 -right-16 size-64 rounded-full bg-cyan-300/25 blur-3xl" />
+      <div className="relative grid items-center gap-6 md:grid-cols-[1fr_auto]">
+        <div className="min-w-0">
+          {kicker ? (
+            <p className="hidden items-center gap-2 text-xs font-bold tracking-[0.14em] text-cyan-100/80 uppercase sm:flex">
+              {kicker}
+            </p>
+          ) : null}
+          <h1 className="text-xl font-bold tracking-[-0.045em] sm:mt-3 sm:text-4xl">
+            {titulo}
+          </h1>
+          {descripcion ? (
+            <p className="mt-1 max-w-xl text-xs leading-5 text-blue-100/80 sm:mt-2 sm:text-base sm:leading-6">
+              {descripcion}
+            </p>
+          ) : null}
+        </div>
+        {accion}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Panel/surface compartido con cabecera y pie opcionales. Reemplaza el
+ * patrón `.surface-panel` repetido con cabecera propia en cada pantalla —
+ * ver `docs/09-GUIA-REDISENO-UI-DESKTOP.md` §4.3. El cuerpo no añade padding
+ * propio: cada consumidor decide su densidad interna (tabla, lista, form).
+ */
+export function PanelSuperficie({
+  cabecera,
+  pie,
+  children,
+  className,
+  bodyClassName,
+}: {
+  cabecera?: ReactNode;
+  pie?: ReactNode;
+  children: ReactNode;
+  className?: string;
+  bodyClassName?: string;
+}) {
+  return (
+    <div className={cn("surface-panel", className)}>
+      {cabecera ? (
+        <div className="border-border/70 flex flex-col gap-3 border-b px-4 py-3.5 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between">
+          {cabecera}
+        </div>
+      ) : null}
+      <div className={bodyClassName}>{children}</div>
+      {pie ? (
+        <div className="border-border/70 flex items-center justify-between gap-3 border-t px-4 py-3.5 sm:px-6">
+          {pie}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+const TONOS_ESTADO_BADGE = {
+  success:
+    "border-transparent bg-success/10 text-success dark:bg-success/20 focus-visible:ring-success/20 dark:focus-visible:ring-success/40",
+  warning:
+    "border-transparent bg-warning/10 text-warning dark:bg-warning/20 focus-visible:ring-warning/20 dark:focus-visible:ring-warning/40",
+  neutral: "border-transparent bg-muted text-muted-foreground",
+} as const;
+
+/**
+ * Badge de estado centralizado. La semántica de color viene de
+ * `docs/05-DESIGN-SYSTEM.md` §1: `success` = activo/registrada,
+ * `warning` = pendiente/revisión, `destructive` = anulada/rechazada,
+ * `neutral` = inactivo. El estado nunca se comunica solo por color: usar
+ * siempre `children` con texto legible.
+ */
+export function EstadoBadge({
+  tono,
+  children,
+  className,
+}: {
+  tono: "success" | "warning" | "destructive" | "neutral";
+  children: ReactNode;
+  className?: string;
+}) {
+  if (tono === "destructive") {
+    return (
+      <Badge variant="destructive" className={className}>
+        {children}
+      </Badge>
+    );
+  }
+  return (
+    <Badge
+      variant="outline"
+      className={cn(TONOS_ESTADO_BADGE[tono], className)}
+    >
+      {children}
+    </Badge>
+  );
+}
+
+export type DireccionOrden = "asc" | "desc" | null;
+
+/**
+ * Deriva el `aria-sort` del `<th>` a partir del campo activo. Debe aplicarse
+ * en el elemento `TableHead`/`th` que envuelve a `EncabezadoOrdenable`, no en
+ * el botón interno.
+ */
+export function ariaSortDe(
+  orden: string,
+  campoAsc: string,
+  campoDesc: string,
+): "ascending" | "descending" | "none" {
+  if (orden === campoAsc) return "ascending";
+  if (orden === campoDesc) return "descending";
+  return "none";
+}
+
+/**
+ * Encabezado de columna ordenable compartido entre tablas desktop. Sustituye
+ * las flechas de texto `↑/↓` por iconos Lucide con foco visible; el
+ * `aria-sort` del `<th>` se deriva con `ariaSortDe`.
+ */
+export function EncabezadoOrdenable({
+  label,
+  campoAsc,
+  campoDesc,
+  orden,
+  urlDe,
+  onNavegar,
+  alinearDerecha,
+}: {
+  label: string;
+  campoAsc: string;
+  campoDesc: string;
+  orden: string;
+  urlDe: (cambios: Record<string, string | null>) => string;
+  onNavegar: (url: string) => void;
+  alinearDerecha?: boolean;
+}) {
+  const direccion = ariaSortDe(orden, campoAsc, campoDesc);
+  const activo = direccion !== "none";
+  const siguiente = direccion === "descending" ? campoAsc : campoDesc;
+  const Icono =
+    direccion === "ascending"
+      ? ArrowUp
+      : direccion === "descending"
+        ? ArrowDown
+        : ArrowUpDown;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onNavegar(urlDe({ orden: siguiente }))}
+      className={cn(
+        "focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded outline-none hover:underline focus-visible:ring-2",
+        alinearDerecha ? "flex-row-reverse" : "",
+        activo ? "text-foreground" : "text-muted-foreground",
+      )}
+    >
+      {label}
+      <Icono
+        className={cn("size-3.5 shrink-0", activo ? "" : "opacity-50")}
+        aria-hidden="true"
+      />
+    </button>
+  );
+}
+
+/**
+ * Indicador de carga sobre una superficie que ya tiene contenido (tabla,
+ * panel de resultados). Atenúa lo anterior en vez de borrarlo — ver
+ * `docs/09-GUIA-REDISENO-UI-DESKTOP.md` §5 «Estado pendiente». `children`
+ * debe reproducir la geometría del contenido real (skeleton de filas/cards),
+ * no un loader aislado.
+ */
+export function IndicadorPendienteSuperficie({
+  children,
+  className,
+  top,
+}: {
+  children: ReactNode;
+  className?: string;
+  top?: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className={cn(
+        "bg-background/70 animate-in fade-in-0 absolute inset-0 duration-150 motion-reduce:animate-none",
+        top,
+        className,
+      )}
+    >
+      <span className="sr-only">Actualizando resultados…</span>
+      {children}
+    </div>
   );
 }

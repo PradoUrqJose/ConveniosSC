@@ -15,7 +15,7 @@ import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
 import { formatearSoles } from "@/lib/dinero";
 import { formatearFechaUI, hoyLima } from "@/lib/fechas";
 import { resumirVentas, ultimasVentas } from "@/modules/ventas/query";
-import { Metrica } from "@/components/shell/pagina-ui";
+import { HeroPagina, Metrica } from "@/components/shell/pagina-ui";
 import { medirServidor } from "@/lib/observabilidad";
 
 export default async function InicioPage() {
@@ -52,22 +52,16 @@ export default async function InicioPage() {
 
   return (
     <section className="page-shell">
-      <div className="from-primary via-primary relative overflow-hidden rounded-[1.25rem] bg-linear-to-br to-blue-950 px-4 py-4 text-white shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
-        <div className="absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:18px_18px] opacity-20" />
-        <div className="absolute -top-20 -right-16 size-64 rounded-full bg-cyan-300/25 blur-3xl" />
-        <div className="relative grid items-center gap-6 md:grid-cols-[1fr_auto]">
-          <div>
-            <p className="hidden items-center gap-2 text-xs font-bold tracking-[0.14em] text-cyan-100/80 uppercase sm:flex">
-              <Sparkles className="size-4" /> Tu espacio de ventas
-            </p>
-            <h1 className="text-xl font-bold tracking-[-0.045em] sm:mt-3 sm:text-4xl">
-              Hola, {nombre}
-            </h1>
-            <p className="mt-1 max-w-xl text-xs leading-5 text-blue-100/80 sm:mt-2 sm:text-base sm:leading-6">
-              Todo listo para registrar la siguiente venta.
-            </p>
-          </div>
-          {/* En móvil el botón central de la barra inferior ya cubre esta acción. */}
+      <HeroPagina
+        kicker={
+          <>
+            <Sparkles className="size-4" /> Tu espacio de ventas
+          </>
+        }
+        titulo={`Hola, ${nombre}`}
+        descripcion="Todo listo para registrar la siguiente venta."
+        accion={
+          // En móvil el botón central de la barra inferior ya cubre esta acción.
           <Link
             href="/ventas/nueva"
             className="group hidden min-h-16 items-center justify-between gap-5 rounded-2xl bg-white px-5 font-bold text-blue-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 hover:shadow-2xl active:translate-y-0 sm:flex md:min-w-60"
@@ -80,8 +74,8 @@ export default async function InicioPage() {
             </span>
             <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
           </Link>
-        </div>
-      </div>
+        }
+      />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metrica
