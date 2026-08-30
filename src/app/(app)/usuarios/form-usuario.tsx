@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -8,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { SelectorAsincrono } from "@/components/selector-asincrono";
 import {
   DialogClose,
   DialogContent,
@@ -17,13 +24,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { Resultado } from "@/lib/tipos";
-import { actualizarUsuario, crearUsuario } from "@/modules/usuarios/actions";
-import type {
-  EmpresaOpcion,
-  EmpleadoOpcion,
-  FilaUsuario,
-  SedeOpcion,
-} from "@/modules/usuarios/query";
+import {
+  actualizarUsuario,
+  buscarEmpleadosOpciones,
+  buscarEmpresasOpciones,
+  buscarSedesOpciones,
+  crearUsuario,
+} from "@/modules/usuarios/actions";
+import type { FilaUsuario } from "@/modules/usuarios/query";
 
 const ROLES = ["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"] as const;
 const ROLES_ADMIN = ["ADMIN_EMPRESA", "VENDEDOR"] as const;
@@ -40,18 +48,12 @@ const ESTADO_INICIAL: Estado = {
 
 export function FormUsuario({
   usuario,
-  empresas,
-  empleados,
-  sedes,
   esSuperadmin,
   esUnoMismo,
   onCerrar,
   onCreado,
 }: {
   usuario?: FilaUsuario | null;
-  empresas: EmpresaOpcion[];
-  empleados: EmpleadoOpcion[];
-  sedes: SedeOpcion[];
   esSuperadmin: boolean;
   esUnoMismo: boolean;
   onCerrar: () => void;
@@ -82,16 +84,24 @@ export function FormUsuario({
 
   const [rol, setRol] = useState<string>(usuario?.rol ?? "VENDEDOR");
   const [username, setUsername] = useState(usuario?.username ?? "");
-  const [empresaId, setEmpresaId] = useState(
-    usuario?.empresaId ?? empresas[0]?.id ?? "",
-  );
+  const [empresaId, setEmpresaId] = useState(usuario?.empresaId ?? "");
   const [empleadoId, setEmpleadoId] = useState(usuario?.empleadoId ?? "");
   const [sedeId, setSedeId] = useState(usuario?.sedePorDefectoId ?? "");
   const [activo, setActivo] = useState(usuario?.activo ?? true);
   const formulario = useRef<HTMLFormElement>(null);
 
-  const empleadosDeEmpresa = empleados.filter((e) => e.empresaId === empresaId);
-  const sedesDeEmpresa = sedes.filter((s) => s.empresaId === empresaId);
+  const buscarEmpresas = useCallback(
+    (q: string) => buscarEmpresasOpciones(q),
+    [],
+  );
+  const buscarEmpleados = useCallback(
+    (q: string) => buscarEmpleadosOpciones(q, empresaId),
+    [empresaId],
+  );
+  const buscarSedes = useCallback(
+    (q: string) => buscarSedesOpciones(q, empresaId),
+    [empresaId],
+  );
 
   useEffect(() => {
     if (!estado.ok || !estado.data) {
@@ -189,21 +199,20 @@ export function FormUsuario({
         {!esEdicion && esSuperadmin ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor="empresaId">Empresa</Label>
-            <select
+            <SelectorAsincrono
               id="empresaId"
               name="empresaId"
-              className="border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-sm"
               value={esSuperadminRol ? "" : empresaId}
-              onChange={(e) => setEmpresaId(e.target.value)}
+              etiquetaInicial={usuario?.empresaNombre ?? ""}
+              buscar={buscarEmpresas}
+              onChange={(id) => {
+                setEmpresaId(id);
+                setEmpleadoId("");
+                setSedeId("");
+              }}
               disabled={pendiente || esSuperadminRol}
-            >
-              <option value="">—</option>
-              {empresas.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombreComercial}
-                </option>
-              ))}
-            </select>
+              placeholder="Buscar empresa"
+            />
           </div>
         ) : null}
 
@@ -211,44 +220,34 @@ export function FormUsuario({
           <>
             <div className="flex flex-col gap-2">
               <Label htmlFor="empleadoId">Empleado (opcional)</Label>
-              <select
+              <SelectorAsincrono
                 id="empleadoId"
                 name="empleadoId"
-                className="border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-sm"
                 value={empleadoId}
-                onChange={(e) => setEmpleadoId(e.target.value)}
-                disabled={pendiente}
-              >
-                <option value="">Sin empleado</option>
-                {empleadosDeEmpresa.map((em) => (
-                  <option key={em.id} value={em.id}>
-                    {em.apellidos}, {em.nombres} (
-                    {em.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
-                    {em.numeroDocumento})
-                  </option>
-                ))}
-              </select>
+                etiquetaInicial={usuario?.empleadoId ? "Empleado asignado" : ""}
+                buscar={buscarEmpleados}
+                onChange={setEmpleadoId}
+                disabled={pendiente || !empresaId}
+                placeholder="Buscar por nombre o documento"
+              />
             </div>
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="sedePorDefectoId">
                 Sede por defecto (opcional)
               </Label>
-              <select
+              <SelectorAsincrono
                 id="sedePorDefectoId"
                 name="sedePorDefectoId"
-                className="border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-sm"
                 value={sedeId}
-                onChange={(e) => setSedeId(e.target.value)}
-                disabled={pendiente}
-              >
-                <option value="">Sin sede</option>
-                {sedesDeEmpresa.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.nombre}
-                  </option>
-                ))}
-              </select>
+                etiquetaInicial={
+                  usuario?.sedePorDefectoId ? "Sede asignada" : ""
+                }
+                buscar={buscarSedes}
+                onChange={setSedeId}
+                disabled={pendiente || !empresaId}
+                placeholder="Buscar sede"
+              />
             </div>
           </>
         ) : null}

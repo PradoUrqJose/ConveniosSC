@@ -10,10 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { formatearFechaUI } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
-import type {
-  FilaConvenio,
-  EmpresaParaConvenio,
-} from "@/modules/convenios/query";
+import type { FilaConvenio } from "@/modules/convenios/query";
 import { FormConvenio } from "./form-convenio";
 import { FormEditarConvenio } from "./form-editar";
 import {
@@ -41,13 +38,7 @@ function EtiquetaEstado({ estado }: { estado: FilaConvenio["estado"] }) {
   return <Badge variant="secondary">{estado}</Badge>;
 }
 
-export function ConveniosClient({
-  pagina,
-  empresas,
-}: {
-  pagina: Pagina<FilaConvenio>;
-  empresas: EmpresaParaConvenio[];
-}) {
+export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [dialogo, setDialogo] = useState<Dialogo | null>(null);
@@ -172,10 +163,7 @@ export function ConveniosClient({
       {dialogo ? (
         <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
           {dialogo.tipo === "crear" ? (
-            <FormConvenio
-              empresas={empresas}
-              onCerrar={() => setDialogo(null)}
-            />
+            <FormConvenio onCerrar={() => setDialogo(null)} />
           ) : dialogo.tipo === "editar" ? (
             <FormEditarConvenio
               convenio={dialogo.convenio}

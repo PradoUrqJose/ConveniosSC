@@ -203,14 +203,19 @@ export type EmpresaParaConvenio = { id: string; nombreComercial: string };
 /** Empresas activas para el formulario de crear convenio. */
 export async function listarEmpresasParaConvenio(
   ctx: SessionContext,
+  entrada: { q?: string } = {},
+  ejecutor: TransaccionAuditada = db,
 ): Promise<EmpresaParaConvenio[]> {
   requireRol(ctx, ["SUPERADMIN"]);
+  const where = entrada.q
+    ? sql`WHERE activo AND (nombre_comercial || ' ' || razon_social) ILIKE ${`%${entrada.q}%`}`
+    : sql`WHERE activo`;
 
   const filas = obtenerFilas(
-    await db.execute(sql`
+    await ejecutor.execute(sql`
       SELECT id, nombre_comercial FROM empresas
-      WHERE activo
-      ORDER BY nombre_comercial ASC
+      ${where}
+      ORDER BY nombre_comercial ASC LIMIT 50
     `),
   );
   return filas.map((f) => ({

@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { obtenerFilas } from "@/lib/audit/registrar";
+import { obtenerFilas, type TransaccionAuditada } from "@/lib/audit/registrar";
 import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import type { RolUsuario } from "@/lib/auth/sesion";
 import { hoyLima, sumarDias } from "@/lib/fechas";
@@ -39,6 +39,7 @@ export type SedeOpcion = { id: string; empresaId: string; nombre: string };
 
 const POR_PAGINA = 20;
 const HOY = hoyLima();
+const LIMITE_OPCIONES = 50;
 
 /** `listarUsuarios` (03 §5). El ADMIN_EMPRESA ve solo su empresa. */
 export async function listarUsuarios(
@@ -140,11 +141,17 @@ export async function listarUsuarios(
 /** Empresas para el filtro y el formulario (solo SUPERADMIN). */
 export async function listarEmpresasOpciones(
   ctx: SessionContext,
+  entrada: { q?: string } = {},
+  ejecutor: TransaccionAuditada = db,
 ): Promise<EmpresaOpcion[]> {
   requireRol(ctx, ["SUPERADMIN"]);
+  const where = entrada.q
+    ? sql`WHERE (nombre_comercial || ' ' || razon_social) ILIKE ${`%${entrada.q}%`}`
+    : sql``;
   const filas = obtenerFilas(
-    await db.execute(sql`
-      SELECT id, nombre_comercial FROM empresas ORDER BY nombre_comercial ASC
+    await ejecutor.execute(sql`
+      SELECT id, nombre_comercial FROM empresas ${where}
+      ORDER BY nombre_comercial ASC LIMIT ${LIMITE_OPCIONES}
     `),
   );
   return filas.map((f) => ({
@@ -156,18 +163,29 @@ export async function listarEmpresasOpciones(
 /** Empleados (formulario de usuario). El ADMIN_EMPRESA ve solo los suyos. */
 export async function listarEmpleadosOpciones(
   ctx: SessionContext,
+  entrada: { q?: string; empresaId?: string } = {},
+  ejecutor: TransaccionAuditada = db,
 ): Promise<EmpleadoOpcion[]> {
   requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
-  const condicion =
+  const condicion = [
     ctx.rol === "ADMIN_EMPRESA"
-      ? sql`WHERE em.empresa_id = ${ctx.empresaId}`
-      : sql``;
+      ? sql`em.empresa_id = ${ctx.empresaId}`
+      : entrada.empresaId
+        ? sql`em.empresa_id = ${entrada.empresaId}`
+        : undefined,
+    entrada.q
+      ? sql`(em.dni = ${entrada.q} OR (em.nombres || ' ' || em.apellidos) ILIKE ${`%${entrada.q}%`})`
+      : undefined,
+  ].filter((c) => c !== undefined) as ReturnType<typeof sql>[];
+  const where = condicion.length
+    ? sql`WHERE ${sql.join(condicion, sql` AND `)}`
+    : sql``;
   const filas = obtenerFilas(
-    await db.execute(sql`
+    await ejecutor.execute(sql`
       SELECT em.id, em.empresa_id, em.tipo_documento, em.dni AS numero_documento, em.nombres, em.apellidos
       FROM empleados em
-      ${condicion}
-      ORDER BY em.apellidos ASC, em.nombres ASC
+      ${where}
+      ORDER BY em.apellidos ASC, em.nombres ASC LIMIT ${LIMITE_OPCIONES}
     `),
   );
   return filas.map((f) => ({
@@ -183,17 +201,26 @@ export async function listarEmpleadosOpciones(
 /** Sedes (formulario de usuario). El ADMIN_EMPRESA ve solo las suyas. */
 export async function listarSedesOpciones(
   ctx: SessionContext,
+  entrada: { q?: string; empresaId?: string } = {},
+  ejecutor: TransaccionAuditada = db,
 ): Promise<SedeOpcion[]> {
   requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
-  const condicion =
+  const condicion = [
     ctx.rol === "ADMIN_EMPRESA"
-      ? sql`WHERE s.empresa_id = ${ctx.empresaId}`
-      : sql``;
+      ? sql`s.empresa_id = ${ctx.empresaId}`
+      : entrada.empresaId
+        ? sql`s.empresa_id = ${entrada.empresaId}`
+        : undefined,
+    entrada.q ? sql`s.nombre ILIKE ${`%${entrada.q}%`}` : undefined,
+  ].filter((c) => c !== undefined) as ReturnType<typeof sql>[];
+  const where = condicion.length
+    ? sql`WHERE ${sql.join(condicion, sql` AND `)}`
+    : sql``;
   const filas = obtenerFilas(
-    await db.execute(sql`
+    await ejecutor.execute(sql`
       SELECT s.id, s.empresa_id, s.nombre FROM sedes s
-      ${condicion}
-      ORDER BY s.nombre ASC
+      ${where}
+      ORDER BY s.nombre ASC LIMIT ${LIMITE_OPCIONES}
     `),
   );
   return filas.map((f) => ({

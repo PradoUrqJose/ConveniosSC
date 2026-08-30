@@ -2,10 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
-import {
-  listarConvenios,
-  listarEmpresasParaConvenio,
-} from "@/modules/convenios/query";
+import { listarConvenios } from "@/modules/convenios/query";
 import { ConveniosClient } from "./convenios-client";
 
 export default async function AdminConveniosPage({
@@ -46,10 +43,7 @@ export default async function AdminConveniosPage({
   }
 
   const { cursor } = await searchParams;
-  const [pagina, empresas] = await Promise.all([
-    listarConvenios(sesion, { cursor }),
-    listarEmpresasParaConvenio(sesion),
-  ]);
+  const pagina = await listarConvenios(sesion, { cursor });
 
-  return <ConveniosClient pagina={pagina} empresas={empresas} />;
+  return <ConveniosClient pagina={pagina} />;
 }

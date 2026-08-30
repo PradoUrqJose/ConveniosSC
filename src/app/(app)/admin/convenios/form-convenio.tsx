@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -8,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { SelectorAsincrono } from "@/components/selector-asincrono";
 import {
   DialogClose,
   DialogContent,
@@ -18,8 +25,10 @@ import {
 } from "@/components/ui/dialog";
 import { hoyLima } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
-import { crearConvenio } from "@/modules/convenios/actions";
-import type { EmpresaParaConvenio } from "@/modules/convenios/query";
+import {
+  buscarEmpresasParaConvenio,
+  crearConvenio,
+} from "@/modules/convenios/actions";
 
 type Estado = Resultado<{ convenioId?: string }>;
 
@@ -29,13 +38,7 @@ const ESTADO_INICIAL: Estado = {
   mensaje: "",
 };
 
-export function FormConvenio({
-  empresas,
-  onCerrar,
-}: {
-  empresas: EmpresaParaConvenio[];
-  onCerrar: () => void;
-}) {
+export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
   const router = useRouter();
   const [estado, formAction, pendiente] = useActionState(
     async (estadoAnterior: Estado, formData: FormData): Promise<Estado> => {
@@ -48,18 +51,18 @@ export function FormConvenio({
     ESTADO_INICIAL,
   );
 
-  const [empresaX, setEmpresaX] = useState(empresas[0]?.id ?? "");
-  const [empresaY, setEmpresaY] = useState(empresas[1]?.id ?? "");
+  const [empresaX, setEmpresaX] = useState("");
+  const [empresaY, setEmpresaY] = useState("");
   const [descuentoX, setDescuentoX] = useState("");
   const [descuentoY, setDescuentoY] = useState("");
   const [vigenciaHasta, setVigenciaHasta] = useState("");
   const [activar, setActivar] = useState(true);
   const formulario = useRef<HTMLFormElement>(null);
 
-  const nombreX =
-    empresas.find((e) => e.id === empresaX)?.nombreComercial ?? "—";
-  const nombreY =
-    empresas.find((e) => e.id === empresaY)?.nombreComercial ?? "—";
+  const buscarEmpresas = useCallback(
+    (q: string) => buscarEmpresasParaConvenio(q),
+    [],
+  );
 
   useEffect(() => {
     if (!estado.ok || !estado.data) {
@@ -90,38 +93,28 @@ export function FormConvenio({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="empresaX">Empresa X</Label>
-            <select
+            <SelectorAsincrono
               id="empresaX"
               name="empresaXId"
-              className="border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-sm"
               value={empresaX}
-              onChange={(e) => setEmpresaX(e.target.value)}
+              buscar={buscarEmpresas}
+              onChange={setEmpresaX}
               disabled={pendiente}
-            >
-              {empresas.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombreComercial}
-                </option>
-              ))}
-            </select>
+              placeholder="Buscar empresa"
+            />
           </div>
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="empresaY">Empresa Y</Label>
-            <select
+            <SelectorAsincrono
               id="empresaY"
               name="empresaYId"
-              className="border-input bg-background text-foreground h-8 w-full rounded-md border px-2 text-sm"
               value={empresaY}
-              onChange={(e) => setEmpresaY(e.target.value)}
+              buscar={buscarEmpresas}
+              onChange={setEmpresaY}
               disabled={pendiente}
-            >
-              {empresas.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.nombreComercial}
-                </option>
-              ))}
-            </select>
+              placeholder="Buscar empresa"
+            />
           </div>
         </div>
 
@@ -154,7 +147,7 @@ export function FormConvenio({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="descuentoXotorga">
-            {nombreX} → empleados de {nombreY}
+            Empresa X → empleados de empresa Y
           </Label>
           <div className="flex items-center gap-2">
             <Input
@@ -172,7 +165,7 @@ export function FormConvenio({
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="descuentoYotorga">
-            {nombreY} → empleados de {nombreX}
+            Empresa Y → empleados de empresa X
           </Label>
           <div className="flex items-center gap-2">
             <Input
@@ -248,7 +241,7 @@ export function FormConvenio({
           <DialogClose render={<Button variant="outline" />}>
             Cancelar
           </DialogClose>
-          <Button type="submit" disabled={pendiente || empresas.length < 2}>
+          <Button type="submit" disabled={pendiente || !empresaX || !empresaY}>
             {pendiente ? "Creando…" : "Crear convenio"}
           </Button>
         </DialogFooter>

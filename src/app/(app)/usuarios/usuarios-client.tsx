@@ -11,12 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { formatearFechaHoraLima } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
-import type {
-  EmpresaOpcion,
-  EmpleadoOpcion,
-  FilaUsuario,
-  SedeOpcion,
-} from "@/modules/usuarios/query";
+import type { FilaUsuario } from "@/modules/usuarios/query";
 import { FormUsuario } from "./form-usuario";
 import { DialogoResetear } from "./dialogo-resetear";
 import { DialogoDesactivar } from "./dialogo-desactivar";
@@ -55,17 +50,11 @@ function RolBadge({ rol }: { rol: FilaUsuario["rol"] }) {
 export function UsuariosClient({
   pagina,
   q,
-  empresas,
-  empleados,
-  sedes,
   esSuperadmin,
   yoUsuarioId,
 }: {
   pagina: Pagina<FilaUsuario>;
   q?: string;
-  empresas: EmpresaOpcion[];
-  empleados: EmpleadoOpcion[];
-  sedes: SedeOpcion[];
   esSuperadmin: boolean;
   yoUsuarioId: string;
 }) {
@@ -253,9 +242,6 @@ export function UsuariosClient({
         <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
           {dialogo.tipo === "crear" ? (
             <FormUsuario
-              empresas={empresas}
-              empleados={empleados}
-              sedes={sedes}
               esSuperadmin={esSuperadmin}
               esUnoMismo={false}
               onCerrar={() => setDialogo(null)}
@@ -266,9 +252,6 @@ export function UsuariosClient({
           ) : dialogo.tipo === "editar" ? (
             <FormUsuario
               usuario={dialogo.usuario}
-              empresas={empresas}
-              empleados={empleados}
-              sedes={sedes}
               esSuperadmin={esSuperadmin}
               esUnoMismo={dialogo.usuario.id === yoUsuarioId}
               onCerrar={() => setDialogo(null)}

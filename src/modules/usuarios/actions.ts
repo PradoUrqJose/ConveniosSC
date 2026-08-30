@@ -16,6 +16,63 @@ import {
   type DatosActualizarUsuario,
   type DatosCrearUsuario,
 } from "./acciones";
+import {
+  listarEmpleadosOpciones,
+  listarEmpresasOpciones,
+  listarSedesOpciones,
+} from "./query";
+
+export type OpcionBuscada = { id: string; etiqueta: string };
+
+const zBusqueda = z.string().trim().max(100).catch("");
+
+function normalizarBusqueda(q: string): string {
+  return zBusqueda.parse(q);
+}
+
+export async function buscarEmpresasOpciones(
+  q: string,
+): Promise<OpcionBuscada[]> {
+  const ctx = await requireSession();
+  return (await listarEmpresasOpciones(ctx, { q: normalizarBusqueda(q) })).map(
+    (e) => ({
+      id: e.id,
+      etiqueta: e.nombreComercial,
+    }),
+  );
+}
+
+export async function buscarEmpleadosOpciones(
+  q: string,
+  empresaId?: string,
+): Promise<OpcionBuscada[]> {
+  const ctx = await requireSession();
+  return (
+    await listarEmpleadosOpciones(ctx, {
+      q: normalizarBusqueda(q),
+      empresaId,
+    })
+  ).map((e) => ({
+    id: e.id,
+    etiqueta: `${e.apellidos}, ${e.nombres} (${e.tipoDocumento === "DNI" ? "DNI" : "CE"} ${e.numeroDocumento})`,
+  }));
+}
+
+export async function buscarSedesOpciones(
+  q: string,
+  empresaId?: string,
+): Promise<OpcionBuscada[]> {
+  const ctx = await requireSession();
+  return (
+    await listarSedesOpciones(ctx, {
+      q: normalizarBusqueda(q),
+      empresaId,
+    })
+  ).map((s) => ({
+    id: s.id,
+    etiqueta: s.nombre,
+  }));
+}
 
 const zRol = z.enum(["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"]);
 

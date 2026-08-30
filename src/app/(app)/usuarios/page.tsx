@@ -2,12 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
-import {
-  listarEmpleadosOpciones,
-  listarEmpresasOpciones,
-  listarSedesOpciones,
-  listarUsuarios,
-} from "@/modules/usuarios/query";
+import { listarUsuarios } from "@/modules/usuarios/query";
 import { UsuariosClient } from "./usuarios-client";
 
 export default async function UsuariosPage({
@@ -48,20 +43,12 @@ export default async function UsuariosPage({
   }
 
   const { q, cursor } = await searchParams;
-  const [pagina, empresas, empleados, sedes] = await Promise.all([
-    listarUsuarios(sesion, { q, cursor }),
-    listarEmpresasOpciones(sesion),
-    listarEmpleadosOpciones(sesion),
-    listarSedesOpciones(sesion),
-  ]);
+  const pagina = await listarUsuarios(sesion, { q, cursor });
 
   return (
     <UsuariosClient
       pagina={pagina}
       q={q}
-      empresas={empresas}
-      empleados={empleados}
-      sedes={sedes}
       esSuperadmin={true}
       yoUsuarioId={sesion.usuarioId}
     />

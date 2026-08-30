@@ -11,6 +11,12 @@ import {
   desbloquearUsuarioCore,
   resetearPasswordCore,
 } from "@/modules/usuarios/acciones";
+import {
+  listarEmpleadosOpciones,
+  listarEmpresasOpciones,
+  listarSedesOpciones,
+} from "@/modules/usuarios/query";
+import { listarEmpresasParaConvenio } from "@/modules/convenios/query";
 import { autenticar } from "@/lib/auth/login";
 import { hashPassword, verificarPassword } from "@/lib/auth/password";
 import type { RolUsuario } from "@/lib/auth/sesion";
@@ -378,6 +384,72 @@ describe.skipIf(!ACTIVO)("Aceptación T10 — usuarios", () => {
         [ajenoB],
       );
       expect(fila.rows[0].bloqueado_hasta).not.toBeNull();
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+  });
+
+  it("los selectores devuelven hasta 50 opciones y encuentran por nombre o documento", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const token = `selector${Math.random().toString(36).slice(2, 8)}`;
+      const indices = Array.from({ length: 51 }, (_, i) => i);
+      const nombresEmpresa = indices.map(
+        (i) => `${token} empresa ${String(i).padStart(2, "0")}`,
+      );
+      const rucs = indices.map(
+        (i) => `20${String((Date.now() + i) % 1_000_000_000).padStart(9, "0")}`,
+      );
+      const empresas = await c.query(
+        `INSERT INTO empresas (ruc, razon_social, nombre_comercial)
+         SELECT ruc, nombre, nombre
+         FROM unnest($1::text[], $2::text[]) AS datos(ruc, nombre)
+         RETURNING id`,
+        [rucs, nombresEmpresa],
+      );
+      const empresaId = empresas.rows[0]!.id as string;
+      const documentos = indices.map((i) => String(70_000_000 + i));
+      const nombresEmpleado = indices.map(
+        (i) => `${token} empleado ${String(i).padStart(2, "0")}`,
+      );
+      const nombresSede = indices.map(
+        (i) => `${token} sede ${String(i).padStart(2, "0")}`,
+      );
+      await c.query(
+        `INSERT INTO empleados (empresa_id, dni, nombres, apellidos)
+         SELECT $1, dni, nombre, 'Prueba'
+         FROM unnest($2::text[], $3::text[]) AS datos(dni, nombre)`,
+        [empresaId, documentos, nombresEmpleado],
+      );
+      await c.query(
+        `INSERT INTO sedes (empresa_id, nombre)
+         SELECT $1, nombre FROM unnest($2::text[]) AS datos(nombre)`,
+        [empresaId, nombresSede],
+      );
+
+      const ejecutor = adaptador(c);
+      const ctx = ctxSesion({});
+      await expect(
+        listarEmpresasOpciones(ctx, { q: token }, ejecutor),
+      ).resolves.toHaveLength(50);
+      await expect(
+        listarEmpresasParaConvenio(ctx, { q: token }, ejecutor),
+      ).resolves.toHaveLength(50);
+      await expect(
+        listarEmpleadosOpciones(ctx, { empresaId, q: token }, ejecutor),
+      ).resolves.toHaveLength(50);
+      await expect(
+        listarSedesOpciones(ctx, { empresaId, q: token }, ejecutor),
+      ).resolves.toHaveLength(50);
+
+      await expect(
+        listarEmpresasOpciones(ctx, { q: `${token} empresa 50` }, ejecutor),
+      ).resolves.toHaveLength(1);
+      await expect(
+        listarEmpleadosOpciones(ctx, { empresaId, q: "70000050" }, ejecutor),
+      ).resolves.toHaveLength(1);
     } finally {
       await c.query("ROLLBACK").catch(() => undefined);
       await c.end();

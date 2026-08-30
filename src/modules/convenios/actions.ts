@@ -17,6 +17,19 @@ import {
   type DatosCrearConvenio,
   type EstadoConvenio,
 } from "./acciones";
+import { listarEmpresasParaConvenio } from "./query";
+
+const zBusqueda = z.string().trim().max(100).catch("");
+
+export async function buscarEmpresasParaConvenio(q: string) {
+  const ctx = await requireSession();
+  return (await listarEmpresasParaConvenio(ctx, { q: zBusqueda.parse(q) })).map(
+    (empresa) => ({
+      id: empresa.id,
+      etiqueta: empresa.nombreComercial,
+    }),
+  );
+}
 
 /** Porcentaje con hasta 2 decimales ("15", "12.5") → bps enteros (×100). */
 const zPorcentajeBps = z
