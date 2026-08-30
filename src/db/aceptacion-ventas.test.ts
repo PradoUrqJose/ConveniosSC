@@ -757,7 +757,7 @@ describe.skipIf(!ACTIVO)(
       }
     }, 60_000);
 
-    it("el resumen corresponde al filtro completo, no a la página visible", async () => {
+    it("el resumen corresponde al filtro completo y los cursores recorren cada orden sin repetir ventas", async () => {
       const c = await conexion();
       try {
         await c.query("BEGIN");
@@ -792,21 +792,38 @@ describe.skipIf(!ACTIVO)(
         }
 
         const ctxVendedor = ctx(vendedorId, idA, "VENDEDOR");
-        const pagina1 = await listarVentas(ctxVendedor, {}, adaptador(c));
-        expect(pagina1.items).toHaveLength(25);
-        expect(pagina1.resumen.cantidad).toBe(26);
-        expect(pagina1.total).toBe(26);
-        expect(pagina1.cursor).not.toBeNull();
+        for (const orden of [
+          "fecha_desc",
+          "fecha_asc",
+          "monto_desc",
+          "monto_asc",
+        ] as const) {
+          const pagina1 = await listarVentas(
+            ctxVendedor,
+            { orden },
+            adaptador(c),
+          );
+          expect(pagina1.items).toHaveLength(25);
+          expect(pagina1.resumen.cantidad).toBe(26);
+          expect(pagina1.total).toBe(26);
+          expect(pagina1.cursor).not.toBeNull();
 
-        const pagina2 = await listarVentas(
-          ctxVendedor,
-          { cursor: pagina1.cursor ?? undefined },
-          adaptador(c),
-        );
-        expect(pagina2.items).toHaveLength(1);
-        // El resumen es del filtro completo, no de la página: igual en ambas.
-        expect(pagina2.resumen.cantidad).toBe(26);
-        expect(pagina2.total).toBeUndefined();
+          const pagina2 = await listarVentas(
+            ctxVendedor,
+            { orden, cursor: pagina1.cursor ?? undefined },
+            adaptador(c),
+          );
+          expect(pagina2.items).toHaveLength(1);
+          expect(pagina2.cursor).toBeNull();
+          // El resumen es del filtro completo, no de la página: igual en ambas.
+          expect(pagina2.resumen.cantidad).toBe(26);
+          expect(pagina2.total).toBeUndefined();
+          expect(
+            new Set(
+              [...pagina1.items, ...pagina2.items].map((venta) => venta.id),
+            ),
+          ).toHaveLength(26);
+        }
       } finally {
         await c.query("ROLLBACK").catch(() => undefined);
         await c.end();

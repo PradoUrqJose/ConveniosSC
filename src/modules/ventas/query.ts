@@ -341,9 +341,9 @@ function fragmentoOrden(orden: OrdenVentas): SQL {
     case "fecha_asc":
       return sql`v.fecha_venta ASC, v.id ASC`;
     case "monto_desc":
-      return sql`v.monto_final_centimos DESC, v.id DESC`;
+      return sql`v.monto_final_centimos DESC NULLS LAST, v.id DESC NULLS LAST`;
     case "monto_asc":
-      return sql`v.monto_final_centimos ASC, v.id ASC`;
+      return sql`v.monto_final_centimos ASC NULLS FIRST, v.id ASC NULLS FIRST`;
     case "fecha_desc":
     default:
       return sql`v.fecha_venta DESC, v.id DESC`;

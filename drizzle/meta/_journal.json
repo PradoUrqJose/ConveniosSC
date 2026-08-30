@@ -36,6 +36,13 @@
       "when": 1788030080696,
       "tag": "0004_windy_skullbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788062902977,
+      "tag": "0005_sleepy_paibok",
+      "breakpoints": true
     }
   ]
 }

@@ -120,6 +120,7 @@ export const empresas = pgTable(
     index("empresas_activo_idx")
       .on(t.activo)
       .where(sql`${t.activo}`),
+    index("empresas_orden_idx").on(t.nombreComercial, t.id),
     check("empresas_ruc_check", sql`${t.ruc} ~ '^[0-9]{11}$'`),
     check(
       "empresas_razon_social_check",
@@ -192,6 +193,7 @@ export const usuarios = pgTable(
     index("usuarios_empresa_idx")
       .on(t.empresaId)
       .where(sql`${t.activo}`),
+    index("usuarios_orden_idx").on(t.username, t.id),
     check(
       "usuarios_rol_empresa_check",
       sql`(${t.rol} = 'SUPERADMIN' AND ${t.empresaId} IS NULL) OR (${t.rol} <> 'SUPERADMIN' AND ${t.empresaId} IS NOT NULL)`,
@@ -309,6 +311,7 @@ export const empleados = pgTable(
     unique("empleados_documento_uk").on(t.tipoDocumento, t.numeroDocumento),
     index("empleados_empresa_idx").on(t.empresaId),
     index("empleados_estado_idx").on(t.empresaId, t.estado),
+    index("empleados_orden_idx").on(t.apellidos, t.nombres, t.id),
     check(
       "empleados_documento_check",
       sql`(${t.tipoDocumento} = 'DNI' AND ${t.numeroDocumento} ~ '^[0-9]{8}$') OR (${t.tipoDocumento} = 'CARNET_EXTRANJERIA' AND ${t.numeroDocumento} ~ '^[A-Z0-9]([A-Z0-9-]{0,10}[A-Z0-9])?$')`,
@@ -422,6 +425,22 @@ export const ventas = pgTable(
     index("ventas_fecha_registrada_idx")
       .on(t.fechaVenta.desc())
       .where(sql`${t.estado} = 'REGISTRADA'`),
+    index("ventas_monto_idx").on(t.montoFinalCentimos.desc(), t.id.desc()),
+    index("ventas_vendedor_monto_idx").on(
+      t.vendedorUsuarioId,
+      t.montoFinalCentimos.desc(),
+      t.id.desc(),
+    ),
+    index("ventas_vendedora_monto_idx").on(
+      t.empresaVendedoraId,
+      t.montoFinalCentimos.desc(),
+      t.id.desc(),
+    ),
+    index("ventas_compradora_monto_idx").on(
+      t.empresaCompradoraId,
+      t.montoFinalCentimos.desc(),
+      t.id.desc(),
+    ),
     index("ventas_revision_idx")
       .on(t.empresaVendedoraId)
       .where(sql`${t.requiereRevision}`),
