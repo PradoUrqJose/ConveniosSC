@@ -553,6 +553,7 @@ export const auditoria = pgTable(
   },
   (t) => [
     index("auditoria_ts_idx").on(t.ts.desc()),
+    index("auditoria_ts_id_idx").on(t.ts.desc(), t.id.desc()),
     index("auditoria_entidad_idx").on(t.entidad, t.entidadId, t.ts.desc()),
     index("auditoria_actor_idx").on(t.actorUsuarioId, t.ts.desc()),
     index("auditoria_empresa_idx").on(t.actorEmpresaId, t.ts.desc()),

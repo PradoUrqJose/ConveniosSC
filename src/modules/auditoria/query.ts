@@ -53,15 +53,15 @@ export async function listarAuditoria(
   if (entrada.entidadId) filtros.push(sql`a.entidad_id = ${entrada.entidadId}`);
   if (entrada.actorId)
     filtros.push(sql`a.actor_usuario_id = ${entrada.actorId}`);
-  const cursor = Number(entrada.cursor);
-  if (Number.isSafeInteger(cursor) && cursor > 0)
-    filtros.push(sql`a.id < ${cursor}`);
+  const cursor = decodificarCursor(entrada.cursor);
+  if (cursor)
+    filtros.push(sql`(a.ts, a.id) < (${cursor.ts}::timestamptz, ${cursor.id})`);
   const where = filtros.length
     ? sql`WHERE ${sql.join(filtros, sql` AND `)}`
     : sql``;
   const rows = obtenerFilas(
     await ejecutor.execute(
-      sql`SELECT a.id,a.ts,a.accion,a.entidad,a.entidad_id,a.datos_antes,a.datos_despues,a.ip,u.id actor_id,u.username,u.nombres,u.apellidos,u.rol FROM auditoria a LEFT JOIN usuarios u ON u.id=a.actor_usuario_id ${where} ORDER BY a.id DESC LIMIT ${POR_PAGINA + 1}`,
+      sql`SELECT a.id,a.ts,a.accion,a.entidad,a.entidad_id,a.datos_antes,a.datos_despues,a.ip,u.id actor_id,u.username,u.nombres,u.apellidos,u.rol FROM auditoria a LEFT JOIN usuarios u ON u.id=a.actor_usuario_id ${where} ORDER BY a.ts DESC, a.id DESC LIMIT ${POR_PAGINA + 1}`,
     ),
   );
   const hasMore = rows.length > POR_PAGINA;
@@ -84,5 +84,38 @@ export async function listarAuditoria(
         }
       : null,
   }));
-  return { items, cursor: hasMore ? String(items.at(-1)?.id) : null };
+  const ultimo = rows[POR_PAGINA - 1];
+  return {
+    items,
+    cursor: hasMore && ultimo ? codificarCursor(ultimo) : null,
+  };
+}
+
+function decodificarCursor(
+  cursor: string | undefined,
+): { ts: string; id: number } | null {
+  if (!cursor) return null;
+  try {
+    const raw = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    if (
+      typeof raw.ts === "string" &&
+      raw.ts &&
+      typeof raw.id === "number" &&
+      Number.isSafeInteger(raw.id) &&
+      raw.id > 0
+    ) {
+      return { ts: raw.ts, id: raw.id };
+    }
+  } catch {
+    // Cursor inválido: se ignora y se devuelve la primera página.
+  }
+  return null;
+}
+
+function codificarCursor(fila: Record<string, unknown>): string {
+  const ts = fila.ts instanceof Date ? fila.ts.toISOString() : String(fila.ts);
+  return Buffer.from(
+    JSON.stringify({ ts, id: Number(fila.id) }),
+    "utf8",
+  ).toString("base64url");
 }

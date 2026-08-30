@@ -1,0 +1,1 @@
+CREATE INDEX "auditoria_ts_id_idx" ON "auditoria" USING btree ("ts" DESC NULLS LAST,"id" DESC NULLS LAST);

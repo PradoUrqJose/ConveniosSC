@@ -50,6 +50,13 @@
       "when": 1788064414757,
       "tag": "0006_past_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1788066244103,
+      "tag": "0007_burly_scream",
+      "breakpoints": true
     }
   ]
 }
