@@ -16,6 +16,7 @@ import { formatearSoles } from "@/lib/dinero";
 import { formatearFechaUI, hoyLima } from "@/lib/fechas";
 import { resumirVentas, ultimasVentas } from "@/modules/ventas/query";
 import { Metrica } from "@/components/shell/pagina-ui";
+import { medirServidor } from "@/lib/observabilidad";
 
 export default async function InicioPage() {
   let sesion;
@@ -39,10 +40,14 @@ export default async function InicioPage() {
     estado: "REGISTRADA",
     orden: "fecha_desc",
   } as const;
-  const [resumenMes, recientes] = await Promise.all([
-    resumirVentas(sesion, filtrosMes),
-    ultimasVentas(sesion, filtrosMes, 5),
-  ]);
+  const [resumenMes, recientes] = await medirServidor("inicio.pagina", () =>
+    Promise.all([
+      medirServidor("inicio.resumen", () => resumirVentas(sesion, filtrosMes)),
+      medirServidor("inicio.recientes", () =>
+        ultimasVentas(sesion, filtrosMes, 5),
+      ),
+    ]),
+  );
   const nombre = sesion.nombres;
 
   return (

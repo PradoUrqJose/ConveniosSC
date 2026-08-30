@@ -13,6 +13,7 @@ import { Header } from "@/components/shell/header";
 import { CabeceraPuntoVenta } from "@/components/shell/cabecera-punto-venta";
 import { TabBarMovil } from "@/components/shell/tab-bar-movil";
 import { BannerOffline } from "@/components/shell/banner-offline";
+import { medirServidor } from "@/lib/observabilidad";
 
 export default async function AppLayout({
   children,
@@ -46,7 +47,9 @@ export default async function AppLayout({
   const perfil = perfilNavDesdeSesion(sesion);
   const pendientesEmpleados =
     sesion.rol === "ADMIN_EMPRESA" && sesion.empresaId
-      ? await contarPendientesVerificacion(db, sesion.empresaId)
+      ? await medirServidor("layout.badge-pendientes", () =>
+          contarPendientesVerificacion(db, sesion.empresaId!),
+        )
       : 0;
   const nav = navegacionPorRol(sesion.rol);
   const esPuntoVenta = pathname === "/ventas/nueva";

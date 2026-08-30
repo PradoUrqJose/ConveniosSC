@@ -5,6 +5,7 @@ import { after } from "next/server";
 import { cache } from "react";
 
 import { db } from "@/db";
+import { medirServidor } from "@/lib/observabilidad";
 
 import {
   obtenerSesionValida,
@@ -52,35 +53,37 @@ export type SesionRequerida = SessionContext &
 
 /** 401 si no hay cookie o la sesión no es válida (02 §3: guarda explícita). */
 export const requireSession = cache(async (): Promise<SesionRequerida> => {
-  const store = await cookies();
-  const token = store.get(SESSION_COOKIE_NAME)?.value;
-  if (!token) {
-    throw new ErrorAuth("NO_AUTENTICADO", "No hay sesión activa.");
-  }
+  return medirServidor("sesion.validacion", async () => {
+    const store = await cookies();
+    const token = store.get(SESSION_COOKIE_NAME)?.value;
+    if (!token) {
+      throw new ErrorAuth("NO_AUTENTICADO", "No hay sesión activa.");
+    }
 
-  const sesion = await obtenerSesionValida(db, token);
-  if (!sesion) {
-    throw new ErrorAuth("NO_AUTENTICADO", "La sesión no es válida.");
-  }
+    const sesion = await obtenerSesionValida(db, token);
+    if (!sesion) {
+      throw new ErrorAuth("NO_AUTENTICADO", "La sesión no es válida.");
+    }
 
-  // No es necesario retrasar la navegación para actualizar un dato auxiliar.
-  // `after` mantiene la actualización, pero la respuesta sale de inmediato.
-  after(() => refrescarUltimoUso(db, sesion.sesionId));
+    // No es necesario retrasar la navegación para actualizar un dato auxiliar.
+    // `after` mantiene la actualización, pero la respuesta sale de inmediato.
+    after(() => refrescarUltimoUso(db, sesion.sesionId));
 
-  const hdrs = await headers();
-  return {
-    usuarioId: sesion.usuarioId,
-    empresaId: sesion.empresaId,
-    rol: sesion.rol,
-    requestId: randomUUID(),
-    ip: obtenerIp(hdrs),
-    userAgent: hdrs.get("user-agent") ?? null,
-    debeCambiarPassword: sesion.debeCambiarPassword,
-    nombres: sesion.nombres,
-    apellidos: sesion.apellidos,
-    empresaNombre: sesion.empresaNombre,
-    sedePorDefectoId: sesion.sedePorDefectoId,
-  };
+    const hdrs = await headers();
+    return {
+      usuarioId: sesion.usuarioId,
+      empresaId: sesion.empresaId,
+      rol: sesion.rol,
+      requestId: randomUUID(),
+      ip: obtenerIp(hdrs),
+      userAgent: hdrs.get("user-agent") ?? null,
+      debeCambiarPassword: sesion.debeCambiarPassword,
+      nombres: sesion.nombres,
+      apellidos: sesion.apellidos,
+      empresaNombre: sesion.empresaNombre,
+      sedePorDefectoId: sesion.sedePorDefectoId,
+    };
+  });
 });
 
 /** 403 si el rol del contexto no está entre los permitidos. */

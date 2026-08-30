@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
   // autorizan explícitamente ambos orígenes solo durante el desarrollo.
   ...(isDevelopment
     ? {
-        allowedDevOrigins: ["*.brs.devtunnels.ms"],
+        allowedDevOrigins: ["127.0.0.1", "localhost", "*.brs.devtunnels.ms"],
         experimental: {
           serverActions: {
             allowedOrigins: ["localhost:3000", "*.brs.devtunnels.ms"],

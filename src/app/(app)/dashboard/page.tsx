@@ -3,6 +3,7 @@ import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
 import { hoyLima, sumarDias } from "@/lib/fechas";
 import { obtenerDashboard } from "@/modules/metricas/query";
 import { DashboardClient } from "./dashboard-client";
+import { medirServidor } from "@/lib/observabilidad";
 
 export default async function DashboardPage({
   searchParams,
@@ -25,7 +26,11 @@ export default async function DashboardPage({
     ? sp.desde!
     : sumarDias(hasta, -29);
   const direccion = sp.dir === "compradas" ? "compradas" : "vendidas";
-  const datos = await obtenerDashboard(sesion, { desde, hasta, direccion });
+  const datos = await medirServidor("dashboard.pagina", () =>
+    medirServidor("dashboard.resumen", () =>
+      obtenerDashboard(sesion, { desde, hasta, direccion }),
+    ),
+  );
   return (
     <DashboardClient
       datos={datos}

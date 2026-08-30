@@ -5,6 +5,7 @@ import {
   type FiltroAuditoria,
 } from "@/modules/auditoria/query";
 import { AuditoriaClient } from "./auditoria-client";
+import { medirServidor } from "@/lib/observabilidad";
 
 export default async function AuditoriaPage({
   searchParams,
@@ -35,7 +36,9 @@ export default async function AuditoriaPage({
   };
   return (
     <AuditoriaClient
-      pagina={await listarAuditoria(sesion, filtros)}
+      pagina={await medirServidor("auditoria.pagina", () =>
+        listarAuditoria(sesion, filtros),
+      )}
       filtros={filtros}
       puedeVerificar={sesion.rol === "SUPERADMIN"}
     />

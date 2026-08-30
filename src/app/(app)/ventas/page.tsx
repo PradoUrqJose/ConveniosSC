@@ -14,6 +14,7 @@ import {
   type OrdenVentas,
 } from "@/modules/ventas/query";
 import { VentasClient } from "./ventas-client";
+import { medirServidor } from "@/lib/observabilidad";
 
 export type SearchParamsVentas = {
   q?: string;
@@ -93,12 +94,24 @@ export default async function VentasPage({
     cursor: sp.cursor || undefined,
   };
 
-  const [pagina, empresasTodas, vendedores, sedes] = await Promise.all([
-    listarVentas(sesion, filtros),
-    listarEmpresasParaEmpleado(sesion),
-    esAdmin ? listarVendedoresPropios(sesion) : Promise.resolve([]),
-    esAdmin ? sedesParaVenta(sesion) : Promise.resolve([]),
-  ]);
+  const [pagina, empresasTodas, vendedores, sedes] = await medirServidor(
+    "ventas.pagina",
+    () =>
+      Promise.all([
+        listarVentas(sesion, filtros),
+        medirServidor("ventas.catalogo-empresas", () =>
+          listarEmpresasParaEmpleado(sesion),
+        ),
+        esAdmin
+          ? medirServidor("ventas.catalogo-vendedores", () =>
+              listarVendedoresPropios(sesion),
+            )
+          : Promise.resolve([]),
+        esAdmin
+          ? medirServidor("ventas.catalogo-sedes", () => sedesParaVenta(sesion))
+          : Promise.resolve([]),
+      ]),
+  );
 
   const empresas = empresasTodas.filter((e) => e.id !== sesion.empresaId);
 

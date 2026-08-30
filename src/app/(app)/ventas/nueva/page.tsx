@@ -8,6 +8,7 @@ import {
   sedesParaVenta,
 } from "@/modules/ventas/query";
 import { FormVenta } from "./form-venta";
+import { medirServidor } from "@/lib/observabilidad";
 
 /**
  * Tipografía del flujo de venta. Se sirve con `next/font`, que descarga las
@@ -47,11 +48,19 @@ export default async function NuevaVentaPage() {
     redirect("/");
   }
 
-  const [convenios, sedes, config] = await Promise.all([
-    misConveniosVigentes(ctx),
-    sedesParaVenta(ctx),
-    configuracionEmpresaVenta(ctx),
-  ]);
+  const [convenios, sedes, config] = await medirServidor(
+    "nueva-venta.pagina",
+    () =>
+      Promise.all([
+        medirServidor("nueva-venta.catalogo-convenios", () =>
+          misConveniosVigentes(ctx),
+        ),
+        medirServidor("nueva-venta.catalogo-sedes", () => sedesParaVenta(ctx)),
+        medirServidor("nueva-venta.configuracion", () =>
+          configuracionEmpresaVenta(ctx),
+        ),
+      ]),
+  );
 
   if (convenios.length === 0) {
     return (
