@@ -18,6 +18,7 @@ import {
   Plus,
   Receipt,
   Search,
+  Wallet,
   WalletCards,
 } from "lucide-react";
 
@@ -76,8 +77,8 @@ import {
 const OPCIONES_ORDEN: { value: string; label: string }[] = [
   { value: "fecha_desc", label: "Más recientes primero" },
   { value: "fecha_asc", label: "Más antiguas primero" },
-  { value: "monto_desc", label: "Monto: mayor a menor" },
-  { value: "monto_asc", label: "Monto: menor a mayor" },
+  { value: "monto_desc", label: "Total pagado: mayor a menor" },
+  { value: "monto_asc", label: "Total pagado: menor a mayor" },
 ];
 
 const CAMPOS_FILTRO_CHIP = [
@@ -100,7 +101,9 @@ const CENTINELA_PRIMERA_PAGINA = "-";
 function esFiltroActivo(campo: string, sp: SearchParamsVentas): boolean {
   const valor = sp[campo as keyof SearchParamsVentas];
   if (!valor) return false;
-  if (campo === "estado" && valor === "TODAS") return false;
+  // "Registradas" es el estado por defecto de la página (page.tsx): no cuenta
+  // como filtro activo. Solo "Anuladas" o "Todas" (elegido a propósito) lo son.
+  if (campo === "estado" && valor === "REGISTRADA") return false;
   return true;
 }
 
@@ -363,12 +366,29 @@ export function VentasClient({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metrica
           etiqueta="Operaciones"
           valor={pagina.resumen.cantidad}
-          detalle="Según los filtros actuales"
+          detalle={
+            sp.estado === "ANULADA"
+              ? "Anuladas, según los filtros actuales"
+              : sp.estado === "TODAS"
+                ? "Incluye anuladas"
+                : "Registradas, según los filtros actuales"
+          }
           icono={<Receipt className="size-4.5" />}
+        />
+        <Metrica
+          etiqueta="Total pagado"
+          valor={
+            <span className="money">
+              {formatearSoles(pagina.resumen.sumaFinal)}
+            </span>
+          }
+          detalle="Bruto menos descuentos"
+          icono={<WalletCards className="size-4.5" />}
+          tono="success"
         />
         <Metrica
           etiqueta="Monto bruto"
@@ -378,22 +398,19 @@ export function VentasClient({
             </span>
           }
           detalle="Antes de descuentos"
-          icono={<WalletCards className="size-4.5" />}
-          tono="success"
+          icono={<Wallet className="size-4.5" />}
         />
-        <div className="col-span-2 lg:col-span-1">
-          <Metrica
-            etiqueta="Descuentos"
-            valor={
-              <span className="money">
-                {formatearSoles(pagina.resumen.sumaDescuento)}
-              </span>
-            }
-            detalle="Beneficios aplicados"
-            icono={<BadgePercent className="size-4.5" />}
-            tono="warning"
-          />
-        </div>
+        <Metrica
+          etiqueta="Descuentos"
+          valor={
+            <span className="money">
+              {formatearSoles(pagina.resumen.sumaDescuento)}
+            </span>
+          }
+          detalle="Beneficios aplicados"
+          icono={<BadgePercent className="size-4.5" />}
+          tono="warning"
+        />
       </div>
 
       {pagina.items.length === 0 ? (
@@ -499,7 +516,7 @@ function etiquetaFiltro(
     case "empresa":
       return empresas.find((e) => e.id === valor)?.nombreComercial ?? "Empresa";
     case "estado":
-      return valor === "REGISTRADA" ? "Registradas" : "Anuladas";
+      return valor === "ANULADA" ? "Anuladas" : "Todos los estados";
     case "vendedor": {
       const v = vendedores.find((v) => v.id === valor);
       return v ? `${v.nombres} ${v.apellidos}` : "Vendedor";
@@ -507,9 +524,9 @@ function etiquetaFiltro(
     case "sede":
       return sedes.find((s) => s.id === valor)?.nombre ?? "Sede";
     case "montoMin":
-      return `Desde S/ ${valor}`;
+      return `Bruto desde S/ ${valor}`;
     case "montoMax":
-      return `Hasta S/ ${valor}`;
+      return `Bruto hasta S/ ${valor}`;
     case "revision":
       return "Requiere revisión";
     case "orden":
@@ -600,12 +617,12 @@ function FiltrosVenta({
         <select
           id="estado"
           name="estado"
-          defaultValue={sp.estado ?? "TODAS"}
+          defaultValue={sp.estado ?? "REGISTRADA"}
           className={claseSelect}
         >
-          <option value="TODAS">Todas</option>
           <option value="REGISTRADA">Registradas</option>
           <option value="ANULADA">Anuladas</option>
+          <option value="TODAS">Todas (incluye anuladas)</option>
         </select>
       </div>
 
@@ -649,7 +666,7 @@ function FiltrosVenta({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="montoMin">Monto mínimo (S/)</Label>
+          <Label htmlFor="montoMin">Monto bruto mínimo (S/)</Label>
           <Input
             id="montoMin"
             name="montoMin"
@@ -659,7 +676,7 @@ function FiltrosVenta({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="montoMax">Monto máximo (S/)</Label>
+          <Label htmlFor="montoMax">Monto bruto máximo (S/)</Label>
           <Input
             id="montoMax"
             name="montoMax"
@@ -823,13 +840,19 @@ function TarjetaVenta({
           : ""}
       </p>
       <div className="mt-2 flex items-center justify-end gap-3 border-t pt-3">
+        <span className="text-muted-foreground text-xs">
+          Bruto{" "}
+          <span className="money">
+            {formatearSoles(venta.montoBrutoCentimos)}
+          </span>{" "}
+          − <span className="money">
+            {formatearSoles(venta.montoDescuentoCentimos)}
+          </span>
+        </span>
         <span
           className={`money font-bold ${anulada ? "text-muted-foreground line-through" : ""}`}
         >
-          {formatearSoles(venta.montoBrutoCentimos)}
-        </span>
-        <span className="money text-muted-foreground text-xs">
-          −{formatearSoles(venta.montoDescuentoCentimos)}
+          {formatearSoles(venta.montoFinalCentimos)}
         </span>
       </div>
     </Link>
@@ -879,12 +902,14 @@ function TablaVentas({
               <TableHead>Empresa</TableHead>
               <TableHead>Sede</TableHead>
               {esAdmin ? <TableHead>Vendedor</TableHead> : null}
+              <TableHead className="text-right">Monto bruto</TableHead>
+              <TableHead className="text-right">Descuento</TableHead>
               <TableHead
                 className="text-right"
                 aria-sort={ariaSortDe(orden, "monto_asc", "monto_desc")}
               >
                 <EncabezadoOrdenable
-                  label="Monto"
+                  label="Total pagado"
                   campoAsc="monto_asc"
                   campoDesc="monto_desc"
                   orden={orden}
@@ -893,8 +918,6 @@ function TablaVentas({
                   alinearDerecha
                 />
               </TableHead>
-              <TableHead className="text-right">Descuento</TableHead>
-              <TableHead className="text-right">Total</TableHead>
               <TableHead>Estado</TableHead>
             </TableRow>
           </TableHeader>

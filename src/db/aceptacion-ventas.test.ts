@@ -170,12 +170,16 @@ async function crearVentaDirecta(
   },
 ): Promise<string> {
   const { descuento, final } = calcularDescuento(args.montoBruto, args.bps);
+  const anulada = args.estado === "ANULADA";
+  // `ventas_anulada_check`/`ventas_motivo_check`: una fila ANULADA exige
+  // anulada_at, motivo_anulacion y anulada_por_usuario_id no nulos.
   const { rows } = await c.query(
     `INSERT INTO ventas
        (id, empresa_vendedora_id, empresa_compradora_id, convenio_id, termino_id,
         sede_id, vendedor_usuario_id, empleado_comprador_id, monto_bruto_centimos,
-        descuento_bps, monto_descuento_centimos, monto_final_centimos, fecha_venta, estado)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
+        descuento_bps, monto_descuento_centimos, monto_final_centimos, fecha_venta, estado,
+        anulada_at, motivo_anulacion, anulada_por_usuario_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING id`,
     [
       randomUUID(),
       args.empresaVendedoraId,
@@ -191,6 +195,9 @@ async function crearVentaDirecta(
       final,
       args.fechaVenta,
       args.estado ?? "REGISTRADA",
+      anulada ? new Date() : null,
+      anulada ? "Anulada de prueba" : null,
+      anulada ? args.vendedorId : null,
     ],
   );
   return rows[0].id as string;
@@ -845,6 +852,114 @@ describe.skipIf(!ACTIVO)(
         expect(recientesHome.map((venta) => venta.id)).toEqual(
           listado.items.slice(0, 5).map((venta) => venta.id),
         );
+      } finally {
+        await c.query("ROLLBACK").catch(() => undefined);
+        await c.end();
+      }
+    }, 60_000);
+
+    it("montoMin/montoMax filtran por el bruto (no por el total pagado) y el estado combina con los demás filtros", async () => {
+      const c = await conexion();
+      try {
+        await c.query("BEGIN");
+        const idA = await crearEmpresa(c, "20100080009");
+        const idB = await crearEmpresa(c, "20100080010");
+        const convenioId = await crearConvenio(c, idA, idB);
+        // 50% de descuento: bruto y final quedan bien separados, así un
+        // filtro que por error operara sobre el final daría otro resultado.
+        const terminoId = await crearTermino(
+          c,
+          convenioId,
+          idA,
+          5000,
+          "2000-01-01",
+          null,
+        );
+        const sedeId = await crearSede(c, idA);
+        const vendedorId = await crearUsuario(c, "VENDEDOR", idA);
+        const empleadoId = await crearEmpleadoActivo(c, idB, "80000005");
+
+        // bruto 1000 -> final 500; bruto 3000 -> final 1500; bruto 5000 -> final 2500.
+        const idBruto1000 = await crearVentaDirecta(c, {
+          empresaVendedoraId: idA,
+          empresaCompradoraId: idB,
+          convenioId,
+          terminoId,
+          sedeId,
+          vendedorId,
+          empleadoId,
+          montoBruto: 1000,
+          bps: 5000,
+          fechaVenta: FECHA_HOY,
+        });
+        const idBruto3000 = await crearVentaDirecta(c, {
+          empresaVendedoraId: idA,
+          empresaCompradoraId: idB,
+          convenioId,
+          terminoId,
+          sedeId,
+          vendedorId,
+          empleadoId,
+          montoBruto: 3000,
+          bps: 5000,
+          fechaVenta: FECHA_HOY,
+        });
+        const idBruto5000Anulada = await crearVentaDirecta(c, {
+          empresaVendedoraId: idA,
+          empresaCompradoraId: idB,
+          convenioId,
+          terminoId,
+          sedeId,
+          vendedorId,
+          empleadoId,
+          montoBruto: 5000,
+          bps: 5000,
+          fechaVenta: FECHA_HOY,
+          estado: "ANULADA",
+        });
+
+        const ejecutor = adaptador(c);
+        const ctxVendedor = ctx(vendedorId, idA, "VENDEDOR");
+
+        // Rango [2000, 4000] sobre el bruto solo incluye la venta de 3000: si
+        // el filtro operara (por error) sobre el final (500/1500/2500), la
+        // de bruto 5000 (final 2500) también entraría.
+        const porBruto = await listarVentas(
+          ctxVendedor,
+          { montoMinCentimos: 2000, montoMaxCentimos: 4000, estado: "TODAS" },
+          ejecutor,
+        );
+        expect(porBruto.items.map((v) => v.id)).toEqual([idBruto3000]);
+
+        // Estado: REGISTRADA excluye la anulada; ANULADA la aísla; TODAS combina.
+        const registradas = await listarVentas(
+          ctxVendedor,
+          { estado: "REGISTRADA" },
+          ejecutor,
+        );
+        expect(
+          new Set(registradas.items.map((v) => v.id)),
+        ).toEqual(new Set([idBruto1000, idBruto3000]));
+        expect(registradas.resumen.cantidad).toBe(2);
+
+        const anuladas = await listarVentas(
+          ctxVendedor,
+          { estado: "ANULADA" },
+          ejecutor,
+        );
+        expect(anuladas.items.map((v) => v.id)).toEqual([idBruto5000Anulada]);
+        expect(anuladas.resumen.cantidad).toBe(1);
+
+        const todas = await listarVentas(ctxVendedor, { estado: "TODAS" }, ejecutor);
+        expect(todas.resumen.cantidad).toBe(3);
+
+        // Combinación: solo registradas con bruto >= 2000 -> únicamente la de 3000.
+        const combinado = await listarVentas(
+          ctxVendedor,
+          { estado: "REGISTRADA", montoMinCentimos: 2000 },
+          ejecutor,
+        );
+        expect(combinado.items.map((v) => v.id)).toEqual([idBruto3000]);
       } finally {
         await c.query("ROLLBACK").catch(() => undefined);
         await c.end();
