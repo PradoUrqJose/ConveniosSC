@@ -43,6 +43,13 @@
       "when": 1788062902977,
       "tag": "0005_sleepy_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788064414757,
+      "tag": "0006_past_yellowjacket",
+      "breakpoints": true
     }
   ]
 }

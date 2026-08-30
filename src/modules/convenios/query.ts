@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { obtenerFilas } from "@/lib/audit/registrar";
+import { obtenerFilas, type TransaccionAuditada } from "@/lib/audit/registrar";
 import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import { hoyLima, sumarDias } from "@/lib/fechas";
+import type { Pagina } from "@/lib/tipos";
 import type { EstadoConvenio } from "./acciones";
 
 export type TerminoVigente = { bps: number; desde: string };
@@ -30,49 +31,69 @@ export type ConvenioVigenteMio = {
 };
 
 const HOY = hoyLima();
+const POR_PAGINA = 20;
 
 /** `listarConvenios` (03 §4). Términos vigentes a hoy y ventas de 30 días. */
 export async function listarConvenios(
   ctx: SessionContext,
-): Promise<FilaConvenio[]> {
+  entrada: { cursor?: string } = {},
+  ejecutor: TransaccionAuditada = db,
+): Promise<Pagina<FilaConvenio>> {
   requireRol(ctx, ["SUPERADMIN"]);
 
+  const cursor = decodificarCursor(entrada.cursor);
+  const where = cursor
+    ? sql`WHERE (c.created_at, c.id) < (${cursor.createdAt}, ${cursor.id})`
+    : sql``;
+
   const filas = obtenerFilas(
-    await db.execute(sql`
-      SELECT c.id, c.estado, c.vigencia_desde, c.vigencia_hasta, c.notas,
+    await ejecutor.execute(sql`
+      WITH ventas_30d AS (
+        SELECT v.convenio_id, count(*)::int AS total
+        FROM ventas v
+        WHERE v.estado = 'REGISTRADA'
+          AND v.fecha_venta >= ${sumarDias(HOY, -29)}
+        GROUP BY v.convenio_id
+      )
+      SELECT c.id, c.created_at, c.estado, c.vigencia_desde, c.vigencia_hasta, c.notas,
         ea.id AS a_id, ea.nombre_comercial AS a_nombre,
         eb.id AS b_id, eb.nombre_comercial AS b_nombre,
-        (SELECT ct.descuento_bps FROM convenio_terminos ct
-           WHERE ct.convenio_id = c.id AND ct.empresa_otorgante_id = ea.id
-             AND ct.vigencia_desde <= ${HOY}
-             AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
-           ORDER BY ct.vigencia_desde DESC LIMIT 1) AS a_bps,
-        (SELECT ct.vigencia_desde FROM convenio_terminos ct
-           WHERE ct.convenio_id = c.id AND ct.empresa_otorgante_id = ea.id
-             AND ct.vigencia_desde <= ${HOY}
-             AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
-           ORDER BY ct.vigencia_desde DESC LIMIT 1) AS a_desde,
-        (SELECT ct.descuento_bps FROM convenio_terminos ct
-           WHERE ct.convenio_id = c.id AND ct.empresa_otorgante_id = eb.id
-             AND ct.vigencia_desde <= ${HOY}
-             AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
-           ORDER BY ct.vigencia_desde DESC LIMIT 1) AS b_bps,
-        (SELECT ct.vigencia_desde FROM convenio_terminos ct
-           WHERE ct.convenio_id = c.id AND ct.empresa_otorgante_id = eb.id
-             AND ct.vigencia_desde <= ${HOY}
-             AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
-           ORDER BY ct.vigencia_desde DESC LIMIT 1) AS b_desde,
-        (SELECT count(*)::int FROM ventas v
-           WHERE v.convenio_id = c.id AND v.estado = 'REGISTRADA'
-             AND v.fecha_venta >= ${sumarDias(HOY, -29)}) AS ventas_30d
+        ta.descuento_bps AS a_bps, ta.vigencia_desde AS a_desde,
+        tb.descuento_bps AS b_bps, tb.vigencia_desde AS b_desde,
+        COALESCE(v30.total, 0)::int AS ventas_30d
       FROM convenios c
       JOIN empresas ea ON ea.id = c.empresa_a_id
       JOIN empresas eb ON eb.id = c.empresa_b_id
-      ORDER BY c.created_at DESC, c.id DESC
+      LEFT JOIN LATERAL (
+        SELECT ct.descuento_bps, ct.vigencia_desde
+        FROM convenio_terminos ct
+        WHERE ct.convenio_id = c.id
+          AND ct.empresa_otorgante_id = ea.id
+          AND ct.vigencia_desde <= ${HOY}
+          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
+        ORDER BY ct.vigencia_desde DESC
+        LIMIT 1
+      ) ta ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT ct.descuento_bps, ct.vigencia_desde
+        FROM convenio_terminos ct
+        WHERE ct.convenio_id = c.id
+          AND ct.empresa_otorgante_id = eb.id
+          AND ct.vigencia_desde <= ${HOY}
+          AND (ct.vigencia_hasta IS NULL OR ct.vigencia_hasta >= ${HOY})
+        ORDER BY ct.vigencia_desde DESC
+        LIMIT 1
+      ) tb ON TRUE
+      LEFT JOIN ventas_30d v30 ON v30.convenio_id = c.id
+      ${where}
+      ORDER BY c.created_at DESC NULLS LAST, c.id DESC NULLS LAST
+      LIMIT ${POR_PAGINA + 1}
     `),
   );
 
-  return filas.map((f) => ({
+  const haySiguiente = filas.length > POR_PAGINA;
+  const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
+  const items = pagina.map((f) => ({
     id: String(f.id),
     estado: String(f.estado) as EstadoConvenio,
     vigenciaDesde: String(f.vigencia_desde),
@@ -90,6 +111,45 @@ export async function listarConvenios(
         : { bps: Number(f.b_bps), desde: String(f.b_desde) },
     ventas30d: Number(f.ventas_30d ?? 0),
   }));
+  const ultimo = pagina.at(-1);
+
+  return {
+    items,
+    cursor: haySiguiente && ultimo ? codificarCursor(ultimo) : null,
+  };
+}
+
+function decodificarCursor(
+  cursor: string | undefined,
+): { createdAt: string; id: string } | null {
+  if (!cursor) {
+    return null;
+  }
+  try {
+    const raw = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    if (
+      typeof raw.createdAt === "string" &&
+      typeof raw.id === "string" &&
+      raw.createdAt &&
+      raw.id
+    ) {
+      return { createdAt: raw.createdAt, id: raw.id };
+    }
+  } catch {
+    // Cursor inválido: se ignora y se devuelve la primera página.
+  }
+  return null;
+}
+
+function codificarCursor(fila: Record<string, unknown>): string {
+  const createdAt =
+    fila.created_at instanceof Date
+      ? fila.created_at.toISOString()
+      : String(fila.created_at);
+  return Buffer.from(
+    JSON.stringify({ createdAt, id: String(fila.id) }),
+    "utf8",
+  ).toString("base64url");
 }
 
 /**

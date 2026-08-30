@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, BadgePercent, Handshake, Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { formatearFechaUI } from "@/lib/fechas";
+import type { Pagina } from "@/lib/tipos";
 import type {
   FilaConvenio,
   EmpresaParaConvenio,
@@ -40,13 +42,16 @@ function EtiquetaEstado({ estado }: { estado: FilaConvenio["estado"] }) {
 }
 
 export function ConveniosClient({
-  convenios,
+  pagina,
   empresas,
 }: {
-  convenios: FilaConvenio[];
+  pagina: Pagina<FilaConvenio>;
   empresas: EmpresaParaConvenio[];
 }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [dialogo, setDialogo] = useState<Dialogo | null>(null);
+  const convenios = pagina.items;
 
   return (
     <section className="page-shell">
@@ -55,8 +60,8 @@ export function ConveniosClient({
         titulo="Convenios"
         descripcion={
           <>
-            {convenios.length} convenio{convenios.length === 1 ? "" : "s"} entre
-            empresas.
+            {convenios.length} convenio{convenios.length === 1 ? "" : "s"} en
+            esta página.
           </>
         }
         icono={<Handshake className="size-5" />}
@@ -148,6 +153,21 @@ export function ConveniosClient({
           ))}
         </div>
       )}
+
+      {pagina.cursor ? (
+        <div className="flex justify-center">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString());
+              params.set("cursor", pagina.cursor!);
+              router.push(`/admin/convenios?${params.toString()}`);
+            }}
+          >
+            Cargar más
+          </Button>
+        </div>
+      ) : null}
 
       {dialogo ? (
         <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>

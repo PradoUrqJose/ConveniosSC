@@ -1,0 +1,1 @@
+CREATE INDEX "convenios_created_idx" ON "convenios" USING btree ("created_at" DESC NULLS LAST,"id" DESC NULLS LAST);

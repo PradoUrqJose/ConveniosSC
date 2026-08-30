@@ -234,6 +234,7 @@ export const convenios = pgTable(
     unique("convenios_par_uk").on(t.empresaAId, t.empresaBId),
     index("convenios_empresa_a_idx").on(t.empresaAId),
     index("convenios_empresa_b_idx").on(t.empresaBId),
+    index("convenios_created_idx").on(t.createdAt.desc(), t.id.desc()),
     check("convenios_a_b_check", sql`${t.empresaAId} < ${t.empresaBId}`),
     check(
       "convenios_vigencia_check",

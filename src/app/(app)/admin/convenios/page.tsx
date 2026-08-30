@@ -8,7 +8,11 @@ import {
 } from "@/modules/convenios/query";
 import { ConveniosClient } from "./convenios-client";
 
-export default async function AdminConveniosPage() {
+export default async function AdminConveniosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ cursor?: string }>;
+}) {
   let sesion;
   try {
     sesion = await requireSession();
@@ -41,10 +45,11 @@ export default async function AdminConveniosPage() {
     );
   }
 
-  const [convenios, empresas] = await Promise.all([
-    listarConvenios(sesion),
+  const { cursor } = await searchParams;
+  const [pagina, empresas] = await Promise.all([
+    listarConvenios(sesion, { cursor }),
     listarEmpresasParaConvenio(sesion),
   ]);
 
-  return <ConveniosClient convenios={convenios} empresas={empresas} />;
+  return <ConveniosClient pagina={pagina} empresas={empresas} />;
 }

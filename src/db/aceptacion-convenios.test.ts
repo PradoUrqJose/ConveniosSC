@@ -12,6 +12,7 @@ import {
   cambiarTerminoCore,
   crearConvenioCore,
 } from "@/modules/convenios/acciones";
+import { listarConvenios } from "@/modules/convenios/query";
 import type { SessionContext } from "@/lib/auth/guardas";
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
 
@@ -260,4 +261,63 @@ describe.skipIf(!ACTIVO)("Aceptación T09 — convenios y términos", () => {
       await c.end();
     }
   });
+
+  it("listarConvenios pagina sin repetir filas y conserva los términos vigentes de ambas direcciones", async () => {
+    const c = await conexion();
+    try {
+      await c.query("BEGIN");
+      const descuentos = new Map<string, { a: number; b: number }>();
+
+      for (let i = 0; i < 21; i++) {
+        const empresaX = await crearEmpresa(c, String(27900090000 + i * 2));
+        const empresaY = await crearEmpresa(c, String(27900090001 + i * 2));
+        const [empresaA, empresaB] =
+          empresaX < empresaY ? [empresaX, empresaY] : [empresaY, empresaX];
+        const { rows } = await c.query(
+          `INSERT INTO convenios
+             (empresa_a_id, empresa_b_id, estado, vigencia_desde, created_at)
+           VALUES ($1, $2, 'VIGENTE', '2020-01-01', now() - ($3 * interval '1 minute'))
+           RETURNING id`,
+          [empresaA, empresaB, i],
+        );
+        const convenioId = rows[0].id as string;
+        const descuentoA = 1000 + i;
+        const descuentoB = 2000 + i;
+        descuentos.set(convenioId, { a: descuentoA, b: descuentoB });
+        await c.query(
+          `INSERT INTO convenio_terminos
+             (convenio_id, empresa_otorgante_id, descuento_bps, vigencia_desde)
+           VALUES ($1, $2, $3, '2020-01-01'), ($1, $4, $5, '2020-01-01')`,
+          [convenioId, empresaA, descuentoA, empresaB, descuentoB],
+        );
+      }
+
+      const pagina1 = await listarConvenios(ctxSesion({}), {}, adaptador(c));
+      expect(pagina1.items).toHaveLength(20);
+      expect(pagina1.cursor).not.toBeNull();
+
+      const pagina2 = await listarConvenios(
+        ctxSesion({}),
+        { cursor: pagina1.cursor ?? undefined },
+        adaptador(c),
+      );
+      const propios = [...pagina1.items, ...pagina2.items].filter((convenio) =>
+        descuentos.has(convenio.id),
+      );
+      expect(propios).toHaveLength(21);
+      expect(new Set(propios.map((convenio) => convenio.id))).toHaveLength(21);
+
+      for (const convenio of propios) {
+        expect(convenio.terminoAotorga?.bps).toBe(
+          descuentos.get(convenio.id)?.a,
+        );
+        expect(convenio.terminoBotorga?.bps).toBe(
+          descuentos.get(convenio.id)?.b,
+        );
+      }
+    } finally {
+      await c.query("ROLLBACK").catch(() => undefined);
+      await c.end();
+    }
+  }, 60_000);
 });
