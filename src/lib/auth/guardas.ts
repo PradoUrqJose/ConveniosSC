@@ -11,6 +11,7 @@ import {
   refrescarUltimoUso,
   SESSION_COOKIE_NAME,
   type RolUsuario,
+  type SesionValida,
 } from "./sesion";
 
 /**
@@ -39,7 +40,15 @@ export class ErrorAuth extends Error {
 }
 
 /** `requireSession` + `debe_cambiar_password` (el shell lo usa para decidir layout). */
-export type SesionRequerida = SessionContext & { debeCambiarPassword: boolean };
+export type SesionRequerida = SessionContext &
+  Pick<
+    SesionValida,
+    | "debeCambiarPassword"
+    | "nombres"
+    | "apellidos"
+    | "empresaNombre"
+    | "sedePorDefectoId"
+  >;
 
 /** 401 si no hay cookie o la sesión no es válida (02 §3: guarda explícita). */
 export const requireSession = cache(async (): Promise<SesionRequerida> => {
@@ -67,6 +76,10 @@ export const requireSession = cache(async (): Promise<SesionRequerida> => {
     ip: obtenerIp(hdrs),
     userAgent: hdrs.get("user-agent") ?? null,
     debeCambiarPassword: sesion.debeCambiarPassword,
+    nombres: sesion.nombres,
+    apellidos: sesion.apellidos,
+    empresaNombre: sesion.empresaNombre,
+    sedePorDefectoId: sesion.sedePorDefectoId,
   };
 });
 

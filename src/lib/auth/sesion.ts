@@ -70,6 +70,10 @@ export type SesionValida = {
   empresaId: string | null;
   rol: RolUsuario;
   debeCambiarPassword: boolean;
+  nombres: string;
+  apellidos: string;
+  empresaNombre: string | null;
+  sedePorDefectoId: string | null;
 };
 
 /**
@@ -84,7 +88,9 @@ export async function obtenerSesionValida(
 ): Promise<SesionValida | null> {
   const filas = obtenerFilas(
     await ejecutor.execute(sql`
-      SELECT s.id, s.usuario_id, u.rol, u.empresa_id, u.debe_cambiar_password
+      SELECT s.id, s.usuario_id, u.rol, u.empresa_id, u.debe_cambiar_password,
+             u.nombres, u.apellidos, u.sede_por_defecto_id,
+             e.nombre_comercial
       FROM sesiones s
       JOIN usuarios u ON u.id = s.usuario_id
       LEFT JOIN empresas e ON e.id = u.empresa_id
@@ -105,6 +111,17 @@ export async function obtenerSesionValida(
     empresaId: fila.empresa_id === null ? null : String(fila.empresa_id),
     rol: fila.rol as RolUsuario,
     debeCambiarPassword: Boolean(fila.debe_cambiar_password),
+    nombres: String(fila.nombres ?? ""),
+    apellidos: String(fila.apellidos ?? ""),
+    empresaNombre:
+      fila.nombre_comercial === null || fila.nombre_comercial === undefined
+        ? null
+        : String(fila.nombre_comercial),
+    sedePorDefectoId:
+      fila.sede_por_defecto_id === null ||
+      fila.sede_por_defecto_id === undefined
+        ? null
+        : String(fila.sede_por_defecto_id),
   };
 }
 

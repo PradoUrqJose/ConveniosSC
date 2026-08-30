@@ -11,9 +11,7 @@ import {
   WalletCards,
 } from "lucide-react";
 
-import { db } from "@/db";
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
-import { cargarPerfilNav } from "@/lib/auth/perfil";
 import { formatearSoles } from "@/lib/dinero";
 import { formatearFechaUI, hoyLima } from "@/lib/fechas";
 import { listarVentas } from "@/modules/ventas/query";
@@ -35,16 +33,13 @@ export default async function InicioPage() {
   }
 
   const hoy = hoyLima();
-  const [perfil, ventasMes] = await Promise.all([
-    cargarPerfilNav(db, sesion.usuarioId),
-    listarVentas(sesion, {
-      desde: `${hoy.slice(0, 7)}-01`,
-      hasta: hoy,
-      estado: "REGISTRADA",
-      orden: "fecha_desc",
-    }),
-  ]);
-  const nombre = perfil.nombres || "";
+  const ventasMes = await listarVentas(sesion, {
+    desde: `${hoy.slice(0, 7)}-01`,
+    hasta: hoy,
+    estado: "REGISTRADA",
+    orden: "fecha_desc",
+  });
+  const nombre = sesion.nombres;
   const recientes = ventasMes.items.slice(0, 5);
 
   return (

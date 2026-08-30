@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { Courier_Prime, IBM_Plex_Sans } from "next/font/google";
 
-import { db } from "@/db";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
-import { cargarPerfilNav } from "@/lib/auth/perfil";
 import { misConveniosVigentes } from "@/modules/convenios/query";
 import {
   configuracionEmpresaVenta,
@@ -49,11 +47,10 @@ export default async function NuevaVentaPage() {
     redirect("/");
   }
 
-  const [convenios, sedes, config, perfil] = await Promise.all([
+  const [convenios, sedes, config] = await Promise.all([
     misConveniosVigentes(ctx),
     sedesParaVenta(ctx),
     configuracionEmpresaVenta(ctx),
-    cargarPerfilNav(db, ctx.usuarioId),
   ]);
 
   if (convenios.length === 0) {
@@ -73,7 +70,7 @@ export default async function NuevaVentaPage() {
       usuarioId={ctx.usuarioId}
       convenios={convenios}
       sedes={sedes}
-      sedePorDefectoId={perfil.sedePorDefectoId}
+      sedePorDefectoId={ctx.sedePorDefectoId}
       config={config}
     />
   );

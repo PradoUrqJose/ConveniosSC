@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 import { db } from "@/db";
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
 import {
-  cargarPerfilNav,
   contarPendientesVerificacion,
+  perfilNavDesdeSesion,
 } from "@/lib/auth/perfil";
 import { navegacionPorRol } from "@/lib/navegacion";
 import { Sidebar } from "@/components/shell/sidebar";
@@ -43,12 +43,11 @@ export default async function AppLayout({
     );
   }
 
-  const [perfil, pendientesEmpleados] = await Promise.all([
-    cargarPerfilNav(db, sesion.usuarioId),
+  const perfil = perfilNavDesdeSesion(sesion);
+  const pendientesEmpleados =
     sesion.rol === "ADMIN_EMPRESA" && sesion.empresaId
-      ? contarPendientesVerificacion(db, sesion.empresaId)
-      : Promise.resolve(0),
-  ]);
+      ? await contarPendientesVerificacion(db, sesion.empresaId)
+      : 0;
   const nav = navegacionPorRol(sesion.rol);
   const esPuntoVenta = pathname === "/ventas/nueva";
 
