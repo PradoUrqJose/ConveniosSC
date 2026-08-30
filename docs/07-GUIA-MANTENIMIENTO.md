@@ -188,8 +188,15 @@ La separación `actions.ts`/`acciones.ts` es deliberada:
 
 `src/db/index.ts` ofrece dos accesos:
 
-- `db`: Neon HTTP pooled, apropiado para lecturas simples.
-- `dbTx()`: pool serverless sobre la URL unpooled, necesario para transacciones.
+- `db`: Neon HTTP pooled, para lecturas y escrituras independientes.
+- `dbTx()`: pool serverless sobre la URL unpooled, solo cuando varias
+  sentencias deben ser atómicas o se requiere un advisory lock transaccional.
+
+Los usos actuales de `dbTx()` se limitan a estas categorías: mutaciones de
+dominio junto con su auditoría (`acciones` públicas), login/sesiones/contraseña
+que cambian varias filas, y los eventos de auditoría diferidos (`BUSQUEDA_*`,
+`ADJUNTO_VISTO`, `ADJUNTO_SUBIDO`) que necesitan proteger la cadena de hashes.
+Las rutas de lectura, incluido `GET /api/adjuntos/[id]`, usan `db` por HTTP.
 
 No cambies una escritura auditada a `db` porque Neon HTTP no ofrece aquí la
 transacción usada por el patrón del proyecto.

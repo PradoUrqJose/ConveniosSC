@@ -74,6 +74,9 @@ export async function POST(request: Request): Promise<NextResponse> {
           return;
         }
 
+        // El callback no bloquea la respuesta de subida, pero sí debe conservar
+        // la cadena de auditoría: registrar usa un advisory lock transaccional
+        // y lee el hash previo antes de insertar el evento.
         await dbTx().transaction(async (tx) => {
           const fila = obtenerFilas(
             await tx.execute(sql`
