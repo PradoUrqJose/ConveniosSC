@@ -76,6 +76,7 @@ import {
   Metrica,
   PanelSuperficie,
 } from "@/components/shell/pagina-ui";
+import { SalesDirectionTabs } from "@/components/shell/sales-direction-tabs";
 
 const OPCIONES_ORDEN: { value: string; label: string }[] = [
   { value: "fecha_desc", label: "Más recientes primero" },
@@ -253,29 +254,23 @@ export function VentasClient({
       />
 
       {esAdmin ? (
-        <div className="bg-muted/80 flex w-fit max-w-full items-center gap-1 overflow-x-auto rounded-xl p-1.5">
-          {(
-            [
-              { id: "vendidas", label: "Vendidas" },
-              { id: "compradas", label: "Compraron mis empleados" },
-            ] as const
-          ).map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() =>
-                irA(urlDe({ dir: t.id === "vendidas" ? null : t.id }))
-              }
-              className={`rounded-lg px-3 py-2 text-sm font-semibold whitespace-nowrap transition ${
-                direccion === t.id
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        <SalesDirectionTabs
+          ariaLabel="Dirección de ventas"
+          direccion={direccion}
+          opciones={[
+            {
+              id: "vendidas",
+              label: "Vendidas",
+              href: urlDe({ dir: null }),
+            },
+            {
+              id: "compradas",
+              label: "Compraron mis empleados",
+              href: urlDe({ dir: "compradas" }),
+            },
+          ]}
+          onNavegar={irA}
+        />
       ) : null}
 
       <div className="control-bar flex items-center gap-2">

@@ -1,5 +1,6 @@
 "use client";
-import Link from "next/link";
+import { useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bar,
   BarChart,
@@ -18,7 +19,13 @@ import {
 } from "lucide-react";
 import { formatearSoles } from "@/lib/dinero";
 import type { Dashboard } from "@/modules/metricas/query";
-import { CabeceraPagina, Metrica } from "@/components/shell/pagina-ui";
+import {
+  CabeceraPagina,
+  IndicadorPendienteSuperficie,
+  Metrica,
+} from "@/components/shell/pagina-ui";
+import { SalesDirectionTabs } from "@/components/shell/sales-direction-tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export function DashboardClient({
   datos,
@@ -33,6 +40,8 @@ export function DashboardClient({
   direccion: "vendidas" | "compradas";
   esAdmin: boolean;
 }) {
+  const router = useRouter();
+  const [pendiente, startTransition] = useTransition();
   const url = (c: Record<string, string>) =>
     `/dashboard?${new URLSearchParams({ desde, hasta, ...c })}`;
   const vacio = datos.totales.cantidad === 0;
@@ -77,178 +86,219 @@ export function DashboardClient({
         </form>
       </div>
       {esAdmin && (
-        <div className="bg-muted/80 flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl p-1.5">
-          <Link
-            href={url({ dir: "vendidas" })}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${direccion === "vendidas" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Vendí
-          </Link>
-          <Link
-            href={url({ dir: "compradas" })}
-            className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-all ${direccion === "compradas" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-          >
-            Compraron mis empleados
-          </Link>
-        </div>
+        <SalesDirectionTabs
+          ariaLabel="Dirección de ventas del dashboard"
+          direccion={direccion}
+          opciones={[
+            { id: "vendidas", label: "Vendí", href: url({ dir: "vendidas" }) },
+            {
+              id: "compradas",
+              label: "Compraron mis empleados",
+              href: url({ dir: "compradas" }),
+            },
+          ]}
+          onNavegar={(href) => startTransition(() => router.push(href))}
+        />
       )}
-      {vacio ? (
-        <EstadoVacio texto="No hay ventas registradas en este periodo." />
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Metrica
-              etiqueta="Ventas"
-              valor={String(datos.totales.cantidad)}
-              detalle="Operaciones registradas"
-              icono={<ReceiptText className="size-4.5" />}
-            />
-            <Metrica
-              etiqueta="Bruto"
-              valor={
-                <span className="money">
-                  {formatearSoles(datos.totales.sumaBrutoCentimos)}
-                </span>
-              }
-              detalle="Monto antes del beneficio"
-              icono={<WalletCards className="size-4.5" />}
-              tono="success"
-            />
-            <Metrica
-              etiqueta="Descuento"
-              valor={
-                <span className="money">
-                  {formatearSoles(datos.totales.sumaDescuentoCentimos)}
-                </span>
-              }
-              detalle="Beneficios entregados"
-              icono={<BadgePercent className="size-4.5" />}
-              tono="warning"
-            />
-            <Metrica
-              etiqueta="Ticket promedio"
-              valor={
-                <span className="money">
-                  {formatearSoles(datos.totales.ticketPromedioCentimos)}
-                </span>
-              }
-              detalle="Promedio por operación"
-              icono={<ChartNoAxesCombined className="size-4.5" />}
-              tono="neutral"
-            />
-          </div>
-          {datos.anuladas.cantidad > 0 && (
-            <p className="text-muted-foreground text-sm">
-              {datos.anuladas.cantidad} venta
-              {datos.anuladas.cantidad === 1 ? "" : "s"} anulada
-              {datos.anuladas.cantidad === 1 ? "" : "s"} (
-              {formatearSoles(datos.anuladas.sumaBrutoCentimos)}) — excluidas de
-              los totales.
-            </p>
+      <div className="relative">
+        <div
+          className={`flex flex-col gap-3.5 transition-opacity duration-200 sm:gap-5 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
+        >
+          {vacio ? (
+            <EstadoVacio texto="No hay ventas registradas en este periodo." />
+          ) : (
+            <ContenidoDashboard datos={datos} />
           )}
-          <Bloque titulo="Ventas por periodo">
-            {datos.serie.length ? (
-              <div
-                className="h-52 sm:h-64"
-                aria-label="Gráfico de ventas por periodo"
-              >
-                {/*
+        </div>
+        {pendiente ? (
+          <IndicadorPendienteSuperficie>
+            <EsqueletoDashboard />
+          </IndicadorPendienteSuperficie>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
+function ContenidoDashboard({ datos }: { datos: Dashboard }) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Metrica
+          etiqueta="Ventas"
+          valor={String(datos.totales.cantidad)}
+          detalle="Operaciones registradas"
+          icono={<ReceiptText className="size-4.5" />}
+        />
+        <Metrica
+          etiqueta="Bruto"
+          valor={
+            <span className="money">
+              {formatearSoles(datos.totales.sumaBrutoCentimos)}
+            </span>
+          }
+          detalle="Monto antes del beneficio"
+          icono={<WalletCards className="size-4.5" />}
+          tono="success"
+        />
+        <Metrica
+          etiqueta="Descuento"
+          valor={
+            <span className="money">
+              {formatearSoles(datos.totales.sumaDescuentoCentimos)}
+            </span>
+          }
+          detalle="Beneficios entregados"
+          icono={<BadgePercent className="size-4.5" />}
+          tono="warning"
+        />
+        <Metrica
+          etiqueta="Ticket promedio"
+          valor={
+            <span className="money">
+              {formatearSoles(datos.totales.ticketPromedioCentimos)}
+            </span>
+          }
+          detalle="Promedio por operación"
+          icono={<ChartNoAxesCombined className="size-4.5" />}
+          tono="neutral"
+        />
+      </div>
+      {datos.anuladas.cantidad > 0 && (
+        <p className="text-muted-foreground text-sm">
+          {datos.anuladas.cantidad} venta
+          {datos.anuladas.cantidad === 1 ? "" : "s"} anulada
+          {datos.anuladas.cantidad === 1 ? "" : "s"} (
+          {formatearSoles(datos.anuladas.sumaBrutoCentimos)}) — excluidas de los
+          totales.
+        </p>
+      )}
+      <Bloque titulo="Ventas por periodo">
+        {datos.serie.length ? (
+          <div
+            className="h-52 sm:h-64"
+            aria-label="Gráfico de ventas por periodo"
+          >
+            {/*
                   En el render del servidor no hay layout que medir y
                   ResponsiveContainer avisa de un tamaño -1×-1. `initialDimension`
                   le da un tamaño de partida hasta que el cliente mide de verdad.
                 */}
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
-                  minWidth={0}
-                  initialDimension={{ width: 600, height: 208 }}
-                >
-                  <BarChart data={datos.serie}>
-                    <XAxis dataKey="periodo" tick={{ fontSize: 12 }} />
-                    <YAxis
-                      tickFormatter={(v) => `S/${Math.round(Number(v) / 100)}`}
-                    />
-                    <Tooltip formatter={(v) => formatearSoles(Number(v))} />
-                    <Bar
-                      dataKey="brutoCentimos"
-                      name="Monto bruto"
-                      fill="var(--primary)"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            ) : (
-              <EstadoVacio texto="Sin ventas para graficar." />
-            )}
-          </Bloque>
-          <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
-            <Lista
-              titulo="Por convenio"
-              filas={datos.porConvenio.map((x) => ({
-                clave: x.empresaNombre,
-                etiqueta: x.empresaNombre,
-                valor: formatearSoles(x.brutoCentimos),
-                peso: x.brutoCentimos,
-              }))}
-            />
-            <Lista
-              titulo="Por sede"
-              filas={datos.porSede.map((x) => ({
-                clave: x.nombre,
-                etiqueta: x.nombre,
-                valor: `${x.cantidad}`,
-                sufijo: x.cantidad === 1 ? "venta" : "ventas",
-                peso: x.cantidad,
-              }))}
-            />
-            <Lista
-              titulo="Top vendedores"
-              filas={datos.topVendedores.map((x) => ({
-                clave: x.nombre,
-                etiqueta: x.nombre,
-                detalle: `${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
-                valor: formatearSoles(x.brutoCentimos),
-                peso: x.brutoCentimos,
-              }))}
-            />
-            <Lista
-              titulo="Top empleados beneficiarios"
-              filas={datos.topEmpleados.map((x) => ({
-                clave: `${x.tipoDocumento}:${x.numeroDocumento}`,
-                etiqueta: x.nombre,
-                detalle: `${x.tipoDocumento === "DNI" ? "DNI" : "CE"} ${x.numeroDocumento} · ${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
-                valor: formatearSoles(x.brutoCentimos),
-                peso: x.brutoCentimos,
-              }))}
-            />
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+              minWidth={0}
+              initialDimension={{ width: 600, height: 208 }}
+            >
+              <BarChart data={datos.serie}>
+                <XAxis dataKey="periodo" tick={{ fontSize: 12 }} />
+                <YAxis
+                  tickFormatter={(v) => `S/${Math.round(Number(v) / 100)}`}
+                />
+                <Tooltip formatter={(v) => formatearSoles(Number(v))} />
+                <Bar
+                  dataKey="brutoCentimos"
+                  name="Monto bruto"
+                  fill="var(--primary)"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-          <Bloque titulo="Adopción">
-            <div className="flex items-end gap-4">
-              <p className="text-4xl leading-none font-bold tracking-tight">
-                {datos.adopcion.tasa}
-                <span className="text-muted-foreground text-2xl">%</span>
-              </p>
-              <p className="text-muted-foreground pb-0.5 text-sm leading-5">
-                {datos.adopcion.empleadosQueCompraron} de{" "}
-                {datos.adopcion.empleadosActivos} empleados activos usaron el
-                beneficio.
-              </p>
-            </div>
-            <div className="bg-muted mt-4 h-2 overflow-hidden rounded-full">
-              <div
-                className="bg-primary h-full rounded-full"
-                style={{
-                  width: `${Math.min(100, Math.max(0, datos.adopcion.tasa))}%`,
-                }}
-              />
-            </div>
-          </Bloque>
-        </>
-      )}
-    </section>
+        ) : (
+          <EstadoVacio texto="Sin ventas para graficar." />
+        )}
+      </Bloque>
+      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+        <Lista
+          titulo="Por convenio"
+          filas={datos.porConvenio.map((x) => ({
+            clave: x.empresaNombre,
+            etiqueta: x.empresaNombre,
+            valor: formatearSoles(x.brutoCentimos),
+            peso: x.brutoCentimos,
+          }))}
+        />
+        <Lista
+          titulo="Por sede"
+          filas={datos.porSede.map((x) => ({
+            clave: x.nombre,
+            etiqueta: x.nombre,
+            valor: `${x.cantidad}`,
+            sufijo: x.cantidad === 1 ? "venta" : "ventas",
+            peso: x.cantidad,
+          }))}
+        />
+        <Lista
+          titulo="Top vendedores"
+          filas={datos.topVendedores.map((x) => ({
+            clave: x.nombre,
+            etiqueta: x.nombre,
+            detalle: `${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
+            valor: formatearSoles(x.brutoCentimos),
+            peso: x.brutoCentimos,
+          }))}
+        />
+        <Lista
+          titulo="Top empleados beneficiarios"
+          filas={datos.topEmpleados.map((x) => ({
+            clave: `${x.tipoDocumento}:${x.numeroDocumento}`,
+            etiqueta: x.nombre,
+            detalle: `${x.tipoDocumento === "DNI" ? "DNI" : "CE"} ${x.numeroDocumento} · ${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
+            valor: formatearSoles(x.brutoCentimos),
+            peso: x.brutoCentimos,
+          }))}
+        />
+      </div>
+      <Bloque titulo="Adopción">
+        <div className="flex items-end gap-4">
+          <p className="text-4xl leading-none font-bold tracking-tight">
+            {datos.adopcion.tasa}
+            <span className="text-muted-foreground text-2xl">%</span>
+          </p>
+          <p className="text-muted-foreground pb-0.5 text-sm leading-5">
+            {datos.adopcion.empleadosQueCompraron} de{" "}
+            {datos.adopcion.empleadosActivos} empleados activos usaron el
+            beneficio.
+          </p>
+        </div>
+        <div className="bg-muted mt-4 h-2 overflow-hidden rounded-full">
+          <div
+            className="bg-primary h-full rounded-full"
+            style={{
+              width: `${Math.min(100, Math.max(0, datos.adopcion.tasa))}%`,
+            }}
+          />
+        </div>
+      </Bloque>
+    </>
   );
 }
+
+/**
+ * Skeleton del cuerpo del dashboard: reproduce a grandes rasgos la
+ * geometría real (métricas, gráfico, listas) para que el contenido no
+ * "salte" cuando llegan los datos — mismo criterio que la tabla de Ventas.
+ */
+function EsqueletoDashboard() {
+  return (
+    <div className="flex flex-col gap-3.5 sm:gap-5">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-24 rounded-[1.25rem] sm:h-28" />
+        ))}
+      </div>
+      <Skeleton className="h-52 rounded-[1.25rem] sm:h-64" />
+      <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+        {Array.from({ length: 4 }, (_, i) => (
+          <Skeleton key={i} className="h-48 rounded-[1.25rem]" />
+        ))}
+      </div>
+      <Skeleton className="h-28 rounded-[1.25rem]" />
+    </div>
+  );
+}
+
 function Bloque({
   titulo,
   children,
