@@ -6,6 +6,7 @@ type Variante =
   | "tabla"
   | "dashboard"
   | "formulario"
+  | "nueva-venta"
   | "detalle"
   | "login";
 
@@ -153,6 +154,113 @@ function InicioVendedor() {
   );
 }
 
+/** Tarjeta de paso del formulario de venta: mismo radio, padding y cabecera
+ * (círculo de número + título + descripción) que `PasoTarjeta` en
+ * `form-venta.tsx`. */
+function TarjetaPasoSkeleton({ children }: { children: React.ReactNode }) {
+  return (
+    <section className="rounded-[26px] border-2 border-transparent bg-[var(--venta-papel)] p-5 sm:p-7">
+      <div className="mb-6 flex items-center gap-3.5">
+        <Skeleton className="size-[34px] shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <Skeleton className="h-4 w-40 sm:h-[19px]" />
+          <Skeleton className="h-3 w-56" />
+        </div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function NuevaVenta() {
+  return (
+    <section
+      aria-busy="true"
+      className="venta-shell animate-in fade-in-0 flex flex-col gap-6 pb-6 duration-300"
+    >
+      <span className="sr-only" role="status">
+        Cargando nueva venta
+      </span>
+      <div aria-hidden="true" className="contents">
+        {/* ── Barra superior: mismo layout que el <header> real. ── */}
+        <header className="flex flex-wrap items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-[22px] w-64" />
+          </div>
+          <Skeleton className="h-[42px] w-48 rounded-full" />
+        </header>
+
+        {/* ── Misma grilla que el <form>: 1fr + aside de 372px desde lg. ── */}
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_372px]">
+          <div className="flex min-w-0 flex-col gap-4">
+            {/* Paso 1: documento del empleado */}
+            <TarjetaPasoSkeleton>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <Skeleton className="h-[50px] w-20 shrink-0 rounded-full sm:h-[58px]" />
+                <Skeleton className="h-[50px] min-w-0 flex-1 basis-64 rounded-2xl sm:h-[58px]" />
+                <Skeleton className="h-[50px] w-[50px] shrink-0 rounded-full sm:h-[58px] sm:w-[132px]" />
+              </div>
+              <Skeleton className="mt-3 h-3 w-52" />
+              <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <Skeleton className="h-[58px] rounded-[18px]" />
+                <Skeleton className="h-[58px] rounded-[18px]" />
+              </div>
+            </TarjetaPasoSkeleton>
+
+            {/* Paso 2: sede, fecha e importe */}
+            <TarjetaPasoSkeleton>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Skeleton className="h-[58px] rounded-[18px]" />
+                <Skeleton className="h-[58px] rounded-[18px]" />
+                <div className="grid min-w-0 gap-4 sm:col-span-2 sm:grid-cols-2">
+                  <Skeleton className="h-[72px] rounded-[22px]" />
+                  <Skeleton className="h-[72px] rounded-[22px]" />
+                </div>
+              </div>
+            </TarjetaPasoSkeleton>
+
+            {/* Paso 3: comprobante, evidencia y observación */}
+            <TarjetaPasoSkeleton>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Skeleton className="h-[154px] rounded-[22px] lg:h-[192px]" />
+                <Skeleton className="h-[154px] rounded-[22px] lg:h-[192px]" />
+              </div>
+              <Skeleton className="mt-5 h-[104px] rounded-[18px]" />
+            </TarjetaPasoSkeleton>
+          </div>
+
+          {/* ── Resumen: aside fijo de 372px desde lg, igual que el real. ── */}
+          <div className="hidden overflow-hidden rounded-[26px] border bg-[var(--venta-papel)] lg:sticky lg:top-[96px] lg:block">
+            <div className="space-y-3 px-6 pt-6 pb-5">
+              <Skeleton className="h-[19px] w-28" />
+              <Skeleton className="h-3.5 w-40" />
+              <Skeleton className="mt-4 h-1.5 w-full rounded-full" />
+            </div>
+            <div className="space-y-3 px-6 pb-5">
+              {Array.from({ length: 5 }, (_, index) => (
+                <Skeleton key={index} className="h-4 w-full" />
+              ))}
+            </div>
+            <Skeleton className="mx-[18px] mb-[18px] h-[136px] rounded-[22px]" />
+            <div className="px-6 pb-6">
+              <Skeleton className="h-[58px] w-full rounded-full" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Barra inferior móvil: solo por debajo de lg, como en el real. ── */}
+      <div
+        aria-hidden="true"
+        className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+      >
+        <Skeleton className="h-14 w-full rounded-full" />
+      </div>
+    </section>
+  );
+}
+
 function Detalle() {
   return (
     <div className="mx-auto max-w-xl space-y-6">
@@ -200,6 +308,7 @@ export function PageSkeleton({ variante = "tabla" }: { variante?: Variante }) {
   if (variante === "inicio-vendedor") return <InicioVendedor />;
   if (variante === "dashboard") return <Dashboard />;
   if (variante === "formulario") return <Formulario />;
+  if (variante === "nueva-venta") return <NuevaVenta />;
   if (variante === "detalle") return <Detalle />;
 
   return (
