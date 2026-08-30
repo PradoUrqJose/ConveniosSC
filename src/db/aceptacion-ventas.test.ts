@@ -13,7 +13,12 @@ import {
   crearVentaCore,
   type ArchivoVenta,
 } from "@/modules/ventas/acciones";
-import { listarVentas, obtenerVenta } from "@/modules/ventas/query";
+import {
+  listarVentas,
+  obtenerVenta,
+  resumirVentas,
+  ultimasVentas,
+} from "@/modules/ventas/query";
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
 import { calcularDescuento } from "@/lib/dinero";
 import { hoyLima, sumarDias } from "@/lib/fechas";
@@ -824,6 +829,22 @@ describe.skipIf(!ACTIVO)(
             ),
           ).toHaveLength(26);
         }
+
+        const ejecutor = adaptador(c);
+        const listado = await listarVentas(
+          ctxVendedor,
+          { orden: "fecha_desc" },
+          ejecutor,
+        );
+        const [resumenHome, recientesHome] = await Promise.all([
+          resumirVentas(ctxVendedor, { orden: "fecha_desc" }, ejecutor),
+          ultimasVentas(ctxVendedor, { orden: "fecha_desc" }, 5, ejecutor),
+        ]);
+        expect(resumenHome).toEqual(listado.resumen);
+        expect(recientesHome).toHaveLength(5);
+        expect(recientesHome.map((venta) => venta.id)).toEqual(
+          listado.items.slice(0, 5).map((venta) => venta.id),
+        );
       } finally {
         await c.query("ROLLBACK").catch(() => undefined);
         await c.end();

@@ -14,7 +14,7 @@ import {
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
 import { formatearSoles } from "@/lib/dinero";
 import { formatearFechaUI, hoyLima } from "@/lib/fechas";
-import { listarVentas } from "@/modules/ventas/query";
+import { resumirVentas, ultimasVentas } from "@/modules/ventas/query";
 import { Metrica } from "@/components/shell/pagina-ui";
 
 export default async function InicioPage() {
@@ -33,14 +33,17 @@ export default async function InicioPage() {
   }
 
   const hoy = hoyLima();
-  const ventasMes = await listarVentas(sesion, {
+  const filtrosMes = {
     desde: `${hoy.slice(0, 7)}-01`,
     hasta: hoy,
     estado: "REGISTRADA",
     orden: "fecha_desc",
-  });
+  } as const;
+  const [resumenMes, recientes] = await Promise.all([
+    resumirVentas(sesion, filtrosMes),
+    ultimasVentas(sesion, filtrosMes, 5),
+  ]);
   const nombre = sesion.nombres;
-  const recientes = ventasMes.items.slice(0, 5);
 
   return (
     <section className="page-shell">
@@ -78,7 +81,7 @@ export default async function InicioPage() {
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metrica
           etiqueta="Ventas este mes"
-          valor={ventasMes.resumen.cantidad}
+          valor={resumenMes.cantidad}
           detalle="Operaciones registradas"
           icono={<ReceiptText className="size-4.5" />}
         />
@@ -86,7 +89,7 @@ export default async function InicioPage() {
           etiqueta="Monto vendido"
           valor={
             <span className="money">
-              {formatearSoles(ventasMes.resumen.sumaBruto)}
+              {formatearSoles(resumenMes.sumaBruto)}
             </span>
           }
           detalle="Monto bruto acumulado"
@@ -97,7 +100,7 @@ export default async function InicioPage() {
           etiqueta="Descuentos"
           valor={
             <span className="money">
-              {formatearSoles(ventasMes.resumen.sumaDescuento)}
+              {formatearSoles(resumenMes.sumaDescuento)}
             </span>
           }
           detalle="Beneficio entregado"
@@ -108,7 +111,7 @@ export default async function InicioPage() {
           etiqueta="Monto final"
           valor={
             <span className="money">
-              {formatearSoles(ventasMes.resumen.sumaFinal)}
+              {formatearSoles(resumenMes.sumaFinal)}
             </span>
           }
           detalle="Total después de descuentos"

@@ -405,21 +405,16 @@ function codificarCursorVenta(
   ).toString("base64url");
 }
 
-/**
- * `listarVentas` (03 §7, filtros en 02 §12): el alcance lo determina el rol,
- * no el parámetro — el `VENDEDOR` siempre recibe solo sus propias ventas
- * (dirección forzada a "vendidas") aunque mande otro `vendedorId`. Los
- * filtros `vendedorId`, `sedeId` y `soloRevision` son solo de admin.
- *
- * `resumen` corresponde siempre al filtro completo (sin cursor), no a la
- * página visible; `total` solo se calcula en la primera página, y coincide
- * con `resumen.cantidad`.
- */
-export async function listarVentas(
+type ConsultaVentasPreparada = {
+  orden: OrdenVentas;
+  whereFiltros: SQL;
+  wherePagina: SQL;
+};
+
+function prepararConsultaVentas(
   ctx: SessionContext,
   entrada: FiltrosVentas,
-  ejecutor: TransaccionAuditada = db,
-): Promise<Pagina<FilaVenta> & { resumen: ResumenVentas }> {
+): ConsultaVentasPreparada {
   requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"]);
 
   const orden = entrada.orden ?? "fecha_desc";
@@ -488,16 +483,115 @@ export async function listarVentas(
     ? sql`WHERE ${sql.join(filtrosPagina, sql` AND `)}`
     : sql``;
 
-  const [resumenResultado, filasResultado] = await Promise.all([
-    ejecutor.execute(sql`
-      SELECT count(*)::int AS cantidad,
-        COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS suma_bruto,
-        COALESCE(sum(v.monto_descuento_centimos), 0)::bigint AS suma_descuento,
-        COALESCE(sum(v.monto_final_centimos), 0)::bigint AS suma_final
+  return { orden, whereFiltros, wherePagina };
+}
+
+async function consultarResumenVentas(
+  ejecutor: TransaccionAuditada,
+  whereFiltros: SQL,
+): Promise<ResumenVentas> {
+  const resultado = await ejecutor.execute(sql`
+    SELECT count(*)::int AS cantidad,
+      COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS suma_bruto,
+      COALESCE(sum(v.monto_descuento_centimos), 0)::bigint AS suma_descuento,
+      COALESCE(sum(v.monto_final_centimos), 0)::bigint AS suma_final
+    FROM ventas v
+    JOIN empleados e ON e.id = v.empleado_comprador_id
+    ${whereFiltros}
+  `);
+  const fila = obtenerFilas(resultado)[0];
+  return {
+    cantidad: Number(fila?.cantidad ?? 0),
+    sumaBruto: Number(fila?.suma_bruto ?? 0),
+    sumaDescuento: Number(fila?.suma_descuento ?? 0),
+    sumaFinal: Number(fila?.suma_final ?? 0),
+  };
+}
+
+/** Resumen completo de ventas para cabeceras y métricas. */
+export async function resumirVentas(
+  ctx: SessionContext,
+  entrada: FiltrosVentas,
+  ejecutor: TransaccionAuditada = db,
+): Promise<ResumenVentas> {
+  const { whereFiltros } = prepararConsultaVentas(ctx, entrada);
+  return consultarResumenVentas(ejecutor, whereFiltros);
+}
+
+export type VentaReciente = {
+  id: string;
+  fechaVenta: string;
+  empleado: Pick<FilaVenta["empleado"], "nombres" | "apellidos">;
+  sede: Pick<FilaVenta["sede"], "nombre">;
+  montoFinalCentimos: Centimos;
+};
+
+/**
+ * Últimas ventas para vistas resumidas. Evita empresas, vendedor y adjuntos
+ * porque la home solo muestra empleado, sede, fecha y monto final.
+ */
+export async function ultimasVentas(
+  ctx: SessionContext,
+  entrada: FiltrosVentas,
+  limite: number,
+  ejecutor: TransaccionAuditada = db,
+): Promise<VentaReciente[]> {
+  const { orden, wherePagina } = prepararConsultaVentas(ctx, entrada);
+  const cantidad = Math.min(Math.max(Math.trunc(limite), 1), 50);
+  const filas = obtenerFilas(
+    await ejecutor.execute(sql`
+      WITH pagina AS (
+        SELECT v.id
+        FROM ventas v
+        JOIN empleados e ON e.id = v.empleado_comprador_id
+        ${wherePagina}
+        ORDER BY ${fragmentoOrden(orden)}
+        LIMIT ${cantidad}
+      )
+      SELECT v.id, v.fecha_venta, e.nombres AS empleado_nombres,
+        e.apellidos AS empleado_apellidos, s.nombre AS sede_nombre,
+        v.monto_final_centimos
       FROM ventas v
       JOIN empleados e ON e.id = v.empleado_comprador_id
-      ${whereFiltros}
+      JOIN sedes s ON s.id = v.sede_id
+      JOIN pagina p ON p.id = v.id
+      ORDER BY ${fragmentoOrden(orden)}
     `),
+  );
+  return filas.map((f) => ({
+    id: String(f.id),
+    fechaVenta: textoFechaVenta(f.fecha_venta),
+    empleado: {
+      nombres: String(f.empleado_nombres),
+      apellidos: String(f.empleado_apellidos),
+    },
+    sede: { nombre: String(f.sede_nombre) },
+    montoFinalCentimos: Number(f.monto_final_centimos),
+  }));
+}
+
+/**
+ * `listarVentas` (03 §7, filtros en 02 §12): el alcance lo determina el rol,
+ * no el parámetro — el `VENDEDOR` siempre recibe solo sus propias ventas
+ * (dirección forzada a "vendidas") aunque mande otro `vendedorId`. Los
+ * filtros `vendedorId`, `sedeId` y `soloRevision` son solo de admin.
+ *
+ * `resumen` corresponde siempre al filtro completo (sin cursor), no a la
+ * página visible; `total` solo se calcula en la primera página, y coincide
+ * con `resumen.cantidad`.
+ */
+export async function listarVentas(
+  ctx: SessionContext,
+  entrada: FiltrosVentas,
+  ejecutor: TransaccionAuditada = db,
+): Promise<Pagina<FilaVenta> & { resumen: ResumenVentas }> {
+  const { orden, whereFiltros, wherePagina } = prepararConsultaVentas(
+    ctx,
+    entrada,
+  );
+
+  const [resumenResultado, filasResultado] = await Promise.all([
+    consultarResumenVentas(ejecutor, whereFiltros),
     ejecutor.execute(sql`
       WITH pagina AS (
         SELECT v.id
@@ -519,13 +613,7 @@ export async function listarVentas(
       ORDER BY ${fragmentoOrden(orden)}
     `),
   ]);
-  const resumenFila = obtenerFilas(resumenResultado)[0];
-  const resumen: ResumenVentas = {
-    cantidad: Number(resumenFila?.cantidad ?? 0),
-    sumaBruto: Number(resumenFila?.suma_bruto ?? 0),
-    sumaDescuento: Number(resumenFila?.suma_descuento ?? 0),
-    sumaFinal: Number(resumenFila?.suma_final ?? 0),
-  };
+  const resumen = resumenResultado;
   const filas = obtenerFilas(filasResultado);
 
   const haySiguiente = filas.length > POR_PAGINA_VENTAS;
