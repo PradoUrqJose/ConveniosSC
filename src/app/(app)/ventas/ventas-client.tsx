@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Filter,
   Loader2,
+  Paperclip,
   Plus,
   Receipt,
   Search,
@@ -55,6 +56,7 @@ import {
   sumarDias,
 } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
+import { capitalizarNombre } from "@/lib/utils";
 import type { EmpresaOpcion } from "@/modules/empleados/query";
 import type {
   FilaVenta,
@@ -72,6 +74,7 @@ import {
   EstadoVacio,
   IndicadorPendienteSuperficie,
   Metrica,
+  PanelSuperficie,
 } from "@/components/shell/pagina-ui";
 
 const OPCIONES_ORDEN: { value: string; label: string }[] = [
@@ -723,6 +726,10 @@ function empresaContraparte(venta: FilaVenta, direccion: string) {
     : venta.empresaCompradora;
 }
 
+function inicialesDe(nombres: string, apellidos: string): string {
+  return `${nombres[0] ?? ""}${apellidos[0] ?? ""}`.toUpperCase();
+}
+
 function ListaMovil({
   items,
   esAdmin,
@@ -820,8 +827,9 @@ function TarjetaVenta({
         <p
           className={`font-semibold ${anulada ? "text-muted-foreground line-through" : ""}`}
         >
-          {venta.empleado.nombres.toUpperCase()}{" "}
-          {venta.empleado.apellidos.toUpperCase()}
+          {capitalizarNombre(
+            `${venta.empleado.nombres} ${venta.empleado.apellidos}`,
+          )}
         </p>
         {anulada ? (
           <EstadoBadge tono="destructive" className="shrink-0">
@@ -880,9 +888,8 @@ function TablaVentas({
   paginador: ReactNode;
 }) {
   const router = useRouter();
-  const columnas = esAdmin ? 9 : 8;
   return (
-    <div className="surface-panel">
+    <PanelSuperficie pie={paginador}>
       <div className="relative">
         <Table>
           <TableHeader className="bg-muted/45">
@@ -900,11 +907,7 @@ function TablaVentas({
                 />
               </TableHead>
               <TableHead>Empleado</TableHead>
-              <TableHead>Empresa</TableHead>
-              <TableHead>Sede</TableHead>
-              {esAdmin ? <TableHead>Vendedor</TableHead> : null}
-              <TableHead className="text-right">Monto bruto</TableHead>
-              <TableHead className="text-right">Descuento</TableHead>
+              <TableHead>Contraparte</TableHead>
               <TableHead
                 className="text-right"
                 aria-sort={ariaSortDe(orden, "monto_asc", "monto_desc")}
@@ -920,6 +923,10 @@ function TablaVentas({
                 />
               </TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead className="text-center">Adjuntos</TableHead>
+              <TableHead>
+                <span className="sr-only">Detalle</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody
@@ -928,10 +935,13 @@ function TablaVentas({
             {items.map((v) => {
               const anulada = v.estado === "ANULADA";
               const contraparte = empresaContraparte(v, direccion);
+              const nombreCompleto = capitalizarNombre(
+                `${v.empleado.nombres} ${v.empleado.apellidos}`,
+              );
               return (
                 <TableRow
                   key={v.id}
-                  className={`animate-in fade-in-0 cursor-pointer duration-300 ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
+                  className={`animate-in fade-in-0 h-[72px] cursor-pointer duration-300 ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
                   onClick={() => router.push(`/ventas/${v.id}`)}
                 >
                   <TableCell>
@@ -940,46 +950,103 @@ function TablaVentas({
                       {formatearHoraLima(v.createdAt)}
                     </div>
                   </TableCell>
-                  <TableCell
-                    className={
-                      anulada ? "text-muted-foreground line-through" : ""
-                    }
-                  >
-                    <div>
-                      {v.empleado.nombres.toUpperCase()}{" "}
-                      {v.empleado.apellidos.toUpperCase()}
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold ${
+                          anulada
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {inicialesDe(v.empleado.nombres, v.empleado.apellidos)}
+                      </span>
+                      <div className="min-w-0">
+                        <div
+                          className={`truncate font-semibold ${anulada ? "text-muted-foreground line-through" : ""}`}
+                        >
+                          {nombreCompleto}
+                        </div>
+                        <div className="text-muted-foreground font-mono text-xs">
+                          {v.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+                          {v.empleado.numeroDocumento}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="truncate">{contraparte.nombre}</div>
+                    <div className="text-muted-foreground truncate text-xs">
+                      {v.sede.nombre}
+                      {esAdmin
+                        ? ` · ${v.vendedor.nombres} ${v.vendedor.apellidos.split(" ")[0]}`
+                        : ""}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div
+                      className={`money font-bold ${anulada ? "text-muted-foreground line-through" : ""}`}
+                    >
+                      {formatearSoles(v.montoFinalCentimos)}
                     </div>
                     <div className="text-muted-foreground text-xs">
-                      {v.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
-                      {v.empleado.numeroDocumento}
+                      <span className="money">
+                        {formatearSoles(v.montoBrutoCentimos)}
+                      </span>{" "}
+                      <span className="money">
+                        −{formatearSoles(v.montoDescuentoCentimos)}
+                      </span>
                     </div>
-                  </TableCell>
-                  <TableCell>{contraparte.nombre}</TableCell>
-                  <TableCell>{v.sede.nombre}</TableCell>
-                  {esAdmin ? (
-                    <TableCell>
-                      {v.vendedor.nombres} {v.vendedor.apellidos}
-                    </TableCell>
-                  ) : null}
-                  <TableCell
-                    className={`text-right ${anulada ? "text-muted-foreground line-through" : ""}`}
-                  >
-                    {formatearSoles(v.montoBrutoCentimos)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-right">
-                    −{formatearSoles(v.montoDescuentoCentimos)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatearSoles(v.montoFinalCentimos)}
                   </TableCell>
                   <TableCell>
                     {anulada ? (
-                      <EstadoBadge tono="destructive">Anulada</EstadoBadge>
+                      <EstadoBadge tono="destructive">
+                        <span className="size-1.5 rounded-full bg-current" />
+                        Anulada
+                      </EstadoBadge>
                     ) : v.requiereRevision ? (
-                      <EstadoBadge tono="warning">Revisión</EstadoBadge>
+                      <EstadoBadge tono="warning">
+                        <span className="size-1.5 rounded-full bg-current" />
+                        Revisión
+                      </EstadoBadge>
                     ) : (
-                      <EstadoBadge tono="success">Registrada</EstadoBadge>
+                      <EstadoBadge tono="success">
+                        <span className="size-1.5 rounded-full bg-current" />
+                        Registrada
+                      </EstadoBadge>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {v.totalAdjuntos > 0 ? (
+                      <span
+                        className="text-muted-foreground inline-flex items-center gap-1 text-xs"
+                        title={`${v.totalAdjuntos} adjunto${v.totalAdjuntos === 1 ? "" : "s"}`}
+                      >
+                        <Paperclip className="size-3.5" aria-hidden="true" />
+                        {v.totalAdjuntos}
+                      </span>
+                    ) : (
+                      <span
+                        className="text-muted-foreground/40 text-xs"
+                        aria-hidden="true"
+                      >
+                        —
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {/* Enlace real: la fila también navega por onClick (mouse),
+                        pero abrir el detalle no depende exclusivamente de él —
+                        este link es alcanzable y operable por teclado. */}
+                    <Link
+                      href={`/ventas/${v.id}`}
+                      aria-label={`Ver detalle de la venta de ${nombreCompleto}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring/50 inline-flex size-8 items-center justify-center rounded-lg outline-none focus-visible:ring-2"
+                    >
+                      <ChevronRight className="size-4" aria-hidden="true" />
+                    </Link>
                   </TableCell>
                 </TableRow>
               );
@@ -988,33 +1055,46 @@ function TablaVentas({
         </Table>
         {pendiente ? (
           <IndicadorPendienteSuperficie top="top-11">
-            <FilasEsqueleto columnas={columnas} filas={items.length || 6} />
+            <FilasEsqueleto filas={items.length || 6} />
           </IndicadorPendienteSuperficie>
         ) : null}
       </div>
-
-      {paginador}
-    </div>
+    </PanelSuperficie>
   );
 }
 
-function FilasEsqueleto({
-  columnas,
-  filas,
-}: {
-  columnas: number;
-  filas: number;
-}) {
+/**
+ * Mismas columnas y misma altura de fila (~72px) que `TablaVentas`: el
+ * criterio de aceptación exige que el skeleton no "salte" al llegar los
+ * datos reales.
+ */
+function FilasEsqueleto({ filas }: { filas: number }) {
   return (
     <div className="divide-y">
       {Array.from({ length: filas }, (_, fila) => (
-        <div key={fila} className="flex items-center gap-6 px-4 py-4">
-          {Array.from({ length: columnas }, (_, col) => (
-            <Skeleton
-              key={col}
-              className={`h-4 ${col === 0 ? "w-24" : col === columnas - 1 ? "ml-auto w-16" : "flex-1"}`}
-            />
-          ))}
+        <div key={fila} className="flex h-[72px] items-center gap-6 px-4">
+          <div className="flex w-20 shrink-0 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-16" />
+            <Skeleton className="h-3 w-10" />
+          </div>
+          <div className="flex flex-1 items-center gap-3">
+            <Skeleton className="size-10 shrink-0 rounded-xl" />
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <div className="flex w-28 shrink-0 flex-col items-end gap-1.5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+          <Skeleton className="h-3.5 w-6 shrink-0" />
+          <Skeleton className="size-8 shrink-0 rounded-lg" />
         </div>
       ))}
     </div>
