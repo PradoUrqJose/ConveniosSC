@@ -845,7 +845,8 @@ function TarjetaVenta({
           <span className="money">
             {formatearSoles(venta.montoBrutoCentimos)}
           </span>{" "}
-          − <span className="money">
+          −{" "}
+          <span className="money">
             {formatearSoles(venta.montoDescuentoCentimos)}
           </span>
         </span>

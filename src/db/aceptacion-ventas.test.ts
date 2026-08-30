@@ -937,9 +937,9 @@ describe.skipIf(!ACTIVO)(
           { estado: "REGISTRADA" },
           ejecutor,
         );
-        expect(
-          new Set(registradas.items.map((v) => v.id)),
-        ).toEqual(new Set([idBruto1000, idBruto3000]));
+        expect(new Set(registradas.items.map((v) => v.id))).toEqual(
+          new Set([idBruto1000, idBruto3000]),
+        );
         expect(registradas.resumen.cantidad).toBe(2);
 
         const anuladas = await listarVentas(
@@ -950,7 +950,11 @@ describe.skipIf(!ACTIVO)(
         expect(anuladas.items.map((v) => v.id)).toEqual([idBruto5000Anulada]);
         expect(anuladas.resumen.cantidad).toBe(1);
 
-        const todas = await listarVentas(ctxVendedor, { estado: "TODAS" }, ejecutor);
+        const todas = await listarVentas(
+          ctxVendedor,
+          { estado: "TODAS" },
+          ejecutor,
+        );
         expect(todas.resumen.cantidad).toBe(3);
 
         // Combinación: solo registradas con bruto >= 2000 -> únicamente la de 3000.
