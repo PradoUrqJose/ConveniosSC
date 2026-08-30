@@ -69,6 +69,10 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
+      // `scope="col"` por defecto: en esta app `TableHead` solo se usa para
+      // encabezados de columna (nunca de fila), así que sirve como default
+      // seguro. Un consumidor puede sobreescribirlo pasando su propio `scope`.
+      scope="col"
       className={cn(
         "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className,

@@ -15,9 +15,11 @@ import {
   ChevronRight,
   Filter,
   Loader2,
+  Paperclip,
   Plus,
   Receipt,
   Search,
+  Wallet,
   WalletCards,
 } from "lucide-react";
 
@@ -54,6 +56,7 @@ import {
   sumarDias,
 } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
+import { capitalizarNombre } from "@/lib/utils";
 import type { EmpresaOpcion } from "@/modules/empleados/query";
 import type {
   FilaVenta,
@@ -71,13 +74,14 @@ import {
   EstadoVacio,
   IndicadorPendienteSuperficie,
   Metrica,
+  PanelSuperficie,
 } from "@/components/shell/pagina-ui";
 
 const OPCIONES_ORDEN: { value: string; label: string }[] = [
   { value: "fecha_desc", label: "Más recientes primero" },
   { value: "fecha_asc", label: "Más antiguas primero" },
-  { value: "monto_desc", label: "Monto: mayor a menor" },
-  { value: "monto_asc", label: "Monto: menor a mayor" },
+  { value: "monto_desc", label: "Total pagado: mayor a menor" },
+  { value: "monto_asc", label: "Total pagado: menor a mayor" },
 ];
 
 const CAMPOS_FILTRO_CHIP = [
@@ -100,7 +104,9 @@ const CENTINELA_PRIMERA_PAGINA = "-";
 function esFiltroActivo(campo: string, sp: SearchParamsVentas): boolean {
   const valor = sp[campo as keyof SearchParamsVentas];
   if (!valor) return false;
-  if (campo === "estado" && valor === "TODAS") return false;
+  // "Registradas" es el estado por defecto de la página (page.tsx): no cuenta
+  // como filtro activo. Solo "Anuladas" o "Todas" (elegido a propósito) lo son.
+  if (campo === "estado" && valor === "REGISTRADA") return false;
   return true;
 }
 
@@ -363,12 +369,29 @@ export function VentasClient({
         </div>
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metrica
           etiqueta="Operaciones"
           valor={pagina.resumen.cantidad}
-          detalle="Según los filtros actuales"
+          detalle={
+            sp.estado === "ANULADA"
+              ? "Anuladas, según los filtros actuales"
+              : sp.estado === "TODAS"
+                ? "Incluye anuladas"
+                : "Registradas, según los filtros actuales"
+          }
           icono={<Receipt className="size-4.5" />}
+        />
+        <Metrica
+          etiqueta="Total pagado"
+          valor={
+            <span className="money">
+              {formatearSoles(pagina.resumen.sumaFinal)}
+            </span>
+          }
+          detalle="Bruto menos descuentos"
+          icono={<WalletCards className="size-4.5" />}
+          tono="success"
         />
         <Metrica
           etiqueta="Monto bruto"
@@ -378,22 +401,19 @@ export function VentasClient({
             </span>
           }
           detalle="Antes de descuentos"
-          icono={<WalletCards className="size-4.5" />}
-          tono="success"
+          icono={<Wallet className="size-4.5" />}
         />
-        <div className="col-span-2 lg:col-span-1">
-          <Metrica
-            etiqueta="Descuentos"
-            valor={
-              <span className="money">
-                {formatearSoles(pagina.resumen.sumaDescuento)}
-              </span>
-            }
-            detalle="Beneficios aplicados"
-            icono={<BadgePercent className="size-4.5" />}
-            tono="warning"
-          />
-        </div>
+        <Metrica
+          etiqueta="Descuentos"
+          valor={
+            <span className="money">
+              {formatearSoles(pagina.resumen.sumaDescuento)}
+            </span>
+          }
+          detalle="Beneficios aplicados"
+          icono={<BadgePercent className="size-4.5" />}
+          tono="warning"
+        />
       </div>
 
       {pagina.items.length === 0 ? (
@@ -499,7 +519,7 @@ function etiquetaFiltro(
     case "empresa":
       return empresas.find((e) => e.id === valor)?.nombreComercial ?? "Empresa";
     case "estado":
-      return valor === "REGISTRADA" ? "Registradas" : "Anuladas";
+      return valor === "ANULADA" ? "Anuladas" : "Todos los estados";
     case "vendedor": {
       const v = vendedores.find((v) => v.id === valor);
       return v ? `${v.nombres} ${v.apellidos}` : "Vendedor";
@@ -507,9 +527,9 @@ function etiquetaFiltro(
     case "sede":
       return sedes.find((s) => s.id === valor)?.nombre ?? "Sede";
     case "montoMin":
-      return `Desde S/ ${valor}`;
+      return `Bruto desde S/ ${valor}`;
     case "montoMax":
-      return `Hasta S/ ${valor}`;
+      return `Bruto hasta S/ ${valor}`;
     case "revision":
       return "Requiere revisión";
     case "orden":
@@ -600,12 +620,12 @@ function FiltrosVenta({
         <select
           id="estado"
           name="estado"
-          defaultValue={sp.estado ?? "TODAS"}
+          defaultValue={sp.estado ?? "REGISTRADA"}
           className={claseSelect}
         >
-          <option value="TODAS">Todas</option>
           <option value="REGISTRADA">Registradas</option>
           <option value="ANULADA">Anuladas</option>
+          <option value="TODAS">Todas (incluye anuladas)</option>
         </select>
       </div>
 
@@ -649,7 +669,7 @@ function FiltrosVenta({
 
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="montoMin">Monto mínimo (S/)</Label>
+          <Label htmlFor="montoMin">Monto bruto mínimo (S/)</Label>
           <Input
             id="montoMin"
             name="montoMin"
@@ -659,7 +679,7 @@ function FiltrosVenta({
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="montoMax">Monto máximo (S/)</Label>
+          <Label htmlFor="montoMax">Monto bruto máximo (S/)</Label>
           <Input
             id="montoMax"
             name="montoMax"
@@ -704,6 +724,10 @@ function empresaContraparte(venta: FilaVenta, direccion: string) {
   return direccion === "compradas"
     ? venta.empresaVendedora
     : venta.empresaCompradora;
+}
+
+function inicialesDe(nombres: string, apellidos: string): string {
+  return `${nombres[0] ?? ""}${apellidos[0] ?? ""}`.toUpperCase();
 }
 
 function ListaMovil({
@@ -803,8 +827,9 @@ function TarjetaVenta({
         <p
           className={`font-semibold ${anulada ? "text-muted-foreground line-through" : ""}`}
         >
-          {venta.empleado.nombres.toUpperCase()}{" "}
-          {venta.empleado.apellidos.toUpperCase()}
+          {capitalizarNombre(
+            `${venta.empleado.nombres} ${venta.empleado.apellidos}`,
+          )}
         </p>
         {anulada ? (
           <EstadoBadge tono="destructive" className="shrink-0">
@@ -823,13 +848,20 @@ function TarjetaVenta({
           : ""}
       </p>
       <div className="mt-2 flex items-center justify-end gap-3 border-t pt-3">
+        <span className="text-muted-foreground text-xs">
+          Bruto{" "}
+          <span className="money">
+            {formatearSoles(venta.montoBrutoCentimos)}
+          </span>{" "}
+          −{" "}
+          <span className="money">
+            {formatearSoles(venta.montoDescuentoCentimos)}
+          </span>
+        </span>
         <span
           className={`money font-bold ${anulada ? "text-muted-foreground line-through" : ""}`}
         >
-          {formatearSoles(venta.montoBrutoCentimos)}
-        </span>
-        <span className="money text-muted-foreground text-xs">
-          −{formatearSoles(venta.montoDescuentoCentimos)}
+          {formatearSoles(venta.montoFinalCentimos)}
         </span>
       </div>
     </Link>
@@ -856,9 +888,8 @@ function TablaVentas({
   paginador: ReactNode;
 }) {
   const router = useRouter();
-  const columnas = esAdmin ? 9 : 8;
   return (
-    <div className="surface-panel">
+    <PanelSuperficie pie={paginador}>
       <div className="relative">
         <Table>
           <TableHeader className="bg-muted/45">
@@ -876,15 +907,13 @@ function TablaVentas({
                 />
               </TableHead>
               <TableHead>Empleado</TableHead>
-              <TableHead>Empresa</TableHead>
-              <TableHead>Sede</TableHead>
-              {esAdmin ? <TableHead>Vendedor</TableHead> : null}
+              <TableHead>Contraparte</TableHead>
               <TableHead
                 className="text-right"
                 aria-sort={ariaSortDe(orden, "monto_asc", "monto_desc")}
               >
                 <EncabezadoOrdenable
-                  label="Monto"
+                  label="Total pagado"
                   campoAsc="monto_asc"
                   campoDesc="monto_desc"
                   orden={orden}
@@ -893,9 +922,11 @@ function TablaVentas({
                   alinearDerecha
                 />
               </TableHead>
-              <TableHead className="text-right">Descuento</TableHead>
-              <TableHead className="text-right">Total</TableHead>
               <TableHead>Estado</TableHead>
+              <TableHead className="text-center">Adjuntos</TableHead>
+              <TableHead>
+                <span className="sr-only">Detalle</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody
@@ -904,10 +935,13 @@ function TablaVentas({
             {items.map((v) => {
               const anulada = v.estado === "ANULADA";
               const contraparte = empresaContraparte(v, direccion);
+              const nombreCompleto = capitalizarNombre(
+                `${v.empleado.nombres} ${v.empleado.apellidos}`,
+              );
               return (
                 <TableRow
                   key={v.id}
-                  className={`animate-in fade-in-0 cursor-pointer duration-300 ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
+                  className={`animate-in fade-in-0 h-[72px] cursor-pointer duration-300 ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
                   onClick={() => router.push(`/ventas/${v.id}`)}
                 >
                   <TableCell>
@@ -916,46 +950,103 @@ function TablaVentas({
                       {formatearHoraLima(v.createdAt)}
                     </div>
                   </TableCell>
-                  <TableCell
-                    className={
-                      anulada ? "text-muted-foreground line-through" : ""
-                    }
-                  >
-                    <div>
-                      {v.empleado.nombres.toUpperCase()}{" "}
-                      {v.empleado.apellidos.toUpperCase()}
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold ${
+                          anulada
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-primary/10 text-primary"
+                        }`}
+                        aria-hidden="true"
+                      >
+                        {inicialesDe(v.empleado.nombres, v.empleado.apellidos)}
+                      </span>
+                      <div className="min-w-0">
+                        <div
+                          className={`truncate font-semibold ${anulada ? "text-muted-foreground line-through" : ""}`}
+                        >
+                          {nombreCompleto}
+                        </div>
+                        <div className="text-muted-foreground font-mono text-xs">
+                          {v.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+                          {v.empleado.numeroDocumento}
+                        </div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="truncate">{contraparte.nombre}</div>
+                    <div className="text-muted-foreground truncate text-xs">
+                      {v.sede.nombre}
+                      {esAdmin
+                        ? ` · ${v.vendedor.nombres} ${v.vendedor.apellidos.split(" ")[0]}`
+                        : ""}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div
+                      className={`money font-bold ${anulada ? "text-muted-foreground line-through" : ""}`}
+                    >
+                      {formatearSoles(v.montoFinalCentimos)}
                     </div>
                     <div className="text-muted-foreground text-xs">
-                      {v.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
-                      {v.empleado.numeroDocumento}
+                      <span className="money">
+                        {formatearSoles(v.montoBrutoCentimos)}
+                      </span>{" "}
+                      <span className="money">
+                        −{formatearSoles(v.montoDescuentoCentimos)}
+                      </span>
                     </div>
-                  </TableCell>
-                  <TableCell>{contraparte.nombre}</TableCell>
-                  <TableCell>{v.sede.nombre}</TableCell>
-                  {esAdmin ? (
-                    <TableCell>
-                      {v.vendedor.nombres} {v.vendedor.apellidos}
-                    </TableCell>
-                  ) : null}
-                  <TableCell
-                    className={`text-right ${anulada ? "text-muted-foreground line-through" : ""}`}
-                  >
-                    {formatearSoles(v.montoBrutoCentimos)}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-right">
-                    −{formatearSoles(v.montoDescuentoCentimos)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {formatearSoles(v.montoFinalCentimos)}
                   </TableCell>
                   <TableCell>
                     {anulada ? (
-                      <EstadoBadge tono="destructive">Anulada</EstadoBadge>
+                      <EstadoBadge tono="destructive">
+                        <span className="size-1.5 rounded-full bg-current" />
+                        Anulada
+                      </EstadoBadge>
                     ) : v.requiereRevision ? (
-                      <EstadoBadge tono="warning">Revisión</EstadoBadge>
+                      <EstadoBadge tono="warning">
+                        <span className="size-1.5 rounded-full bg-current" />
+                        Revisión
+                      </EstadoBadge>
                     ) : (
-                      <EstadoBadge tono="success">Registrada</EstadoBadge>
+                      <EstadoBadge tono="success">
+                        <span className="size-1.5 rounded-full bg-current" />
+                        Registrada
+                      </EstadoBadge>
                     )}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {v.totalAdjuntos > 0 ? (
+                      <span
+                        className="text-muted-foreground inline-flex items-center gap-1 text-xs"
+                        title={`${v.totalAdjuntos} adjunto${v.totalAdjuntos === 1 ? "" : "s"}`}
+                      >
+                        <Paperclip className="size-3.5" aria-hidden="true" />
+                        {v.totalAdjuntos}
+                      </span>
+                    ) : (
+                      <span
+                        className="text-muted-foreground/40 text-xs"
+                        aria-hidden="true"
+                      >
+                        —
+                      </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {/* Enlace real: la fila también navega por onClick (mouse),
+                        pero abrir el detalle no depende exclusivamente de él —
+                        este link es alcanzable y operable por teclado. */}
+                    <Link
+                      href={`/ventas/${v.id}`}
+                      aria-label={`Ver detalle de la venta de ${nombreCompleto}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring/50 inline-flex size-8 items-center justify-center rounded-lg outline-none focus-visible:ring-2"
+                    >
+                      <ChevronRight className="size-4" aria-hidden="true" />
+                    </Link>
                   </TableCell>
                 </TableRow>
               );
@@ -964,33 +1055,46 @@ function TablaVentas({
         </Table>
         {pendiente ? (
           <IndicadorPendienteSuperficie top="top-11">
-            <FilasEsqueleto columnas={columnas} filas={items.length || 6} />
+            <FilasEsqueleto filas={items.length || 6} />
           </IndicadorPendienteSuperficie>
         ) : null}
       </div>
-
-      {paginador}
-    </div>
+    </PanelSuperficie>
   );
 }
 
-function FilasEsqueleto({
-  columnas,
-  filas,
-}: {
-  columnas: number;
-  filas: number;
-}) {
+/**
+ * Mismas columnas y misma altura de fila (~72px) que `TablaVentas`: el
+ * criterio de aceptación exige que el skeleton no "salte" al llegar los
+ * datos reales.
+ */
+function FilasEsqueleto({ filas }: { filas: number }) {
   return (
     <div className="divide-y">
       {Array.from({ length: filas }, (_, fila) => (
-        <div key={fila} className="flex items-center gap-6 px-4 py-4">
-          {Array.from({ length: columnas }, (_, col) => (
-            <Skeleton
-              key={col}
-              className={`h-4 ${col === 0 ? "w-24" : col === columnas - 1 ? "ml-auto w-16" : "flex-1"}`}
-            />
-          ))}
+        <div key={fila} className="flex h-[72px] items-center gap-6 px-4">
+          <div className="flex w-20 shrink-0 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-16" />
+            <Skeleton className="h-3 w-10" />
+          </div>
+          <div className="flex flex-1 items-center gap-3">
+            <Skeleton className="size-10 shrink-0 rounded-xl" />
+            <div className="flex flex-1 flex-col gap-1.5">
+              <Skeleton className="h-3.5 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+          </div>
+          <div className="flex flex-1 flex-col gap-1.5">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+          <div className="flex w-28 shrink-0 flex-col items-end gap-1.5">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-3 w-16" />
+          </div>
+          <Skeleton className="h-5 w-20 shrink-0 rounded-full" />
+          <Skeleton className="h-3.5 w-6 shrink-0" />
+          <Skeleton className="size-8 shrink-0 rounded-lg" />
         </div>
       ))}
     </div>

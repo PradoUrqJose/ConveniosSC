@@ -70,8 +70,12 @@ export default async function VentasPage({
   const sp = await searchParams;
   const esAdmin = sesion.rol === "ADMIN_EMPRESA";
 
+  // Semántica del issue #25: el listado inicia en REGISTRADA (no "todas") para
+  // que el resumen ("Operaciones", "Monto bruto", "Descuentos") no mezcle
+  // anuladas por defecto. "Todas" y "Anuladas" siguen disponibles como
+  // elección explícita del filtro Estado.
   const estado: EstadoVenta | "TODAS" =
-    sp.estado === "REGISTRADA" || sp.estado === "ANULADA" ? sp.estado : "TODAS";
+    sp.estado === "ANULADA" || sp.estado === "TODAS" ? sp.estado : "REGISTRADA";
   const direccion: DireccionVentas =
     sp.dir === "compradas" ? "compradas" : "vendidas";
   const orden: OrdenVentas = ORDENES.includes(sp.orden as OrdenVentas)
