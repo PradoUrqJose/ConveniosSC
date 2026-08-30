@@ -117,8 +117,8 @@ export const empresas = pgTable(
   },
   (t) => [
     unique("empresas_ruc_uk").on(t.ruc),
-    index("empresas_activo_idx")
-      .on(t.activo)
+    index("empresas_activas_orden_idx")
+      .on(t.nombreComercial, t.id)
       .where(sql`${t.activo}`),
     index("empresas_orden_idx").on(t.nombreComercial, t.id),
     check("empresas_ruc_check", sql`${t.ruc} ~ '^[0-9]{11}$'`),
