@@ -1,20 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { UserRoundCheck, UserRoundX } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmarDestructivo } from "@/components/ui/confirmar-destructivo";
 import type { Resultado } from "@/lib/tipos";
 import { actualizarUsuario } from "@/modules/usuarios/actions";
 import type { FilaUsuario } from "@/modules/usuarios/query";
@@ -35,7 +26,6 @@ export function DialogoDesactivar({
   onCerrar: () => void;
 }) {
   const router = useRouter();
-  const formulario = useRef<HTMLFormElement>(null);
   const activar = !usuario.activo;
 
   const [estado, formAction, pendiente] = useActionState(
@@ -58,57 +48,33 @@ export function DialogoDesactivar({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent
-      pending={pendiente}
-      variant="confirm"
-      className="sm:max-w-md"
-    >
-      <DialogHeader
-        icon={activar ? <UserRoundCheck /> : <UserRoundX />}
-        tone={activar ? "success" : "destructive"}
-        eyebrow="Gestión de accesos"
-      >
-        <DialogTitle>
-          {activar ? "Reactivar usuario" : "Desactivar usuario"}
-        </DialogTitle>
-        <DialogDescription>
-          {activar
-            ? `@${usuario.username} volverá a poder iniciar sesión.`
-            : `@${usuario.username} perderá el acceso de inmediato y se revocarán sus sesiones.`}
-        </DialogDescription>
-      </DialogHeader>
-
-      <DialogForm
-        ref={formulario}
-        action={formAction}
-        className="flex flex-col gap-4"
-      >
-        <input type="hidden" name="usuarioId" value={usuario.id} />
-        <input type="hidden" name="activo" value={activar ? "on" : ""} />
-
-        {error ? (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        ) : null}
-
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
-          <Button
-            type="submit"
-            variant={activar ? "default" : "destructive"}
-            disabled={pendiente}
-          >
-            {pendiente
-              ? "Guardando…"
-              : activar
-                ? "Reactivar"
-                : "Desactivar usuario"}
-          </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+    <ConfirmarDestructivo
+      abierto
+      alCerrar={onCerrar}
+      pendiente={pendiente}
+      icono={activar ? UserRoundCheck : UserRoundX}
+      eyebrow="Gestión de accesos"
+      titulo={activar ? "Reactivar usuario" : "Desactivar usuario"}
+      entidad={
+        activar
+          ? `@${usuario.username} volverá a poder iniciar sesión.`
+          : `@${usuario.username} perderá el acceso de inmediato.`
+      }
+      consecuencia={
+        activar
+          ? "Se reactivará el acceso de esta cuenta."
+          : "Se revocarán de inmediato todas las sesiones de esta cuenta."
+      }
+      accion={activar ? "Reactivar usuario" : "Desactivar usuario"}
+      accionPendiente="Guardando…"
+      formAction={formAction}
+      camposOcultos={
+        <>
+          <input type="hidden" name="usuarioId" value={usuario.id} />
+          <input type="hidden" name="activo" value={activar ? "on" : ""} />
+        </>
+      }
+      error={error}
+    />
   );
 }

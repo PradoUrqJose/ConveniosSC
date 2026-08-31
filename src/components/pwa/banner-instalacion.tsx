@@ -46,6 +46,22 @@ export function BannerInstalacion() {
   const [evento, setEvento] = useState<BeforeInstallPromptEvent | null>(null);
   const [instalacionIOS, setInstalacionIOS] = useState(false);
   const [visible, setVisible] = useState(false);
+  const [hayModal, setHayModal] = useState(false);
+
+  useEffect(() => {
+    const actualizar = () =>
+      setHayModal(
+        Boolean(
+          document.querySelector(
+            '[data-slot="dialog-content"], [data-slot="confirmar-destructivo"]',
+          ),
+        ),
+      );
+    actualizar();
+    const observador = new MutationObserver(actualizar);
+    observador.observe(document.body, { childList: true, subtree: true });
+    return () => observador.disconnect();
+  }, []);
 
   useEffect(() => {
     if (estaInstalada()) {
@@ -124,7 +140,7 @@ export function BannerInstalacion() {
     return null;
   }
 
-  if (!visible || (!evento && !instalacionIOS)) {
+  if (hayModal || !visible || (!evento && !instalacionIOS)) {
     return null;
   }
 
@@ -143,8 +159,8 @@ export function BannerInstalacion() {
 
   return (
     <div
-      role="dialog"
-      aria-label="Instalar Convenios"
+      role="status"
+      aria-label="Sugerencia para instalar Convenios"
       className="border-border/80 bg-card/96 fixed inset-x-3 bottom-[calc(4.2rem+env(safe-area-inset-bottom))] z-[var(--z-pwa)] mx-auto max-w-md overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_24px_70px_rgba(15,23,42,.24)] backdrop-blur-xl lg:right-5 lg:bottom-5 lg:left-auto"
     >
       <div className="flex items-start gap-3">

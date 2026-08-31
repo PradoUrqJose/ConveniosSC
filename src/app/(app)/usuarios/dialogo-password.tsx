@@ -60,6 +60,9 @@ export function DialogoPassword({
         </DialogHeader>
 
         <DialogBody className="space-y-4">
+          <p className="sr-only" role="status" aria-live="polite">
+            {copiado ? "Contraseña copiada" : ""}
+          </p>
           <dl className="divide-border/70 bg-muted/20 overflow-hidden rounded-[var(--radius-control)] border">
             <div className="flex items-center justify-between gap-3 px-4 py-3">
               <dt className="text-muted-foreground">Usuario</dt>

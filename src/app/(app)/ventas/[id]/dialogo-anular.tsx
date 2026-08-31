@@ -5,18 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Ban } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ConfirmarDestructivo } from "@/components/ui/confirmar-destructivo";
 import { anularVenta } from "@/modules/ventas/actions";
 import type { Resultado } from "@/lib/tipos";
 
@@ -30,9 +19,11 @@ const ESTADO_INICIAL: Estado = {
 
 export function DialogoAnular({
   ventaId,
+  entidad,
   onCerrar,
 }: {
   ventaId: string;
+  entidad: string;
   onCerrar: () => void;
 }) {
   const router = useRouter();
@@ -54,54 +45,24 @@ export function DialogoAnular({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent
-      pending={pendiente}
-      variant="confirm"
-      className="sm:max-w-md"
-    >
-      <DialogHeader
-        icon={<Ban />}
-        tone="destructive"
-        eyebrow="Gestión de ventas"
-      >
-        <DialogTitle>Anular venta</DialogTitle>
-        <DialogDescription>
-          Esta acción no se puede deshacer. Si fue un error, deberás registrar
-          una venta nueva.
-        </DialogDescription>
-      </DialogHeader>
-
-      <DialogForm action={formAction}>
-        <input type="hidden" name="ventaId" value={ventaId} />
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="motivo">Motivo de la anulación</Label>
-          <Textarea
-            id="motivo"
-            name="motivo"
-            required
-            minLength={5}
-            maxLength={300}
-            disabled={pendiente}
-            placeholder="El cliente devolvió la compra…"
-            rows={4}
-          />
-        </div>
-
-        {error ? (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        ) : null}
-
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
-          <Button type="submit" variant="destructive" disabled={pendiente}>
-            {pendiente ? "Anulando…" : "Anular venta"}
-          </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+    <ConfirmarDestructivo
+      abierto
+      alCerrar={onCerrar}
+      pendiente={pendiente}
+      icono={Ban}
+      eyebrow="Gestión de ventas"
+      titulo="Anular venta"
+      entidad={entidad}
+      consecuencia="Esta acción no se puede deshacer. Si fue un error, deberás registrar una venta nueva."
+      accion="Anular venta"
+      accionPendiente="Anulando…"
+      formAction={formAction}
+      camposOcultos={<input type="hidden" name="ventaId" value={ventaId} />}
+      motivo={{
+        etiqueta: "Motivo de la anulación",
+        placeholder: "El cliente devolvió la compra…",
+      }}
+      error={error}
+    />
   );
 }

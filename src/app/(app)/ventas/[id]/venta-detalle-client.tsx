@@ -13,7 +13,6 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -233,12 +232,11 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
       ) : null}
 
       {anularAbierto ? (
-        <Dialog open onOpenChange={(a) => !a && setAnularAbierto(false)}>
-          <DialogoAnular
-            ventaId={venta.id}
-            onCerrar={() => setAnularAbierto(false)}
-          />
-        </Dialog>
+        <DialogoAnular
+          ventaId={venta.id}
+          entidad={`Venta por ${formatearSoles(venta.montoFinalCentimos)}`}
+          onCerrar={() => setAnularAbierto(false)}
+        />
       ) : null}
     </section>
   );
