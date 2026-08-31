@@ -60,7 +60,7 @@ especificación original.
 | Gestionar sedes | No | Las de su empresa | Las actions lo permiten; la UI es de consulta global |
 | Gestionar usuarios | No | No | Sí |
 | Gestionar empresas/convenios | No | No | Sí |
-| Ver auditoría | No | No actualmente; el contrato exige la de su empresa | Vista global |
+| Ver auditoría | No | Solo eventos de su empresa | Vista global |
 | Verificar integridad de auditoría | No | No | Sí |
 
 ### Rutas principales
@@ -78,7 +78,7 @@ especificación original.
 | `/usuarios` | Gestión de usuarios; solo `SUPERADMIN` |
 | `/admin/empresas` | Empresas; solo `SUPERADMIN` |
 | `/admin/convenios` | Convenios y términos; solo `SUPERADMIN` |
-| `/auditoria` | Actualmente solo `SUPERADMIN`; está pendiente habilitar el visor acotado para `ADMIN_EMPRESA` |
+| `/auditoria` | Vista global para `SUPERADMIN` y vista acotada a `actor_empresa_id` para `ADMIN_EMPRESA` |
 | `/perfil` | Perfil del usuario actual |
 | `/perfil/password` | Cambio obligatorio o voluntario de contraseña |
 
@@ -592,19 +592,16 @@ de integridad.
 
 Estos puntos deben recordarse al planificar refactorizaciones:
 
-1. El contrato permite que `ADMIN_EMPRESA` vea la auditoría de su empresa, pero
-   la página y la query siguen restringidas a `SUPERADMIN`. La verificación de
-   integridad sí debe continuar exclusiva de `SUPERADMIN`.
-2. El rol PostgreSQL `app_user` recibe permisos limitados, pero la aplicación se
+1. El rol PostgreSQL `app_user` recibe permisos limitados, pero la aplicación se
    conecta actualmente como `neondb_owner`; esa capa de mínimo privilegio no
    está activa en runtime.
-3. La protección del seed basada en palabras como `prod` no reconoce de forma
+2. La protección del seed basada en palabras como `prod` no reconoce de forma
    fiable los IDs opacos de endpoints Neon.
-4. Los valores por defecto de Playwright y los usuarios del seed no están
+3. Los valores por defecto de Playwright y los usuarios del seed no están
    alineados.
-5. Preview necesita su propio juego de variables antes de utilizarse como
+4. Preview necesita su propio juego de variables antes de utilizarse como
    entorno seguro de pruebas.
-6. Los documentos `PLAN.md` y `01` a `06` son especificaciones históricas y
+5. Los documentos `PLAN.md` y `01` a `06` son especificaciones históricas y
    pueden contener estructura o dependencias que cambiaron durante la
    implementación.
 

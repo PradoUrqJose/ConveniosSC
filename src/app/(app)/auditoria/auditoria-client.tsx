@@ -12,10 +12,12 @@ export function AuditoriaClient({
   pagina,
   filtros,
   puedeVerificar,
+  alcanceGlobal,
 }: {
   pagina: Pagina<FilaAuditoria>;
   filtros: FiltroAuditoria;
   puedeVerificar: boolean;
+  alcanceGlobal: boolean;
 }) {
   const [resultado, setResultado] = useState<string>();
   const params = new URLSearchParams();
@@ -29,7 +31,11 @@ export function AuditoriaClient({
       <CabeceraPagina
         kicker="Trazabilidad"
         titulo="Auditoría"
-        descripcion="Revisa la actividad crítica del sistema y verifica la integridad de la cadena de registros."
+        descripcion={
+          alcanceGlobal
+            ? "Revisa la actividad crítica del sistema y verifica la integridad de la cadena de registros."
+            : "Revisa la actividad crítica registrada por tu empresa."
+        }
         icono={<History className="size-5" />}
         acciones={
           puedeVerificar ? (

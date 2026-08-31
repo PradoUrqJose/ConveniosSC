@@ -20,7 +20,7 @@ export default async function AuditoriaPage({
     throw e;
   }
   try {
-    requireRol(sesion, ["SUPERADMIN"]);
+    requireRol(sesion, ["SUPERADMIN", "ADMIN_EMPRESA"]);
   } catch {
     redirect("/");
   }
@@ -41,6 +41,7 @@ export default async function AuditoriaPage({
       )}
       filtros={filtros}
       puedeVerificar={sesion.rol === "SUPERADMIN"}
+      alcanceGlobal={sesion.rol === "SUPERADMIN"}
     />
   );
 }
