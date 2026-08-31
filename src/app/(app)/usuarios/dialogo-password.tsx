@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogBody,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -46,50 +47,53 @@ export function DialogoPassword({
         }
       }}
     >
-      <DialogContent showCloseButton={false} className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Check className="size-4 text-emerald-600" />
-            Usuario listo
-          </DialogTitle>
+      <DialogContent showCloseButton={false} variant="secret">
+        <DialogHeader
+          icon={<KeyRound />}
+          tone="success"
+          eyebrow="Credencial temporal"
+        >
+          <DialogTitle>Usuario listo</DialogTitle>
           <DialogDescription>
             Entrégale la contraseña al usuario por un canal seguro.
           </DialogDescription>
         </DialogHeader>
 
-        <dl className="flex flex-col gap-2">
-          <div className="flex items-center justify-between gap-3">
-            <dt className="text-muted-foreground">Usuario</dt>
-            <dd className="font-medium">@{username}</dd>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <dt className="text-muted-foreground">Contraseña</dt>
-            <dd className="flex items-center gap-2">
-              <code className="bg-muted rounded-md px-2 py-1 font-semibold">
-                {passwordTemporal}
-              </code>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                onClick={copiar}
-                aria-label="Copiar contraseña"
-              >
-                {copiado ? (
-                  <Check className="size-4 text-emerald-600" />
-                ) : (
-                  <Copy className="size-4" />
-                )}
-              </Button>
-            </dd>
-          </div>
-        </dl>
+        <DialogBody className="space-y-4">
+          <dl className="divide-border/70 bg-muted/20 overflow-hidden rounded-[var(--radius-control)] border">
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <dt className="text-muted-foreground">Usuario</dt>
+              <dd className="font-medium">@{username}</dd>
+            </div>
+            <div className="flex items-center justify-between gap-3 px-4 py-3">
+              <dt className="text-muted-foreground">Contraseña</dt>
+              <dd className="flex items-center gap-2">
+                <code className="bg-background ring-border rounded-lg px-3 py-2 font-mono text-base font-semibold tracking-wide ring-1">
+                  {passwordTemporal}
+                </code>
+                <Button
+                  variant="outline"
+                  size="icon-lg"
+                  onClick={copiar}
+                  aria-label="Copiar contraseña"
+                >
+                  {copiado ? (
+                    <Check className="size-4 text-emerald-600" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
+                </Button>
+              </dd>
+            </div>
+          </dl>
 
-        <p className="flex items-start gap-2 rounded-lg border border-amber-600/40 bg-amber-600/10 p-3 text-sm text-amber-700">
-          <span>
-            Esta contraseña <strong>no se volverá a mostrar</strong>. Deberá
-            cambiarla en su primer ingreso.
-          </span>
-        </p>
+          <p className="text-foreground border-warning/35 bg-warning/10 flex items-start gap-2 rounded-[var(--radius-control)] border p-4 text-sm">
+            <span>
+              Esta contraseña <strong>no se volverá a mostrar</strong>. Deberá
+              cambiarla en su primer ingreso.
+            </span>
+          </p>
+        </DialogBody>
 
         <DialogFooter>
           <DialogClose render={<Button />}>Entendido</DialogClose>

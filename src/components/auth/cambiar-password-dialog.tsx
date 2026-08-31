@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { KeyRound } from "lucide-react";
 
 import { FormularioCambiarPassword } from "@/components/auth/formulario-cambiar-password";
@@ -18,16 +19,13 @@ export function CambiarPasswordDialog({
   abierto: boolean;
   alCambiarAbierto: (abierto: boolean) => void;
 }) {
+  const [pendiente, setPendiente] = useState(false);
+
   return (
     <Dialog open={abierto} onOpenChange={alCambiarAbierto}>
-      <DialogContent className="gap-5 sm:max-w-[30rem] sm:p-6">
-        <DialogHeader className="pr-8">
-          <span className="from-primary/15 text-primary ring-primary/10 mb-2 grid size-11 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 ring-1">
-            <KeyRound className="size-5" />
-          </span>
-          <DialogTitle className="text-xl font-bold tracking-[-0.03em]">
-            Cambiar contraseña
-          </DialogTitle>
+      <DialogContent variant="secret" pending={pendiente}>
+        <DialogHeader icon={<KeyRound />} eyebrow="Seguridad de cuenta">
+          <DialogTitle>Cambiar contraseña</DialogTitle>
           <DialogDescription>
             Actualiza tu contraseña. Cerraremos las otras sesiones activas por
             seguridad.
@@ -37,6 +35,7 @@ export function CambiarPasswordDialog({
           alCompletar={() => alCambiarAbierto(false)}
           etiquetaBoton="Guardar contraseña"
           compacto
+          alCambiarPendiente={setPendiente}
         />
       </DialogContent>
     </Dialog>

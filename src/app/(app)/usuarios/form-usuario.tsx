@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { UserCog, UserPlus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -121,8 +123,11 @@ export function FormUsuario({
   const esSuperadminRol = rol === "SUPERADMIN";
 
   return (
-    <DialogContent className="sm:max-w-lg">
-      <DialogHeader>
+    <DialogContent pending={pendiente} className="sm:max-w-lg">
+      <DialogHeader
+        icon={esEdicion ? <UserCog /> : <UserPlus />}
+        eyebrow="Gestión de accesos"
+      >
         <DialogTitle>
           {esEdicion ? "Editar usuario" : "Crear usuario"}
         </DialogTitle>
@@ -133,7 +138,7 @@ export function FormUsuario({
         </DialogDescription>
       </DialogHeader>
 
-      <form
+      <DialogForm
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -288,7 +293,7 @@ export function FormUsuario({
                 : "Crear usuario"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

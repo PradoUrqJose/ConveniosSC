@@ -20,6 +20,7 @@ import {
   Search,
   Users,
   UsersRound,
+  UserRound,
   X,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ import {
 } from "@/components/shell/pagina-ui";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -733,18 +735,18 @@ function DetalleEmpleado({
   }, [estadoVerificacion, onCerrar, router]);
   const esPendiente = empleado.estado === "PENDIENTE_VERIFICACION";
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent pending={pendiente} variant="detail" className="sm:max-w-md">
+      <DialogHeader icon={<UserRound />} eyebrow="Ficha del empleado">
         <DialogTitle>
-          {empleado.nombres.toUpperCase()} {empleado.apellidos.toUpperCase()}
+          {empleado.nombres} {empleado.apellidos}
         </DialogTitle>
         <DialogDescription>
           {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
           {empleado.numeroDocumento} · {empleado.empresaNombre}
         </DialogDescription>
       </DialogHeader>
-      <div className="flex flex-col gap-4">
-        <dl className="text-sm">
+      <DialogBody className="flex flex-col gap-4">
+        <dl className="divide-border/70 bg-muted/15 overflow-hidden rounded-[var(--radius-control)] border text-sm">
           <Detalle etiqueta="Estado">
             <EstadoBadge tono={TONO_ESTADO[empleado.estado]}>
               {TEXTO_ESTADO[empleado.estado]}
@@ -761,7 +763,7 @@ function DetalleEmpleado({
             </Detalle>
           ) : null}
         </dl>
-      </div>
+      </DialogBody>
       {puedeGestionar ? (
         <DialogFooter className="flex-col gap-2 sm:flex-col">
           {esPendiente ? (
@@ -806,7 +808,7 @@ function Detalle({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex justify-between gap-4 py-1">
+    <div className="flex justify-between gap-4 px-4 py-3">
       <dt className="text-muted-foreground">{etiqueta}</dt>
       <dd className="text-right">{children}</dd>
     </div>

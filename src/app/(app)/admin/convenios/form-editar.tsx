@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Handshake } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -64,15 +66,19 @@ export function FormEditarConvenio({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent pending={pendiente} className="sm:max-w-md">
+      <DialogHeader
+        icon={<Handshake />}
+        tone="warning"
+        eyebrow="Gestión de convenios"
+      >
         <DialogTitle>Editar convenio</DialogTitle>
         <DialogDescription>
           {convenio.empresaA.nombre} ⇄ {convenio.empresaB.nombre}
         </DialogDescription>
       </DialogHeader>
 
-      <form
+      <DialogForm
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -142,7 +148,7 @@ export function FormEditarConvenio({
             {pendiente ? "Guardando…" : "Guardar cambios"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

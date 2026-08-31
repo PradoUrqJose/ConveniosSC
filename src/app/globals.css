@@ -139,14 +139,21 @@
      cada rol para no repetir `rounded-[Npx]` sueltos en pantallas nuevas. */
   --radius-panel: 1.5rem; /* 24px: surface-panel, cards de hero secundario */
   --radius-control: 1.05rem; /* ~17px: inputs, selects, botones de formulario */
-  --radius-modal: 1.5rem; /* 24px: Dialog/Sheet desktop */
+  --radius-modal: 1.75rem; /* 28px: línea visual modal */
+
+  /* Línea modal — docs/14-LINEA-DISENO-MODALES.md. */
+  --modal-field: oklch(0.958 0.012 250);
+  --modal-field-hover: oklch(0.94 0.018 250);
+  --modal-shadow:
+    0 40px 90px -30px rgb(15 23 42 / 45%), 0 2px 8px rgb(15 23 42 / 6%);
 
   /* Capas de apilamiento — docs/09-GUIA-REDISENO-UI-DESKTOP.md §7.2 y §9.
      Un único lugar para coordinar overlay, popover y toast y evitar que el
      aviso PWA u otro elemento fijo quede sobre un modal real. */
-  --z-popover: 40;
+  --z-pwa: 30;
   --z-overlay: 50;
   --z-modal: 51;
+  --z-popover: 52;
   --z-toast: 60;
 }
 
@@ -197,6 +204,350 @@
   --sidebar-ring: oklch(0.65 0.15 250);
 
   --brand: #8da0d6;
+  --modal-field: oklch(0.245 0.028 254);
+  --modal-field-hover: oklch(0.275 0.034 253);
+  --modal-shadow:
+    0 40px 90px -30px rgb(0 0 0 / 72%), 0 2px 8px rgb(0 0 0 / 30%);
+}
+
+/* Sonner fija una capa muy alta por defecto; se normaliza con las capas de la UI. */
+[data-sonner-toaster] {
+  z-index: var(--z-toast) !important;
+}
+
+/* Línea visual modal — especificación completa en docs/14-LINEA-DISENO-MODALES.md. */
+@keyframes modal-field-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-note-in {
+  from {
+    max-height: 0;
+    margin-top: 0;
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    max-height: 120px;
+    margin-top: 0.75rem;
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-segment-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes modal-caret {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.dialog-note {
+  overflow: hidden;
+  animation: modal-note-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dialog-segment-content {
+  animation: modal-segment-content-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.dialog-caret {
+  animation: modal-caret 1.05s steps(1) infinite;
+}
+
+.dialog-overlay {
+  transition: opacity 220ms ease;
+}
+
+.dialog-overlay[data-starting-style],
+.dialog-overlay[data-ending-style] {
+  opacity: 0;
+}
+
+.dialog-overlay[data-ending-style] {
+  transition-duration: 170ms;
+}
+
+.dialog-popup {
+  box-shadow: var(--modal-shadow);
+  transition:
+    opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dialog-popup::before {
+  position: absolute;
+  z-index: 0;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 15rem;
+  content: "";
+  pointer-events: none;
+  background-image:
+    radial-gradient(
+      120% 90% at 0% 0%,
+      color-mix(in oklab, var(--primary) 12%, transparent) 0%,
+      transparent 62%
+    ),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklab, var(--primary) 17%, transparent) 0%,
+      color-mix(in oklab, var(--primary) 10%, transparent) 38%,
+      color-mix(in oklab, var(--primary) 4%, transparent) 70%,
+      transparent 100%
+    );
+}
+
+.dialog-popup[data-starting-style] {
+  opacity: 0;
+  transform: translateY(18px) scale(0.965);
+}
+
+.dialog-popup[data-ending-style] {
+  opacity: 0;
+  transform: translateY(6px) scale(0.985);
+  transition-duration: 170ms;
+  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+}
+
+.dialog-close {
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    transform 200ms ease;
+}
+
+.dialog-close:hover:not(:disabled) {
+  transform: rotate(90deg);
+}
+
+[data-slot="dialog-content"] > form,
+[data-slot="dialog-body"] {
+  position: relative;
+  z-index: 1;
+}
+
+.dialog-stagger {
+  scrollbar-gutter: stable;
+}
+
+.dialog-stagger > * {
+  animation: modal-field-rise 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: var(--dialog-stagger-delay, 90ms);
+}
+
+.dialog-stagger > :nth-child(2) {
+  --dialog-stagger-delay: 135ms;
+}
+
+.dialog-stagger > :nth-child(3) {
+  --dialog-stagger-delay: 180ms;
+}
+
+.dialog-stagger > :nth-child(4) {
+  --dialog-stagger-delay: 225ms;
+}
+
+.dialog-stagger > :nth-child(5) {
+  --dialog-stagger-delay: 270ms;
+}
+
+.dialog-stagger > :nth-child(6) {
+  --dialog-stagger-delay: 315ms;
+}
+
+.dialog-stagger > :nth-child(7) {
+  --dialog-stagger-delay: 360ms;
+}
+
+.dialog-stagger > :nth-child(8) {
+  --dialog-stagger-delay: 405ms;
+}
+
+[data-slot="dialog-content"] [data-slot="label"] {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1rem;
+  font-weight: 600;
+}
+
+[data-slot="dialog-content"] [data-slot="input"],
+[data-slot="dialog-content"] [data-slot="select-trigger"],
+[data-slot="dialog-content"] form select,
+[data-slot="dialog-content"] [data-slot="textarea"],
+[data-slot="dialog-content"] form textarea:not([data-slot="textarea"]) {
+  border-color: transparent;
+  border-radius: 1rem;
+  background: var(--modal-field);
+  font-size: 1rem;
+  box-shadow: inset 0 0 0 2px transparent;
+  transition:
+    background-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+[data-slot="dialog-content"] [data-slot="input"],
+[data-slot="dialog-content"] [data-slot="select-trigger"],
+[data-slot="dialog-content"] form select {
+  min-height: 3.375rem;
+  padding-inline: 1.125rem;
+}
+
+[data-slot="dialog-content"] [data-slot="textarea"],
+[data-slot="dialog-content"] form textarea:not([data-slot="textarea"]) {
+  min-height: 7rem;
+  padding: 0.9375rem 1.125rem;
+  line-height: 1.5rem;
+}
+
+[data-slot="dialog-content"] [data-slot="input"]:hover:not(:disabled),
+[data-slot="dialog-content"] [data-slot="select-trigger"]:hover:not(:disabled),
+[data-slot="dialog-content"] form select:hover:not(:disabled),
+[data-slot="dialog-content"] [data-slot="textarea"]:hover:not(:disabled) {
+  background: var(--modal-field-hover);
+}
+
+[data-slot="dialog-content"] [data-slot="input"]:focus-visible,
+[data-slot="dialog-content"] [data-slot="select-trigger"]:focus-visible,
+[data-slot="dialog-content"] form select:focus-visible,
+[data-slot="dialog-content"] [data-slot="textarea"]:focus-visible {
+  border-color: transparent;
+  background: var(--popover);
+  box-shadow: inset 0 0 0 2px var(--primary);
+  outline: none;
+}
+
+[data-slot="dialog-content"]
+  [data-slot="dialog-stagger-item"]
+  > div:has(> [data-slot="switch"]) {
+  min-height: 5rem;
+  border: 0;
+  border-radius: 1.25rem;
+  background: var(--modal-field);
+  padding: 1rem 1.125rem;
+}
+
+[data-slot="dialog-content"] [data-slot="input"]:disabled,
+[data-slot="dialog-content"] [data-slot="select-trigger"]:disabled,
+[data-slot="dialog-content"] [data-slot="textarea"]:disabled {
+  background: var(--modal-field);
+  opacity: 0.68;
+}
+
+[data-slot="dialog-footer"] [data-slot="button"] {
+  border-radius: 999px;
+  font-size: 0.90625rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition:
+    transform 140ms ease,
+    box-shadow 180ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+[data-slot="dialog-footer"] [data-slot="button"][data-variant="outline"] {
+  border-color: var(--border);
+  background: var(--popover);
+  color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+[data-slot="dialog-footer"] [data-slot="button"][data-variant="default"] {
+  box-shadow: 0 6px 18px -6px
+    color-mix(in oklab, var(--primary) 65%, transparent);
+}
+
+[data-slot="dialog-footer"] [data-slot="button"][data-state="done"] {
+  background: var(--success);
+  color: var(--success-foreground);
+  opacity: 1;
+  box-shadow: 0 6px 18px -6px
+    color-mix(in oklab, var(--success) 58%, transparent);
+}
+
+[data-slot="dialog-footer"] [data-slot="button"][data-variant="destructive"] {
+  background: var(--destructive);
+  color: var(--destructive-foreground);
+  box-shadow: 0 6px 18px -6px
+    color-mix(in oklab, var(--destructive) 58%, transparent);
+}
+
+[data-slot="dialog-footer"] [data-slot="button"]:active:not(:disabled) {
+  transform: translateY(1px) scale(0.99);
+}
+
+@media (min-width: 640px) {
+  .dialog-popup {
+    transform: translate(-50%, -50%);
+  }
+
+  .dialog-popup[data-starting-style] {
+    transform: translate(-50%, calc(-50% + 18px)) scale(0.965);
+  }
+
+  .dialog-popup[data-ending-style] {
+    transform: translate(-50%, calc(-50% + 6px)) scale(0.985);
+  }
+
+  [data-slot="dialog-content"] [data-slot="input"],
+  [data-slot="dialog-content"] [data-slot="select-trigger"],
+  [data-slot="dialog-content"] form select,
+  [data-slot="dialog-content"] [data-slot="textarea"],
+  [data-slot="dialog-content"] form textarea:not([data-slot="textarea"]) {
+    font-size: 0.9375rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog-overlay,
+  .dialog-popup,
+  .dialog-close,
+  [data-slot="dialog-footer"] [data-slot="button"] {
+    transition-duration: 1ms !important;
+  }
+
+  .dialog-close:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .dialog-stagger > *,
+  .dialog-note,
+  .dialog-segment-content,
+  .dialog-caret {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
+}
+
+@media (min-width: 640px) and (prefers-reduced-motion: reduce) {
+  .dialog-popup[data-starting-style],
+  .dialog-popup[data-ending-style] {
+    transform: translate(-50%, -50%);
+  }
 }
 
 @keyframes skeleton-shimmer {

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Percent } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -101,8 +103,12 @@ export function DialogoCambiarTermino({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent pending={pendiente} className="sm:max-w-md">
+      <DialogHeader
+        icon={<Percent />}
+        tone="warning"
+        eyebrow="Condiciones del convenio"
+      >
         <DialogTitle>Cambiar descuento</DialogTitle>
         <DialogDescription>
           Se cierra el término vigente y se abre uno nuevo desde la fecha
@@ -133,7 +139,7 @@ export function DialogoCambiarTermino({
         </div>
       </div>
 
-      <form
+      <DialogForm
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -206,7 +212,7 @@ export function DialogoCambiarTermino({
             {pendiente ? "Aplicando…" : "Confirmar cambio"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

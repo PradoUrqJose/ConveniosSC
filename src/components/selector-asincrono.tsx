@@ -77,7 +77,7 @@ export function SelectorAsincrono({
         autoComplete="off"
       />
       {abierto ? (
-        <div className="bg-popover absolute z-50 mt-1 max-h-52 w-full overflow-auto rounded-md border p-1 shadow-md">
+        <div className="bg-popover absolute z-[var(--z-popover)] mt-1 max-h-52 w-full overflow-auto rounded-md border p-1 shadow-md">
           {opciones.map((opcion) => (
             <button
               key={opcion.id}

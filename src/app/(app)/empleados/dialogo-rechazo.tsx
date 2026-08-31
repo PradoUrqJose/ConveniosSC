@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { UserRoundX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -53,8 +55,16 @@ export function DialogoRechazo({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent
+      pending={pendiente}
+      variant="confirm"
+      className="sm:max-w-md"
+    >
+      <DialogHeader
+        icon={<UserRoundX />}
+        tone="destructive"
+        eyebrow="Revisión de afiliación"
+      >
         <DialogTitle>Rechazar empleado</DialogTitle>
         <DialogDescription>
           <span className="text-foreground font-medium">
@@ -69,7 +79,7 @@ export function DialogoRechazo({
         Esto marcará para revisión las ventas registradas a este empleado.
       </div>
 
-      <form action={formAction} className="flex flex-col gap-4">
+      <DialogForm action={formAction}>
         <input type="hidden" name="empleadoId" value={empleado.id} />
         <div className="flex flex-col gap-2">
           <Label htmlFor="motivo">Motivo del rechazo</Label>
@@ -99,7 +109,7 @@ export function DialogoRechazo({
             {pendiente ? "Rechazando…" : "Rechazar empleado"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

@@ -193,22 +193,28 @@ Aplicable a Dashboard Admin y Ventas Admin.
 
 ## 7. Sistema de modales desktop
 
+La especificación estabilizada y vinculante de esta sección está en
+[`14-LINEA-DISENO-MODALES.md`](./14-LINEA-DISENO-MODALES.md). La referencia
+aprobada es el modal de Nuevo empleado; cualquier evolución del patrón se
+documenta primero allí.
+
 ### 7.1 Variantes
 
 | Variante | Uso | Ancho desktop orientativo |
 |---|---|---|
-| `form` | Crear o editar entidades | `640–760px` |
-| `confirm` | Anular, rechazar, desactivar, reactivar | `440–520px` |
-| `detail` | Resumen de empleado u otra entidad | `520–640px` |
-| `secret` | Contraseña temporal o dato sensible de una sola lectura | `440–520px` |
+| `form` | Crear o editar entidades | `660px` |
+| `confirm` | Anular, rechazar, desactivar, reactivar | `480px` |
+| `detail` | Resumen de empleado u otra entidad | `608px` |
+| `secret` | Contraseña temporal o dato sensible de una sola lectura | `496px` |
 
 ### 7.2 Anatomía
 
-- Overlay `black/35–45` con blur muy leve; el actual `black/10` no separa bien el
-  plano modal.
-- Radio desktop de `24px`.
+- Overlay `black/42` con blur de `6px`.
+- Radio desktop de `28px`.
 - Sombra amplia, con borde/ring sutil.
-- Header con tile de icono, título de `20–24px` y descripción de `14px`.
+- Header con kicker de `11px`, título de `26–27px` y descripción de `14.5px`.
+- Lavado azul de `240px`; los iconos acompañan discretamente al kicker y no se
+  presentan como otra card.
 - Cuerpo desplazable independiente.
 - Footer fijo o sticky dentro del modal, separado por borde; las acciones no deben
   desaparecer al hacer scroll.
@@ -217,9 +223,11 @@ Aplicable a Dashboard Admin y Ventas Admin.
 
 ### 7.3 Movimiento
 
-- Overlay: fade `160–200ms`.
-- Contenido: fade + `translateY(8–12px)` + escala máxima `0.98`, `220–260ms`.
-- Cierre ligeramente más corto que apertura.
+- Overlay: fade `220ms`; salida `170ms`.
+- Contenido: fade + `translateY(18px)` + escala `0.965`, `420ms` con
+  `cubic-bezier(.16,1,.3,1)`.
+- Salida: `translateY(6px)`, escala `0.985` y `170ms`.
+- Los campos entran con rise de `10px` y stagger de `45ms`.
 - El origen visual debe ser estable en el centro; evitar saltos entre bottom-sheet
   y modal dentro de viewports desktop.
 - Deshabilitar cierre accidental mientras una mutación irreversible está en curso,

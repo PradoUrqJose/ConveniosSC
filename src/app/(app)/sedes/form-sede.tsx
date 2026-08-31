@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Store } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -71,8 +73,8 @@ export function FormSede({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent pending={pendiente} className="sm:max-w-md">
+      <DialogHeader icon={<Store />} eyebrow="Gestión de sedes">
         <DialogTitle>{esEdicion ? "Editar sede" : "Nueva sede"}</DialogTitle>
         <DialogDescription>
           {esEdicion
@@ -81,7 +83,7 @@ export function FormSede({
         </DialogDescription>
       </DialogHeader>
 
-      <form action={formAction} className="flex flex-col gap-4">
+      <DialogForm action={formAction}>
         {esEdicion ? (
           <input type="hidden" name="sedeId" value={sede!.id} />
         ) : (
@@ -149,7 +151,7 @@ export function FormSede({
                 : "Crear sede"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

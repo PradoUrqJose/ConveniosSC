@@ -3,6 +3,10 @@
 Base **shadcn/ui** sobre **Tailwind CSS v4**. Neutro y sobrio, tema claro y oscuro (D24).
 La app es multiempresa: no lleva la marca de ninguna.
 
+La especificación visual e interactiva de diálogos vive en
+[`14-LINEA-DISENO-MODALES.md`](./14-LINEA-DISENO-MODALES.md). Es obligatoria
+para todo modal nuevo o modificado.
+
 ---
 
 ## 1. Tokens de color
@@ -297,12 +301,18 @@ completo detrás de cada uno.
 /* Radios por rol, sobre la escala --radius-* de shadcn/ui */
 --radius-panel     /* 24px: surface-panel */
 --radius-control    /* ~17px: inputs, selects, botones de formulario */
---radius-modal      /* 24px: Dialog/Sheet desktop, ver issue de rediseño de Dialog */
+--radius-modal      /* 28px: Dialog desktop, ver línea específica de modales */
+
+/* Superficies propias de formulario modal */
+--modal-field
+--modal-field-hover
+--modal-shadow
 
 /* Capas de apilamiento */
---z-popover  /* 40 */
+--z-pwa      /* 30 */
 --z-overlay  /* 50 */
 --z-modal    /* 51 */
+--z-popover  /* 52: debe quedar sobre el modal portalizado */
 --z-toast    /* 60 */
 ```
 

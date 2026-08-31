@@ -9,6 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Handshake } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -77,15 +79,15 @@ export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-lg">
-      <DialogHeader>
+    <DialogContent pending={pendiente} className="sm:max-w-lg">
+      <DialogHeader icon={<Handshake />} eyebrow="Gestión de convenios">
         <DialogTitle>Crear convenio</DialogTitle>
         <DialogDescription>
           Un convenio une dos empresas con descuentos direccionales.
         </DialogDescription>
       </DialogHeader>
 
-      <form
+      <DialogForm
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -245,7 +247,7 @@ export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
             {pendiente ? "Creando…" : "Crear convenio"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

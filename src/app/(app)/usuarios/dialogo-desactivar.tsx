@@ -3,12 +3,14 @@
 import { useActionState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { UserRoundCheck, UserRoundX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -56,8 +58,16 @@ export function DialogoDesactivar({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent
+      pending={pendiente}
+      variant="confirm"
+      className="sm:max-w-md"
+    >
+      <DialogHeader
+        icon={activar ? <UserRoundCheck /> : <UserRoundX />}
+        tone={activar ? "success" : "destructive"}
+        eyebrow="Gestión de accesos"
+      >
         <DialogTitle>
           {activar ? "Reactivar usuario" : "Desactivar usuario"}
         </DialogTitle>
@@ -68,7 +78,7 @@ export function DialogoDesactivar({
         </DialogDescription>
       </DialogHeader>
 
-      <form
+      <DialogForm
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -98,7 +108,7 @@ export function DialogoDesactivar({
                 : "Desactivar usuario"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

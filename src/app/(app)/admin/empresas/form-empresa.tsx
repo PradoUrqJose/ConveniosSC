@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Building2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -82,8 +84,8 @@ export function FormEmpresa({
   const desactiva = esEdicion && !activo && (empresa?.activo ?? true);
 
   return (
-    <DialogContent className="sm:max-w-lg">
-      <DialogHeader>
+    <DialogContent pending={pendiente} className="sm:max-w-lg">
+      <DialogHeader icon={<Building2 />} eyebrow="Directorio empresarial">
         <DialogTitle>
           {esEdicion ? "Editar empresa" : "Crear empresa"}
         </DialogTitle>
@@ -94,7 +96,7 @@ export function FormEmpresa({
         </DialogDescription>
       </DialogHeader>
 
-      <form
+      <DialogForm
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -258,7 +260,7 @@ export function FormEmpresa({
                 : "Crear empresa"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

@@ -8,6 +8,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -51,19 +52,20 @@ export function DialogoResetear({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
-        <DialogTitle className="flex items-center gap-2">
-          <KeyRound className="size-4" />
-          Restablecer contraseña
-        </DialogTitle>
+    <DialogContent pending={pendiente} variant="secret" className="sm:max-w-md">
+      <DialogHeader
+        icon={<KeyRound />}
+        tone="warning"
+        eyebrow="Seguridad de cuenta"
+      >
+        <DialogTitle>Restablecer contraseña</DialogTitle>
         <DialogDescription>
           Se generará una nueva contraseña temporal para @{usuario.username} y
           se revocarán todas sus sesiones.
         </DialogDescription>
       </DialogHeader>
 
-      <form
+      <DialogForm
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -84,7 +86,7 @@ export function DialogoResetear({
             {pendiente ? "Restableciendo…" : "Restablecer contraseña"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { Ban } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import {
   DialogClose,
   DialogContent,
   DialogDescription,
+  DialogForm,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -52,8 +54,16 @@ export function DialogoAnular({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent className="sm:max-w-md">
-      <DialogHeader>
+    <DialogContent
+      pending={pendiente}
+      variant="confirm"
+      className="sm:max-w-md"
+    >
+      <DialogHeader
+        icon={<Ban />}
+        tone="destructive"
+        eyebrow="Gestión de ventas"
+      >
         <DialogTitle>Anular venta</DialogTitle>
         <DialogDescription>
           Esta acción no se puede deshacer. Si fue un error, deberás registrar
@@ -61,7 +71,7 @@ export function DialogoAnular({
         </DialogDescription>
       </DialogHeader>
 
-      <form action={formAction} className="flex flex-col gap-4">
+      <DialogForm action={formAction}>
         <input type="hidden" name="ventaId" value={ventaId} />
         <div className="flex flex-col gap-2">
           <Label htmlFor="motivo">Motivo de la anulación</Label>
@@ -91,7 +101,7 @@ export function DialogoAnular({
             {pendiente ? "Anulando…" : "Anular venta"}
           </Button>
         </DialogFooter>
-      </form>
+      </DialogForm>
     </DialogContent>
   );
 }

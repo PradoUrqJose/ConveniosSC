@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DialogFooter, DialogForm } from "@/components/ui/dialog";
 import type { Resultado } from "@/lib/tipos";
 import { cambiarPassword } from "@/modules/auth/actions";
 
@@ -24,6 +25,7 @@ export function FormularioCambiarPassword({
   etiquetaBoton = "Guardar y continuar",
   compacto = false,
   redirigirAlInicio = false,
+  alCambiarPendiente,
 }: {
   /** Si no se indica, conserva el destino de la página obligatoria. */
   alCompletar?: () => void;
@@ -31,6 +33,7 @@ export function FormularioCambiarPassword({
   compacto?: boolean;
   /** La página obligatoria termina siempre en el inicio. */
   redirigirAlInicio?: boolean;
+  alCambiarPendiente?: (pendiente: boolean) => void;
 }) {
   const router = useRouter();
   const [estado, formAction, pendiente] = useActionState(
@@ -40,6 +43,10 @@ export function FormularioCambiarPassword({
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
   const [mostrar, setMostrar] = useState(false);
+
+  useEffect(() => {
+    alCambiarPendiente?.(pendiente);
+  }, [alCambiarPendiente, pendiente]);
 
   const requisitos = [
     { ok: nueva.length >= 8, texto: "Al menos 8 caracteres" },
@@ -65,9 +72,10 @@ export function FormularioCambiarPassword({
   }, [alCompletar, estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  const Form = compacto ? DialogForm : "form";
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <Form action={formAction} className="flex flex-col gap-4">
       {redirigirAlInicio ? (
         <input type="hidden" name="redirigirAlInicio" value="on" />
       ) : null}
@@ -154,21 +162,28 @@ export function FormularioCambiarPassword({
         </p>
       ) : null}
 
-      <Button
-        type="submit"
-        disabled={pendiente}
-        className={
-          compacto ? "h-11 rounded-xl font-bold" : "h-12 rounded-xl font-bold"
-        }
-      >
-        {!pendiente ? <ShieldCheck className="size-4" /> : null}
-        {pendiente ? "Guardando…" : etiquetaBoton}
-      </Button>
+      {compacto ? (
+        <DialogFooter>
+          <Button type="submit" disabled={pendiente}>
+            {!pendiente ? <ShieldCheck className="size-4" /> : null}
+            {pendiente ? "Guardando…" : etiquetaBoton}
+          </Button>
+        </DialogFooter>
+      ) : (
+        <Button
+          type="submit"
+          disabled={pendiente}
+          className="h-12 rounded-xl font-bold"
+        >
+          {!pendiente ? <ShieldCheck className="size-4" /> : null}
+          {pendiente ? "Guardando…" : etiquetaBoton}
+        </Button>
+      )}
       {!compacto && error ? (
         <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
       ) : null}
-    </form>
+    </Form>
   );
 }
