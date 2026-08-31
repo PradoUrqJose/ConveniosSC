@@ -19,6 +19,33 @@ const consultas = {
       AND v.estado = 'REGISTRADA'
     GROUP BY 1
     ORDER BY 1`,
+  dashboard_resumen: `
+    SELECT count(*) FILTER (WHERE v.estado = 'REGISTRADA'),
+      COALESCE(sum(v.monto_bruto_centimos) FILTER (WHERE v.estado = 'REGISTRADA'), 0)
+    FROM ventas v
+    WHERE v.fecha_venta BETWEEN current_date - interval '29 days' AND current_date`,
+  dashboard_empresas: `
+    SELECT v.empresa_compradora_id, count(*), COALESCE(sum(v.monto_bruto_centimos), 0)
+    FROM ventas v
+    WHERE v.fecha_venta BETWEEN current_date - interval '29 days' AND current_date
+      AND v.estado = 'REGISTRADA'
+    GROUP BY v.empresa_compradora_id
+    ORDER BY 3 DESC
+    LIMIT 10`,
+  dashboard_vendedores: `
+    SELECT v.vendedor_usuario_id, count(*), COALESCE(sum(v.monto_bruto_centimos), 0)
+    FROM ventas v
+    WHERE v.fecha_venta BETWEEN current_date - interval '29 days' AND current_date
+      AND v.estado = 'REGISTRADA'
+    GROUP BY v.vendedor_usuario_id
+    ORDER BY 3 DESC
+    LIMIT 10`,
+  dashboard_beneficiarios_sedes: `
+    SELECT v.empleado_comprador_id, v.sede_id, count(*), COALESCE(sum(v.monto_bruto_centimos), 0)
+    FROM ventas v
+    WHERE v.fecha_venta BETWEEN current_date - interval '29 days' AND current_date
+      AND v.estado = 'REGISTRADA'
+    GROUP BY GROUPING SETS ((v.empleado_comprador_id), (v.sede_id))`,
   auditoria: `
     SELECT a.id, a.ts, a.accion, a.entidad
     FROM auditoria a
