@@ -72,19 +72,13 @@ export default async function AppLayout({
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {esPuntoVenta ? (
-          <>
-            <div className="lg:hidden">
-              <CabeceraPuntoVenta />
-            </div>
-            <Header
-              perfil={perfil}
-              rol={sesion.rol}
-              className="hidden lg:flex"
-              tituloSecundario="Nueva venta"
-            />
-          </>
+          <div className="lg:hidden">
+            <CabeceraPuntoVenta />
+          </div>
         ) : (
-          <Header perfil={perfil} rol={sesion.rol} />
+          <div className="lg:hidden">
+            <Header perfil={perfil} rol={sesion.rol} />
+          </div>
         )}
         <BannerOffline />
         <main

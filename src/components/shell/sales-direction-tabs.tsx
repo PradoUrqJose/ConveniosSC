@@ -44,6 +44,7 @@ export function SalesDirectionTabs({
   direccion,
   onNavegar,
   className,
+  sobreHero = false,
   ariaLabel = "Dirección de ventas",
   prefetch = true,
 }: {
@@ -51,6 +52,8 @@ export function SalesDirectionTabs({
   direccion: DireccionVentas;
   onNavegar?: (href: string) => void;
   className?: string;
+  /** Variante de contraste para superficies oscuras o degradadas. */
+  sobreHero?: boolean;
   ariaLabel?: string;
   /** Desactiva GETs especulativos cuando el consumidor carga por Server Action. */
   prefetch?: boolean;
@@ -138,14 +141,18 @@ export function SalesDirectionTabs({
       role="tablist"
       aria-label={ariaLabel}
       className={cn(
-        "bg-muted/80 relative flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl p-1.5",
+        "relative flex w-fit max-w-full gap-1 overflow-x-auto rounded-xl p-1.5",
+        sobreHero ? "bg-white/15 ring-1 ring-white/15" : "bg-muted/80",
         className,
       )}
     >
       {indicador ? (
         <span
           aria-hidden="true"
-          className="bg-card absolute inset-y-1.5 left-0 rounded-lg shadow-sm transition-[transform,width] duration-200 ease-out motion-reduce:transition-none"
+          className={cn(
+            "absolute inset-y-1.5 left-0 rounded-lg shadow-sm transition-[transform,width] duration-200 ease-out motion-reduce:transition-none",
+            sobreHero ? "bg-white" : "bg-card",
+          )}
           style={{
             width: indicador.width,
             transform: `translateX(${indicador.left}px)`,
@@ -168,8 +175,12 @@ export function SalesDirectionTabs({
           className={cn(
             "focus-visible:ring-ring/50 relative z-10 rounded-lg px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2",
             optimista === opcion.id
-              ? "text-foreground"
-              : "text-muted-foreground hover:text-foreground",
+              ? sobreHero
+                ? "text-blue-950"
+                : "text-foreground"
+              : sobreHero
+                ? "text-blue-100 hover:text-white"
+                : "text-muted-foreground hover:text-foreground",
           )}
         >
           {opcion.label}

@@ -67,21 +67,58 @@ function Formulario() {
 
 function Dashboard() {
   return (
-    <div className="space-y-5">
-      <Cabecera />
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {Array.from({ length: 4 }, (_, index) => (
-          <div key={index} className="space-y-3 rounded-xl border p-4">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-7 w-24" />
+    <section
+      aria-busy="true"
+      className="page-shell animate-in fade-in-0 space-y-5 duration-300 motion-reduce:animate-none"
+    >
+      <span className="sr-only" role="status">
+        Cargando dashboard
+      </span>
+      <div aria-hidden="true" className="space-y-5">
+        <div className="bg-primary/10 relative grid gap-6 overflow-hidden rounded-[1.25rem] px-4 py-5 shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 md:grid-cols-[1fr_22rem] lg:px-9">
+          <div>
+            <Skeleton className="h-3 w-48" />
+            <Skeleton className="mt-3 h-9 w-64 sm:h-10" />
+            <Skeleton className="mt-3 h-4 w-full max-w-xl" />
           </div>
-        ))}
+          <div className="space-y-2.5">
+            <Skeleton className="h-11 w-full rounded-xl" />
+            <Skeleton className="h-24 w-full rounded-xl" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div
+              key={index}
+              className="space-y-3 rounded-[1.25rem] border p-4 sm:p-5"
+            >
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-7 w-24" />
+            </div>
+          ))}
+        </div>
+        <div className="surface-panel p-4 sm:p-6">
+          <Skeleton className="mb-5 h-5 w-40" />
+          <Skeleton className="h-64 w-full rounded-xl lg:h-72" />
+        </div>
+        <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="surface-panel space-y-3 p-4 sm:p-6">
+              <Skeleton className="h-5 w-40" />
+              {Array.from({ length: 3 }, (_, row) => (
+                <Skeleton key={row} className="h-10 w-full" />
+              ))}
+            </div>
+          ))}
+        </div>
+        <div className="surface-panel space-y-3 p-4 sm:p-6">
+          <Skeleton className="h-5 w-48" />
+          {Array.from({ length: 5 }, (_, index) => (
+            <Skeleton key={index} className="h-12 w-full" />
+          ))}
+        </div>
       </div>
-      <div className="rounded-xl border p-4">
-        <Skeleton className="mb-5 h-5 w-40" />
-        <Skeleton className="h-64 w-full" />
-      </div>
-    </div>
+    </section>
   );
 }
 

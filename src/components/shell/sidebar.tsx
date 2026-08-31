@@ -10,6 +10,7 @@ import type { Navegacion } from "@/lib/navegacion";
 import type { PerfilNav } from "@/lib/auth/perfil";
 import { cerrarSesion } from "@/modules/auth/actions";
 import { Marca } from "@/components/shell/marca";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function Sidebar({
   nav,
@@ -100,6 +101,12 @@ export function Sidebar({
       </nav>
 
       <div className="relative m-4 mt-2 rounded-2xl border border-white/8 bg-white/5 p-3">
+        <div className="mb-2 flex items-center justify-between border-b border-white/8 pb-2">
+          <span className="text-[11px] font-bold tracking-[0.12em] text-slate-400 uppercase">
+            Apariencia
+          </span>
+          <ThemeToggle className="size-8 rounded-lg text-slate-300 hover:bg-white/10 hover:text-white" />
+        </div>
         <Link
           href="/perfil/password"
           className="group flex items-center gap-3 rounded-xl px-1 py-1"

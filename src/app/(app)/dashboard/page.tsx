@@ -2,14 +2,20 @@ import { redirect } from "next/navigation";
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
 import { hoyLima, sumarDias } from "@/lib/fechas";
 import { obtenerDashboard } from "@/modules/metricas/query";
+import { ultimasVentas } from "@/modules/ventas/query";
 import { db } from "@/db";
 import { medirConsultasServidor, medirServidor } from "@/lib/observabilidad";
 import { Suspense } from "react";
 import { DashboardControls } from "./dashboard-client";
 import {
+  DashboardDataRegion,
+  DashboardTransition,
+} from "./dashboard-transition";
+import {
   DashboardBanner,
   DashboardGrafico,
   DashboardMetricas,
+  DashboardRecientes,
   DashboardRankings,
   EsqueletoBloque,
   EsqueletoMetricas,
@@ -45,27 +51,50 @@ export default async function DashboardPage({
     ),
   );
   return (
-    <section className="page-shell animate-in fade-in-0 duration-500">
-      <div className="flex flex-col gap-3.5 md:flex-row md:items-end md:justify-between md:gap-6">
-        <DashboardBanner />
-        <DashboardControls
-          desde={desde}
-          hasta={hasta}
+    <section className="page-shell animate-in fade-in-0 duration-500 motion-reduce:animate-none">
+      <DashboardTransition>
+        <DashboardBanner
+          nombre={sesion.nombres}
+          empresa={sesion.empresaNombre ?? "Todas las empresas"}
           direccion={direccion}
-          esAdmin={sesion.rol === "ADMIN_EMPRESA"}
+          controles={
+            <DashboardControls
+              desde={desde}
+              hasta={hasta}
+              direccion={direccion}
+              esAdmin={sesion.rol === "ADMIN_EMPRESA"}
+            />
+          }
         />
-      </div>
-      <div className="flex flex-col gap-3.5 sm:gap-5">
-        <Suspense fallback={<EsqueletoMetricas />}>
-          <DashboardMetricas datos={datos} />
-        </Suspense>
-        <Suspense fallback={<EsqueletoBloque />}>
-          <DashboardGrafico datos={datos} />
-        </Suspense>
-        <Suspense fallback={<EsqueletoRankings />}>
-          <DashboardRankings datos={datos} />
-        </Suspense>
-      </div>
+        <DashboardDataRegion>
+          <div className="flex flex-col gap-3.5 sm:gap-5">
+            <Suspense fallback={<EsqueletoMetricas />}>
+              <DashboardMetricas datos={datos} />
+            </Suspense>
+            <Suspense fallback={<EsqueletoBloque />}>
+              <DashboardGrafico datos={datos} />
+            </Suspense>
+            <Suspense fallback={<EsqueletoRankings />}>
+              <DashboardRankings datos={datos} />
+            </Suspense>
+            <Suspense fallback={<EsqueletoBloque filas={5} />}>
+              <DashboardRecientes
+                ventas={ultimasVentas(
+                  sesion,
+                  {
+                    desde,
+                    hasta,
+                    direccion,
+                    estado: "REGISTRADA",
+                    orden: "fecha_desc",
+                  },
+                  5,
+                )}
+              />
+            </Suspense>
+          </div>
+        </DashboardDataRegion>
+      </DashboardTransition>
     </section>
   );
 }

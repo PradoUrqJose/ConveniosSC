@@ -1,26 +1,61 @@
 import {
+  ArrowRight,
   BadgePercent,
+  CalendarDays,
   ChartNoAxesCombined,
   LayoutDashboard,
   ReceiptText,
   WalletCards,
 } from "lucide-react";
+import Link from "next/link";
+import type { ReactNode } from "react";
 
 import { formatearSoles } from "@/lib/dinero";
+import { formatearFechaUI } from "@/lib/fechas";
 import type { Dashboard } from "@/modules/metricas/query";
-import { CabeceraPagina, Metrica } from "@/components/shell/pagina-ui";
+import type { VentaReciente } from "@/modules/ventas/query";
+import { Metrica } from "@/components/shell/pagina-ui";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardChartIsland } from "./dashboard-chart-island";
 
-export function DashboardBanner() {
+export function DashboardBanner({
+  nombre,
+  empresa,
+  direccion,
+  controles,
+}: {
+  nombre: string;
+  empresa: string;
+  direccion: "vendidas" | "compradas";
+  controles: ReactNode;
+}) {
   return (
-    <CabeceraPagina
-      kicker="Visión general"
-      titulo="Dashboard"
-      descripcion="Sigue el rendimiento, los descuentos entregados y la adopción de los beneficios."
-      icono={<LayoutDashboard className="size-5" />}
-      className="hidden min-w-0 md:flex"
-    />
+    <section className="from-primary via-primary elevation-floating relative isolate overflow-hidden rounded-[1.25rem] bg-linear-to-br to-blue-950 px-4 py-4 text-white sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:18px_18px] opacity-20"
+      />
+      <div className="absolute -top-20 -right-16 size-64 rounded-full bg-cyan-300/25 blur-3xl" />
+      <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-8 xl:grid-cols-[minmax(0,1fr)_28.75rem] xl:gap-14">
+        <div className="min-w-0">
+          <div className="hidden items-center gap-2 text-cyan-100/80 sm:flex">
+            <LayoutDashboard className="size-4 shrink-0" />
+            <span className="truncate text-xs font-bold tracking-[0.14em] uppercase">
+              Dirección · {empresa}
+            </span>
+          </div>
+          <h1 className="text-xl font-bold tracking-[-0.045em] sm:mt-3 sm:text-4xl">
+            Hola, {nombre}
+          </h1>
+          <p className="mt-1 max-w-xl text-xs leading-5 text-blue-100/80 sm:mt-2 sm:text-base sm:leading-6">
+            {direccion === "vendidas"
+              ? "Supervisa las ventas, beneficios y participación de tu organización."
+              : "Observa cómo tus empleados aprovechan los beneficios disponibles."}
+          </p>
+        </div>
+        {controles}
+      </div>
+    </section>
   );
 }
 
@@ -30,51 +65,53 @@ export async function DashboardMetricas({
   datos: Promise<Dashboard>;
 }) {
   const dashboard = await datos;
-  if (dashboard.totales.cantidad === 0)
-    return <EstadoVacio texto="No hay ventas registradas en este periodo." />;
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Metrica
-          etiqueta="Ventas"
-          valor={String(dashboard.totales.cantidad)}
-          detalle="Operaciones registradas"
-          icono={<ReceiptText className="size-4.5" />}
-        />
-        <Metrica
-          etiqueta="Bruto"
-          valor={
-            <span className="money">
-              {formatearSoles(dashboard.totales.sumaBrutoCentimos)}
-            </span>
-          }
-          detalle="Monto antes del beneficio"
-          icono={<WalletCards className="size-4.5" />}
-          tono="success"
-        />
-        <Metrica
-          etiqueta="Descuento"
-          valor={
-            <span className="money">
-              {formatearSoles(dashboard.totales.sumaDescuentoCentimos)}
-            </span>
-          }
-          detalle="Beneficios entregados"
-          icono={<BadgePercent className="size-4.5" />}
-          tono="warning"
-        />
-        <Metrica
-          etiqueta="Ticket promedio"
-          valor={
-            <span className="money">
-              {formatearSoles(dashboard.totales.ticketPromedioCentimos)}
-            </span>
-          }
-          detalle="Promedio por operación"
-          icono={<ChartNoAxesCombined className="size-4.5" />}
-          tono="neutral"
-        />
-      </div>
+      {dashboard.totales.cantidad ? (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <Metrica
+            etiqueta="Ventas"
+            valor={String(dashboard.totales.cantidad)}
+            detalle="Operaciones registradas"
+            icono={<ReceiptText className="size-4.5" />}
+          />
+          <Metrica
+            etiqueta="Bruto"
+            valor={
+              <span className="money">
+                {formatearSoles(dashboard.totales.sumaBrutoCentimos)}
+              </span>
+            }
+            detalle="Monto antes del beneficio"
+            icono={<WalletCards className="size-4.5" />}
+            tono="success"
+          />
+          <Metrica
+            etiqueta="Descuento"
+            valor={
+              <span className="money">
+                {formatearSoles(dashboard.totales.sumaDescuentoCentimos)}
+              </span>
+            }
+            detalle="Beneficios entregados"
+            icono={<BadgePercent className="size-4.5" />}
+            tono="warning"
+          />
+          <Metrica
+            etiqueta="Ticket promedio"
+            valor={
+              <span className="money">
+                {formatearSoles(dashboard.totales.ticketPromedioCentimos)}
+              </span>
+            }
+            detalle="Promedio por operación"
+            icono={<ChartNoAxesCombined className="size-4.5" />}
+            tono="neutral"
+          />
+        </div>
+      ) : (
+        <EstadoVacio texto="No hay ventas registradas en este periodo." />
+      )}
       {dashboard.anuladas.cantidad > 0 ? (
         <p className="text-muted-foreground text-sm">
           {dashboard.anuladas.cantidad} venta
@@ -96,8 +133,18 @@ export async function DashboardGrafico({
   const dashboard = await datos;
   return (
     <Bloque titulo="Ventas por periodo">
-      {dashboard.serie.length ? (
-        <DashboardChartIsland serie={dashboard.serie} />
+      {dashboard.totales.cantidad ? (
+        <>
+          <DashboardChartIsland
+            serie={dashboard.serie}
+            granularidad={dashboard.granularidad}
+          />
+          <p className="text-muted-foreground mt-4 text-sm">
+            {dashboard.totales.cantidad} operaciones registradas; ticket
+            promedio de{" "}
+            {formatearSoles(dashboard.totales.ticketPromedioCentimos)}.
+          </p>
+        </>
       ) : (
         <EstadoVacio texto="Sin ventas para graficar." />
       )}
@@ -111,7 +158,10 @@ export async function DashboardRankings({
   datos: Promise<Dashboard>;
 }) {
   const dashboard = await datos;
-  if (!dashboard.totales.cantidad) return null;
+  if (!dashboard.totales.cantidad)
+    return (
+      <EstadoVacio texto="Los desgloses aparecerán cuando existan ventas en el periodo." />
+    );
   return (
     <>
       <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
@@ -175,8 +225,21 @@ export function EsqueletoMetricas() {
     </div>
   );
 }
-export function EsqueletoBloque() {
-  return <Skeleton className="h-52 rounded-[1.25rem] sm:h-64" />;
+export function EsqueletoBloque({ filas }: { filas?: number }) {
+  return (
+    <div className="surface-panel p-4 sm:p-6">
+      <Skeleton className="mb-5 h-5 w-48" />
+      {filas ? (
+        <div className="space-y-3">
+          {Array.from({ length: filas }, (_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : (
+        <Skeleton className="h-64 rounded-xl lg:h-72" />
+      )}
+    </div>
+  );
 }
 export function EsqueletoRankings() {
   return (
@@ -227,7 +290,7 @@ function Lista({ titulo, filas }: { titulo: string; filas: Fila[] }) {
         <ol className="flex flex-col gap-2.5">
           {filas.map((fila, indice) => (
             <li key={fila.clave} className="flex items-center gap-3">
-              <span className="bg-muted text-muted-foreground grid size-6 shrink-0 place-items-center rounded-lg text-[0.7rem] font-bold tabular-nums">
+              <span className="bg-muted text-muted-foreground grid size-6 shrink-0 place-items-center rounded-lg text-xs font-bold tabular-nums">
                 {indice + 1}
               </span>
               <div className="min-w-0 flex-1">
@@ -326,6 +389,48 @@ function Adopcion({
           style={{ width: `${Math.min(100, Math.max(0, datos.tasa))}%` }}
         />
       </div>
+    </Bloque>
+  );
+}
+
+export async function DashboardRecientes({
+  ventas,
+}: {
+  ventas: Promise<VentaReciente[]>;
+}) {
+  const recientes = await ventas;
+  return (
+    <Bloque titulo="Operaciones recientes">
+      {recientes.length ? (
+        <div className="divide-y">
+          {recientes.map((venta) => (
+            <Link
+              key={venta.id}
+              href={`/ventas/${venta.id}`}
+              className="hover:bg-accent/45 group grid grid-cols-[auto_1fr_auto] items-center gap-3 rounded-xl px-2 py-3 transition-colors sm:px-3"
+            >
+              <span className="bg-primary/8 text-primary grid size-10 place-items-center rounded-xl">
+                <ReceiptText className="size-4.5" />
+              </span>
+              <span className="min-w-0">
+                <span className="block truncate text-sm font-bold">
+                  {venta.empleado.nombres} {venta.empleado.apellidos}
+                </span>
+                <span className="text-muted-foreground mt-0.5 flex items-center gap-1.5 truncate text-xs">
+                  <CalendarDays className="size-3" />
+                  {formatearFechaUI(venta.fechaVenta)} · {venta.sede.nombre}
+                </span>
+              </span>
+              <span className="money text-right text-sm font-bold">
+                {formatearSoles(venta.montoFinalCentimos)}
+                <ArrowRight className="text-muted-foreground mt-1 ml-auto size-3.5 transition-transform group-hover:translate-x-0.5 motion-reduce:transition-none" />
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <EstadoVacio texto="No hay operaciones recientes para este periodo." />
+      )}
     </Bloque>
   );
 }
