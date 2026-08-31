@@ -3,6 +3,7 @@ import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { listarAuditoria } from "@/modules/auditoria/query";
 import { AuditoriaClient } from "./auditoria-client";
 import { medirServidor } from "@/lib/observabilidad";
+import { hoyLima } from "@/lib/fechas";
 import {
   normalizarParametrosAuditoria,
   serializarParametrosAuditoria,
@@ -41,6 +42,7 @@ export default async function AuditoriaPage({
       filtros={filtros}
       puedeVerificar={sesion.rol === "SUPERADMIN"}
       alcanceGlobal={sesion.rol === "SUPERADMIN"}
+      hoy={hoyLima()}
     />
   );
 }

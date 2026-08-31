@@ -590,24 +590,43 @@ function Auditoria() {
   return (
     <section className="page-shell space-y-5">
       <CabeceraPaginaSkeleton />
-      <div className="control-bar grid gap-2 sm:grid-cols-2 xl:grid-cols-[1fr_1fr_1.2fr_1.2fr_auto]">
-        {Array.from({ length: 5 }, (_, index) => (
-          <Skeleton key={index} className="h-11 rounded-xl" />
+      <Skeleton className="h-11 rounded-xl" />
+      <div className="control-bar space-y-3">
+        <div className="flex gap-2">
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} className="h-7 w-28 rounded-full" />
+          ))}
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {Array.from({ length: 8 }, (_, index) => (
+            <Skeleton key={index} className="h-11 rounded-xl" />
+          ))}
+        </div>
+      </div>
+      <div className="flex gap-2">
+        {Array.from({ length: 3 }, (_, index) => (
+          <Skeleton key={index} className="h-6 w-24 rounded-full" />
         ))}
       </div>
-      <ol className="surface-panel divide-y px-5 sm:px-6">
-        {Array.from({ length: 8 }, (_, index) => (
-          <li key={index} className="relative space-y-2 py-5 pl-5">
-            <Skeleton className="absolute top-6 left-0 size-2.5 rounded-full" />
-            <Skeleton className="h-3 w-28" />
-            <Skeleton className="h-4 w-4/5" />
-            <Skeleton className="h-3 w-3/5" />
-            {index % 2 === 0 ? (
-              <Skeleton className="h-16 w-full rounded-xl" />
-            ) : null}
-          </li>
+      <div className="surface-panel space-y-5 px-5 py-4 sm:px-6">
+        {Array.from({ length: 2 }, (_, grupo) => (
+          <div key={grupo} className="space-y-4">
+            <Skeleton className="h-3 w-40" />
+            <ol className="divide-y">
+              {Array.from({ length: 4 }, (_, index) => (
+                <li key={index} className="flex gap-3 py-4">
+                  <Skeleton className="size-9 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-3 w-16" />
+                    <Skeleton className="h-4 w-4/5" />
+                    <Skeleton className="h-3 w-3/5" />
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </div>
         ))}
-      </ol>
+      </div>
     </section>
   );
 }

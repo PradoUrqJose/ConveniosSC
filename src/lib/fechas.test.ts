@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   compararFechas,
   esFechaValida,
+  etiquetaDiaLima,
   fechaRelativa,
   formatearFechaHoraLima,
   formatearFechaUI,
@@ -104,6 +105,27 @@ describe("fechaRelativa", () => {
   it("24h o más devuelve fecha absoluta", () => {
     expect(fechaRelativa(new Date("2026-08-01T19:32:00.000Z"), ahora)).toBe(
       formatearFechaHoraLima("2026-08-01T19:32:00.000Z"),
+    );
+  });
+});
+
+describe("etiquetaDiaLima", () => {
+  it("agrupa el mismo día calendario Lima como 'Hoy', cruzando medianoche UTC", () => {
+    // 2026-08-03 20:00 Lima = 2026-08-04 01:00 UTC: mismo día en Lima, distinto en UTC.
+    expect(etiquetaDiaLima("2026-08-04T01:00:00.000Z", "2026-08-03")).toBe(
+      "Hoy",
+    );
+  });
+
+  it("reconoce el día anterior como 'Ayer'", () => {
+    expect(etiquetaDiaLima("2026-08-02T15:00:00.000Z", "2026-08-03")).toBe(
+      "Ayer",
+    );
+  });
+
+  it("para el resto, da la fecha completa en español con mayúscula inicial", () => {
+    expect(etiquetaDiaLima("2026-07-20T15:00:00.000Z", "2026-08-03")).toBe(
+      "Lunes 20 de julio de 2026",
     );
   });
 });

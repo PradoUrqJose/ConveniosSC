@@ -5,6 +5,10 @@ import {
   type AccionAuditoria,
   type TransaccionAuditada,
 } from "@/lib/audit/registrar";
+import {
+  accionesDeFamilia,
+  type FamiliaAuditoria,
+} from "@/lib/audit/semantica";
 import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import type { Pagina } from "@/lib/tipos";
 export { diffAuditoria } from "@/lib/audit/diff";
@@ -12,10 +16,13 @@ export { diffAuditoria } from "@/lib/audit/diff";
 export type FiltroAuditoria = {
   desde?: string;
   hasta?: string;
+  familia?: FamiliaAuditoria;
   accion?: AccionAuditoria;
   entidad?: string;
   entidadId?: string;
   actorId?: string;
+  /** Búsqueda parcial por username del actor (issue #40); distinta de `actorId`. */
+  actor?: string;
   cursor?: string;
 };
 export type FilaAuditoria = {
@@ -112,11 +119,24 @@ function filtrosSql(ctx: SessionContext, entrada: FiltroAuditoria): SQL[] {
   if (entrada.desde) filtros.push(sql`a.ts >= ${entrada.desde}::date`);
   if (entrada.hasta)
     filtros.push(sql`a.ts < (${entrada.hasta}::date + interval '1 day')`);
+  // `accion` acota dentro de la familia si se envían ambos (la UI nunca lo
+  // hace: elegir una acción concreta limpia la familia y viceversa).
   if (entrada.accion) filtros.push(sql`a.accion = ${entrada.accion}`);
+  else if (entrada.familia) {
+    // Cada acción es un valor propio del enum `accion_auditoria`: se unen con
+    // OR en vez de `= ANY(array)` para no depender de cómo el driver tipa un
+    // array de parámetros frente a una columna enum.
+    const condiciones = accionesDeFamilia(entrada.familia).map(
+      (accion) => sql`a.accion = ${accion}`,
+    );
+    filtros.push(sql`(${sql.join(condiciones, sql` OR `)})`);
+  }
   if (entrada.entidad) filtros.push(sql`a.entidad = ${entrada.entidad}`);
   if (entrada.entidadId) filtros.push(sql`a.entidad_id = ${entrada.entidadId}`);
   if (entrada.actorId)
     filtros.push(sql`a.actor_usuario_id = ${entrada.actorId}`);
+  if (entrada.actor)
+    filtros.push(sql`u.username ILIKE ${`%${entrada.actor}%`}`);
   const cursor = decodificarCursor(entrada.cursor);
   if (cursor)
     filtros.push(sql`(a.ts, a.id) < (${cursor.ts}::timestamptz, ${cursor.id})`);

@@ -112,6 +112,60 @@ describe("listarAuditoria", () => {
     expect(detalle.params).toContain(99);
   });
 
+  it("expande la familia en las acciones que la componen, sin usar = ANY", async () => {
+    let consulta: SQL | undefined;
+    const ejecutor: TransaccionAuditada = {
+      async execute(sql) {
+        consulta = sql;
+        return [];
+      },
+    };
+
+    await listarAuditoria(ctx, { familia: "SESION" }, ejecutor);
+
+    const query = new PgDialect().sqlToQuery(consulta!);
+    expect(query.sql).not.toContain("ANY(");
+    expect(query.sql).toContain("a.accion = $1");
+    expect(query.params).toEqual(
+      expect.arrayContaining(["LOGIN_OK", "LOGIN_FALLIDO", "LOGOUT"]),
+    );
+  });
+
+  it("ignora la familia cuando hay una acción concreta", async () => {
+    let consulta: SQL | undefined;
+    const ejecutor: TransaccionAuditada = {
+      async execute(sql) {
+        consulta = sql;
+        return [];
+      },
+    };
+
+    await listarAuditoria(
+      ctx,
+      { familia: "SESION", accion: "VENTA_CREADA" },
+      ejecutor,
+    );
+
+    const query = new PgDialect().sqlToQuery(consulta!);
+    expect(query.params.slice(0, -1)).toEqual(["VENTA_CREADA"]);
+  });
+
+  it("filtra por username del actor con ILIKE", async () => {
+    let consulta: SQL | undefined;
+    const ejecutor: TransaccionAuditada = {
+      async execute(sql) {
+        consulta = sql;
+        return [];
+      },
+    };
+
+    await listarAuditoria(ctx, { actor: "jperez" }, ejecutor);
+
+    const query = new PgDialect().sqlToQuery(consulta!);
+    expect(query.sql).toContain("u.username ILIKE");
+    expect(query.params).toContain("%jperez%");
+  });
+
   it("mantiene la auditoría global para SUPERADMIN y rechaza al VENDEDOR", async () => {
     let consulta: SQL | undefined;
     const ejecutor: TransaccionAuditada = {

@@ -7,6 +7,7 @@
  */
 import { formatInTimeZone } from "date-fns-tz";
 import { differenceInMinutes } from "date-fns";
+import { es } from "date-fns/locale";
 
 export const ZONA = "America/Lima";
 
@@ -73,6 +74,22 @@ export function formatearFechaHoraLima(marca: Date | string): string {
 /** `TIMESTAMPTZ` (Date o ISO string) → `HH:mm`, formateado a Lima. */
 export function formatearHoraLima(marca: Date | string): string {
   return formatInTimeZone(marca, ZONA, "HH:mm");
+}
+
+/**
+ * Encabezado de grupo por día para timelines (issue #40, Auditoría): «Hoy»,
+ * «Ayer» o `EEEE d 'de' MMMM 'de' yyyy` en Lima. `hoy` es el resultado de
+ * `hoyLima()` calculado una sola vez por el llamador, para que todas las
+ * comparaciones de un mismo render usen el mismo instante.
+ */
+export function etiquetaDiaLima(marca: Date | string, hoy: string): string {
+  const dia = fechaLimaDe(marca);
+  if (dia === hoy) return "Hoy";
+  if (dia === sumarDias(hoy, -1)) return "Ayer";
+  const etiqueta = formatInTimeZone(marca, ZONA, "EEEE d 'de' MMMM 'de' yyyy", {
+    locale: es,
+  });
+  return etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1);
 }
 
 /**

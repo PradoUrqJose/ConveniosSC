@@ -7,15 +7,18 @@ import {
   type ParametrosUrl,
 } from "@/lib/url-parametros";
 import type { AccionAuditoria } from "@/lib/audit/registrar";
+import { esEntidadAuditoria, esFamiliaAuditoria } from "@/lib/audit/semantica";
 import type { FiltroAuditoria } from "./query";
 
 const CLAVES = [
   "desde",
   "hasta",
+  "familia",
   "accion",
   "entidad",
   "entidadId",
   "actorId",
+  "actor",
   "cursor",
 ] as const;
 
@@ -47,12 +50,20 @@ export function normalizarParametrosAuditoria(
   )
     ? (entrada.accion as AccionAuditoria)
     : undefined;
+  const entidad = textoUrl(entrada.entidad, 100);
   return {
     ...rangoFechasUrl(entrada.desde, entrada.hasta),
+    // La familia solo aplica cuando no hay una acción concreta elegida: ver
+    // el mismo criterio en `filtrosSql` (modules/auditoria/query.ts).
+    familia:
+      !accion && esFamiliaAuditoria(entrada.familia)
+        ? entrada.familia
+        : undefined,
     accion,
-    entidad: textoUrl(entrada.entidad, 100),
+    entidad: entidad && esEntidadAuditoria(entidad) ? entidad : undefined,
     entidadId: uuidUrl(entrada.entidadId),
     actorId: uuidUrl(entrada.actorId),
+    actor: textoUrl(entrada.actor, 100),
     cursor: cursorAuditoria(entrada.cursor),
   };
 }
