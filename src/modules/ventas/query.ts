@@ -749,6 +749,62 @@ export async function obtenerVenta(
   };
 }
 
+export type ContraparteOpcion = { id: string; nombre: string };
+
+/**
+ * Empresas contraparte con al menos una venta en el historial (issue #28),
+ * para el selector "Empresa convenio" del filtro de ventas. A diferencia de
+ * `listarEmpresasParaEmpleado` (empresas con convenio VIGENTE hoy, usada
+ * para crear una venta), esta lista viene de `ventas` directamente: incluye
+ * contrapartes con convenio ya vencido siempre que exista una venta
+ * registrada con ellas, y depende de `direccion` porque la columna
+ * contraparte cambia (compradora en "vendidas", vendedora en "compradas").
+ */
+export async function listarContrapartesVentas(
+  ctx: SessionContext,
+  direccion: DireccionVentas,
+  ejecutor: TransaccionAuditada = db,
+): Promise<ContraparteOpcion[]> {
+  requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"]);
+
+  // Mismo alcance por rol que `prepararConsultaVentas`: el VENDEDOR siempre
+  // ve su propio universo "vendidas", sin importar qué pida el cliente.
+  const direccionEfectiva: DireccionVentas =
+    ctx.rol === "VENDEDOR" ? "vendidas" : direccion;
+
+  const filtros: SQL[] = [];
+  if (ctx.rol === "VENDEDOR") {
+    filtros.push(sql`v.vendedor_usuario_id = ${ctx.usuarioId}`);
+  } else if (ctx.rol === "ADMIN_EMPRESA") {
+    filtros.push(
+      direccionEfectiva === "vendidas"
+        ? sql`v.empresa_vendedora_id = ${ctx.empresaId}`
+        : sql`v.empresa_compradora_id = ${ctx.empresaId}`,
+    );
+  }
+  const where = filtros.length
+    ? sql`WHERE ${sql.join(filtros, sql` AND `)}`
+    : sql``;
+  const columnaContraparte =
+    direccionEfectiva === "vendidas"
+      ? sql`v.empresa_compradora_id`
+      : sql`v.empresa_vendedora_id`;
+
+  const filas = obtenerFilas(
+    await ejecutor.execute(sql`
+      SELECT DISTINCT e.id, e.nombre_comercial
+      FROM ventas v
+      JOIN empresas e ON e.id = ${columnaContraparte}
+      ${where}
+      ORDER BY e.nombre_comercial ASC
+    `),
+  );
+  return filas.map((f) => ({
+    id: String(f.id),
+    nombre: String(f.nombre_comercial),
+  }));
+}
+
 export type VendedorOpcion = { id: string; nombres: string; apellidos: string };
 
 /** Vendedores de mi propia empresa, para el filtro de admin del listado de ventas. */

@@ -2,8 +2,8 @@ import { redirect } from "next/navigation";
 
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
 import { parsearSoles } from "@/lib/dinero";
-import { listarEmpresasParaEmpleado } from "@/modules/empleados/query";
 import {
+  listarContrapartesVentas,
   listarVendedoresPropios,
   listarVentas,
   POR_PAGINA_VENTAS,
@@ -82,14 +82,56 @@ export default async function VentasPage({
     ? (sp.orden as OrdenVentas)
     : "fecha_desc";
 
+  // Vendedor y sede propios (04/issue #28) solo tienen sentido en "vendidas":
+  // en "compradas" ambas columnas describen a la empresa contraparte, no a la
+  // mía, así que ni se muestran ni se dejan aplicar como filtro server-side.
+  const soportaVendedorSede = esAdmin && direccion === "vendidas";
+
+  // Catálogos primero: se usan tanto para pintar los selects como para
+  // validar en servidor que el id recibido en la URL pertenece al universo
+  // autorizado antes de armar los filtros de `listarVentas` (issue #28:
+  // manipular IDs no debe filtrar fuera del alcance permitido).
+  const [empresas, vendedores, sedes] = await medirServidor(
+    "ventas.catalogos",
+    () =>
+      Promise.all([
+        medirServidor("ventas.catalogo-empresas", () =>
+          listarContrapartesVentas(sesion, direccion),
+        ),
+        soportaVendedorSede
+          ? medirServidor("ventas.catalogo-vendedores", () =>
+              listarVendedoresPropios(sesion),
+            )
+          : Promise.resolve([]),
+        soportaVendedorSede
+          ? medirServidor("ventas.catalogo-sedes", () => sedesParaVenta(sesion))
+          : Promise.resolve([]),
+      ]),
+  );
+
+  const empresaId =
+    sp.empresa && empresas.some((e) => e.id === sp.empresa)
+      ? sp.empresa
+      : undefined;
+  const vendedorId =
+    soportaVendedorSede &&
+    sp.vendedor &&
+    vendedores.some((v) => v.id === sp.vendedor)
+      ? sp.vendedor
+      : undefined;
+  const sedeId =
+    soportaVendedorSede && sp.sede && sedes.some((s) => s.id === sp.sede)
+      ? sp.sede
+      : undefined;
+
   const filtros: FiltrosVentas = {
     desde: sp.desde || undefined,
     hasta: sp.hasta || undefined,
-    empresaId: sp.empresa || undefined,
+    empresaId,
     estado,
     q: sp.q || undefined,
-    vendedorId: esAdmin ? sp.vendedor || undefined : undefined,
-    sedeId: esAdmin ? sp.sede || undefined : undefined,
+    vendedorId,
+    sedeId,
     montoMinCentimos: centimosDe(sp.montoMin),
     montoMaxCentimos: centimosDe(sp.montoMax),
     soloRevision: esAdmin ? sp.revision === "1" : undefined,
@@ -98,26 +140,9 @@ export default async function VentasPage({
     cursor: sp.cursor || undefined,
   };
 
-  const [pagina, empresasTodas, vendedores, sedes] = await medirServidor(
-    "ventas.pagina",
-    () =>
-      Promise.all([
-        listarVentas(sesion, filtros),
-        medirServidor("ventas.catalogo-empresas", () =>
-          listarEmpresasParaEmpleado(sesion),
-        ),
-        esAdmin
-          ? medirServidor("ventas.catalogo-vendedores", () =>
-              listarVendedoresPropios(sesion),
-            )
-          : Promise.resolve([]),
-        esAdmin
-          ? medirServidor("ventas.catalogo-sedes", () => sedesParaVenta(sesion))
-          : Promise.resolve([]),
-      ]),
+  const pagina = await medirServidor("ventas.pagina", () =>
+    listarVentas(sesion, filtros),
   );
-
-  const empresas = empresasTodas.filter((e) => e.id !== sesion.empresaId);
 
   return (
     <VentasClient

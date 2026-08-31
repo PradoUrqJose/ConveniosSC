@@ -14,6 +14,7 @@ import {
   type ArchivoVenta,
 } from "@/modules/ventas/acciones";
 import {
+  listarContrapartesVentas,
   listarVentas,
   obtenerVenta,
   resumirVentas,
@@ -1030,6 +1031,122 @@ describe.skipIf(!ACTIVO)(
           [ventaId],
         );
         expect(relectura.rows[0].estado).toBe("ANULADA");
+      } finally {
+        await c.query("ROLLBACK").catch(() => undefined);
+        await c.end();
+      }
+    }, 60_000);
+
+    /**
+     * Aceptación del issue #28: la contraparte se calcula por dirección
+     * (compradora en "vendidas", vendedora en "compradas") a partir del
+     * historial real de `ventas` — no del universo de convenios vigentes —,
+     * y el vendedor/sede propios de una dirección no filtran ventas de la
+     * otra. Usa dos empresas contraparte (B y C), cada una con su propia
+     * sede y vendedor, distintos entre sí y de los de A.
+     */
+    it("la contraparte, vendedor y sede se separan por dirección sin filtrar fuera del alcance", async () => {
+      const c = await conexion();
+      try {
+        await c.query("BEGIN");
+        const idA = await crearEmpresa(c, "20100080009"); // propia (ADMIN_EMPRESA)
+        const idB = await crearEmpresa(c, "20100080010"); // le compra a A
+        const idC = await crearEmpresa(c, "20100080011"); // le vende a A
+        const convenioAB = await crearConvenio(c, idA, idB);
+        const terminoAB = await crearTermino(
+          c,
+          convenioAB,
+          idA,
+          1500,
+          "2000-01-01",
+          null,
+        );
+        const convenioAC = await crearConvenio(c, idA, idC);
+        const terminoAC = await crearTermino(
+          c,
+          convenioAC,
+          idC,
+          1200,
+          "2000-01-01",
+          null,
+        );
+
+        const sedeA = await crearSede(c, idA);
+        const sedeC = await crearSede(c, idC);
+        const vendedorA = await crearUsuario(c, "VENDEDOR", idA);
+        const vendedorC = await crearUsuario(c, "VENDEDOR", idC);
+        const adminA = await crearUsuario(c, "ADMIN_EMPRESA", idA);
+
+        const empleadoB = await crearEmpleadoActivo(c, idB, "80000005");
+        const empleadoA = await crearEmpleadoActivo(c, idA, "80000006");
+
+        // A le vende a un empleado de B ("vendidas" desde A).
+        await crearVentaDirecta(c, {
+          empresaVendedoraId: idA,
+          empresaCompradoraId: idB,
+          convenioId: convenioAB,
+          terminoId: terminoAB,
+          sedeId: sedeA,
+          vendedorId: vendedorA,
+          empleadoId: empleadoB,
+          montoBruto: 10_000,
+          bps: 1500,
+          fechaVenta: FECHA_HOY,
+        });
+        // C le vende a un empleado de A ("compradas" desde A).
+        await crearVentaDirecta(c, {
+          empresaVendedoraId: idC,
+          empresaCompradoraId: idA,
+          convenioId: convenioAC,
+          terminoId: terminoAC,
+          sedeId: sedeC,
+          vendedorId: vendedorC,
+          empleadoId: empleadoA,
+          montoBruto: 8_000,
+          bps: 1200,
+          fechaVenta: FECHA_HOY,
+        });
+
+        const ctxAdminA = ctx(adminA, idA, "ADMIN_EMPRESA");
+
+        const contrapartesVendidas = await listarContrapartesVentas(
+          ctxAdminA,
+          "vendidas",
+          adaptador(c),
+        );
+        expect(contrapartesVendidas.map((e) => e.id)).toEqual([idB]);
+
+        const contrapartesCompradas = await listarContrapartesVentas(
+          ctxAdminA,
+          "compradas",
+          adaptador(c),
+        );
+        expect(contrapartesCompradas.map((e) => e.id)).toEqual([idC]);
+
+        // El vendedor propio (de A, lado "vendidas") no tiene ventas del lado
+        // "compradas" (ahí el vendedor es de C): la combinación no debe
+        // filtrar fuera de alcance devolviendo la venta de C igualmente.
+        const compradasConVendedorAjeno = await listarVentas(
+          ctxAdminA,
+          { direccion: "compradas", vendedorId: vendedorA },
+          adaptador(c),
+        );
+        expect(compradasConVendedorAjeno.items).toHaveLength(0);
+
+        // Con el id de contraparte correcto para cada dirección sí filtra.
+        const vendidasFiltradas = await listarVentas(
+          ctxAdminA,
+          { direccion: "vendidas", empresaId: idB },
+          adaptador(c),
+        );
+        expect(vendidasFiltradas.items).toHaveLength(1);
+
+        const compradasFiltradas = await listarVentas(
+          ctxAdminA,
+          { direccion: "compradas", empresaId: idC },
+          adaptador(c),
+        );
+        expect(compradasFiltradas.items).toHaveLength(1);
       } finally {
         await c.query("ROLLBACK").catch(() => undefined);
         await c.end();

@@ -57,8 +57,8 @@ import {
 } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
 import { capitalizarNombre } from "@/lib/utils";
-import type { EmpresaOpcion } from "@/modules/empleados/query";
 import type {
+  ContraparteOpcion,
   FilaVenta,
   ResumenVentas,
   SedeOpcion,
@@ -102,12 +102,22 @@ const CAMPOS_FILTRO_CHIP = [
 // como "eliminar este parámetro" y `antes` perdería esa entrada.
 const CENTINELA_PRIMERA_PAGINA = "-";
 
-function esFiltroActivo(campo: string, sp: SearchParamsVentas): boolean {
+function esFiltroActivo(
+  campo: string,
+  sp: SearchParamsVentas,
+  direccion: string,
+): boolean {
   const valor = sp[campo as keyof SearchParamsVentas];
   if (!valor) return false;
   // "Registradas" es el estado por defecto de la página (page.tsx): no cuenta
   // como filtro activo. Solo "Anuladas" o "Todas" (elegido a propósito) lo son.
   if (campo === "estado" && valor === "REGISTRADA") return false;
+  // Vendedor y sede propios no aplican en "compradas" (issue #28): el
+  // servidor los ignora, así que tampoco deben mostrarse como chip fantasma
+  // si quedaron en la URL (p.ej. al editarla a mano).
+  if ((campo === "vendedor" || campo === "sede") && direccion === "compradas") {
+    return false;
+  }
   return true;
 }
 
@@ -124,7 +134,7 @@ export function VentasClient({
   pagina: Pagina<FilaVenta> & { resumen: ResumenVentas };
   sp: SearchParamsVentas;
   esAdmin: boolean;
-  empresas: EmpresaOpcion[];
+  empresas: ContraparteOpcion[];
   vendedores: VendedorOpcion[];
   sedes: SedeOpcion[];
   puedeCrear: boolean;
@@ -192,7 +202,7 @@ export function VentasClient({
   };
 
   const filtrosActivos = CAMPOS_FILTRO_CHIP.filter((campo) =>
-    esFiltroActivo(campo, sp),
+    esFiltroActivo(campo, sp, direccion),
   );
 
   // --- Paginación por cursor con historial ------------------------------
@@ -261,12 +271,26 @@ export function VentasClient({
             {
               id: "vendidas",
               label: "Vendidas",
-              href: urlDe({ dir: null }),
+              // Cambiar de dirección elimina filtros incompatibles con el
+              // nuevo lado (issue #28): "empresa" es un universo de
+              // contrapartes distinto en cada dirección, y vendedor/sede
+              // propios no existen en "compradas".
+              href: urlDe({
+                dir: null,
+                empresa: null,
+                vendedor: null,
+                sede: null,
+              }),
             },
             {
               id: "compradas",
               label: "Compraron mis empleados",
-              href: urlDe({ dir: "compradas" }),
+              href: urlDe({
+                dir: "compradas",
+                empresa: null,
+                vendedor: null,
+                sede: null,
+              }),
             },
           ]}
           onNavegar={irA}
@@ -295,6 +319,7 @@ export function VentasClient({
               <FiltrosVenta
                 sp={sp}
                 esAdmin={esAdmin}
+                direccion={direccion}
                 empresas={empresas}
                 vendedores={vendedores}
                 sedes={sedes}
@@ -325,6 +350,7 @@ export function VentasClient({
                 <FiltrosVenta
                   sp={sp}
                   esAdmin={esAdmin}
+                  direccion={direccion}
                   empresas={empresas}
                   vendedores={vendedores}
                   sedes={sedes}
@@ -501,7 +527,7 @@ export function VentasClient({
 function etiquetaFiltro(
   campo: string,
   sp: SearchParamsVentas,
-  empresas: EmpresaOpcion[],
+  empresas: ContraparteOpcion[],
   vendedores: VendedorOpcion[],
   sedes: SedeOpcion[],
 ): string {
@@ -512,7 +538,7 @@ function etiquetaFiltro(
     case "hasta":
       return `Hasta ${formatearFechaUI(valor)}`;
     case "empresa":
-      return empresas.find((e) => e.id === valor)?.nombreComercial ?? "Empresa";
+      return empresas.find((e) => e.id === valor)?.nombre ?? "Empresa";
     case "estado":
       return valor === "ANULADA" ? "Anuladas" : "Todos los estados";
     case "vendedor": {
@@ -537,6 +563,7 @@ function etiquetaFiltro(
 function FiltrosVenta({
   sp,
   esAdmin,
+  direccion,
   empresas,
   vendedores,
   sedes,
@@ -544,13 +571,23 @@ function FiltrosVenta({
 }: {
   sp: SearchParamsVentas;
   esAdmin: boolean;
-  empresas: EmpresaOpcion[];
+  direccion: string;
+  empresas: ContraparteOpcion[];
   vendedores: VendedorOpcion[];
   sedes: SedeOpcion[];
   onAplicar: (cambios: Record<string, string>) => void;
 }) {
   const claseSelect =
     "border-input bg-background text-foreground h-9 w-full rounded-md border px-2 text-sm";
+  // Vendedor y sede propios no existen del lado "compradas" (issue #28): en
+  // esa dirección la venta la registra un vendedor de la empresa contraparte,
+  // en una sede que tampoco es la mía.
+  const soportaVendedorSede = esAdmin && direccion === "vendidas";
+  // Contraparte = empresa compradora en "vendidas", empresa vendedora en
+  // "compradas" (issue #28): el label lo deja explícito para no sugerir que
+  // cualquier opción visible podría pertenecer al lado incorrecto.
+  const etiquetaEmpresa =
+    direccion === "compradas" ? "Empresa vendedora" : "Empresa compradora";
 
   return (
     <form
@@ -594,7 +631,7 @@ function FiltrosVenta({
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="empresa">Empresa convenio</Label>
+        <Label htmlFor="empresa">{etiquetaEmpresa}</Label>
         <select
           id="empresa"
           name="empresa"
@@ -604,7 +641,7 @@ function FiltrosVenta({
           <option value="">Todas</option>
           {empresas.map((e) => (
             <option key={e.id} value={e.id}>
-              {e.nombreComercial}
+              {e.nombre}
             </option>
           ))}
         </select>
@@ -624,7 +661,7 @@ function FiltrosVenta({
         </select>
       </div>
 
-      {esAdmin ? (
+      {soportaVendedorSede ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="vendedor">Vendedor</Label>
           <select
@@ -643,7 +680,7 @@ function FiltrosVenta({
         </div>
       ) : null}
 
-      {esAdmin ? (
+      {soportaVendedorSede ? (
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="sede">Sede</Label>
           <select
