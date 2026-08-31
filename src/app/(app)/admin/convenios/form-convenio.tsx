@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { hoyLima } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
 import {
@@ -77,6 +78,7 @@ export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
   }, [estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  useDialogFormError(estado, formulario, "error-form-convenio");
 
   return (
     <DialogContent pending={pendiente} className="sm:max-w-lg">
@@ -219,7 +221,11 @@ export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
         </div>
 
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p
+            id="error-form-convenio"
+            role="alert"
+            className="text-destructive text-sm"
+          >
             {error}
             {estado.ok === false && estado.enlace ? (
               <>

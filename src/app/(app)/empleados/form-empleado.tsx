@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Check, Loader2, ShieldCheck } from "lucide-react";
@@ -27,6 +27,7 @@ import {
   DialogProgress,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { cn } from "@/lib/utils";
 import {
   actualizarEmpleado,
@@ -166,6 +167,7 @@ export function FormEmpleado({
   const [telefono, setTelefono] = useState(empleado?.telefono ?? "");
   const [consentimiento, setConsentimiento] = useState(false);
   const [mostrarConsentimiento, setMostrarConsentimiento] = useState(false);
+  const formulario = useRef<HTMLFormElement>(null);
 
   const [estado, formAction, pendiente] = useActionState(
     async (estadoAnterior: Estado, formData: FormData): Promise<Estado> => {
@@ -202,6 +204,7 @@ export function FormEmpleado({
   }, [estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  useDialogFormError(estado, formulario, "error-form-empleado");
   const mostrarVerificar = !esCrear && empleado!.estado !== "ACTIVO";
   const empresaExterna =
     esCrear && Boolean(miEmpresaId) && empresaId !== miEmpresaId;
@@ -231,7 +234,7 @@ export function FormEmpleado({
         </DialogDescription>
       </DialogHeader>
 
-      <DialogForm action={formAction}>
+      <DialogForm ref={formulario} action={formAction}>
         {!esCrear ? (
           <input type="hidden" name="empleadoId" value={empleado!.id} />
         ) : null}
@@ -495,7 +498,11 @@ export function FormEmpleado({
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p
+            id="error-form-empleado"
+            role="alert"
+            className="text-destructive text-sm"
+          >
             {error}
           </p>
         ) : null}

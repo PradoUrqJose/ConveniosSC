@@ -481,48 +481,44 @@ export function EmpleadosClient({
         </footer>
       </div>
 
-      {dialogo?.tipo === "crear" ? (
+      {dialogo ? (
         <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
-          <FormEmpleado
-            empresas={empresas}
-            miEmpresaId={miEmpresaId}
-            onCerrar={() => setDialogo(null)}
-          />
-        </Dialog>
-      ) : null}
-      {dialogo?.tipo === "detalle" ? (
-        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
-          <DetalleEmpleado
-            empleado={dialogo.empleado}
-            puedeGestionar={
-              esSuperadmin || miEmpresaId === dialogo.empleado.empresaId
-            }
-            onEditar={() =>
-              setDialogo({ tipo: "editar", empleado: dialogo.empleado })
-            }
-            onRechazar={() =>
-              setDialogo({ tipo: "rechazar", empleado: dialogo.empleado })
-            }
-            onCerrar={() => setDialogo(null)}
-          />
-        </Dialog>
-      ) : null}
-      {dialogo?.tipo === "editar" ? (
-        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
-          <FormEmpleado
-            empleado={dialogo.empleado}
-            empresas={empresas}
-            miEmpresaId={miEmpresaId}
-            onCerrar={() => setDialogo(null)}
-          />
-        </Dialog>
-      ) : null}
-      {dialogo?.tipo === "rechazar" ? (
-        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
-          <DialogoRechazo
-            empleado={dialogo.empleado}
-            onCerrar={() => setDialogo(null)}
-          />
+          {dialogo.tipo === "crear" ? (
+            <FormEmpleado
+              empresas={empresas}
+              miEmpresaId={miEmpresaId}
+              onCerrar={() => setDialogo(null)}
+            />
+          ) : null}
+          {dialogo.tipo === "detalle" ? (
+            <DetalleEmpleado
+              empleado={dialogo.empleado}
+              puedeGestionar={
+                esSuperadmin || miEmpresaId === dialogo.empleado.empresaId
+              }
+              onEditar={() =>
+                setDialogo({ tipo: "editar", empleado: dialogo.empleado })
+              }
+              onRechazar={() =>
+                setDialogo({ tipo: "rechazar", empleado: dialogo.empleado })
+              }
+              onCerrar={() => setDialogo(null)}
+            />
+          ) : null}
+          {dialogo.tipo === "editar" ? (
+            <FormEmpleado
+              empleado={dialogo.empleado}
+              empresas={empresas}
+              miEmpresaId={miEmpresaId}
+              onCerrar={() => setDialogo(null)}
+            />
+          ) : null}
+          {dialogo.tipo === "rechazar" ? (
+            <DialogoRechazo
+              empleado={dialogo.empleado}
+              onCerrar={() => setDialogo(null)}
+            />
+          ) : null}
         </Dialog>
       ) : null}
     </section>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, Eye, EyeOff, ShieldCheck, X } from "lucide-react";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { DialogFooter, DialogForm } from "@/components/ui/dialog";
+import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import type { Resultado } from "@/lib/tipos";
 import { cambiarPassword } from "@/modules/auth/actions";
 
@@ -43,6 +44,7 @@ export function FormularioCambiarPassword({
   const [nueva, setNueva] = useState("");
   const [confirmacion, setConfirmacion] = useState("");
   const [mostrar, setMostrar] = useState(false);
+  const formulario = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     alCambiarPendiente?.(pendiente);
@@ -73,9 +75,10 @@ export function FormularioCambiarPassword({
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
   const Form = compacto ? DialogForm : "form";
+  useDialogFormError(estado, formulario, "error-cambiar-password");
 
   return (
-    <Form action={formAction} className="flex flex-col gap-4">
+    <Form ref={formulario} action={formAction} className="flex flex-col gap-4">
       {redirigirAlInicio ? (
         <input type="hidden" name="redirigirAlInicio" value="on" />
       ) : null}
@@ -157,7 +160,11 @@ export function FormularioCambiarPassword({
       </ul>
 
       {compacto && error ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p
+          id="error-cambiar-password"
+          role="alert"
+          className="text-destructive text-sm"
+        >
           {error}
         </p>
       ) : null}
@@ -180,7 +187,11 @@ export function FormularioCambiarPassword({
         </Button>
       )}
       {!compacto && error ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p
+          id="error-cambiar-password"
+          role="alert"
+          className="text-destructive text-sm"
+        >
           {error}
         </p>
       ) : null}

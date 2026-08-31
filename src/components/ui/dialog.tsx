@@ -49,6 +49,15 @@ function Dialog({
   const handleOpenChange = React.useCallback(
     (open: boolean, eventDetails: DialogPrimitive.Root.ChangeEventDetails) => {
       if (!open && (isPending || isDirty)) {
+        if (
+          isDirty &&
+          !isPending &&
+          !onCloseAttempt &&
+          window.confirm("Tienes cambios sin guardar. ¿Quieres descartarlos?")
+        ) {
+          onOpenChange?.(open, eventDetails);
+          return;
+        }
         eventDetails.preventUnmountOnClose();
         onCloseAttempt?.({
           reason: eventDetails.reason,
@@ -258,6 +267,7 @@ function DialogForm({
   children,
   ...props
 }: React.ComponentProps<"form">) {
+  const context = React.useContext(DialogContext);
   const hiddenChildren: React.ReactNode[] = [];
   const visibleChildren: React.ReactNode[] = [];
   let footer: React.ReactNode = null;
@@ -293,6 +303,20 @@ function DialogForm({
         "flex min-h-0 min-w-0 flex-1 flex-col gap-0 overflow-hidden",
       )}
       {...props}
+      onInputCapture={(event) => {
+        context?.setContentState({
+          pending: context.pending,
+          hasUnsavedChanges: true,
+        });
+        props.onInputCapture?.(event);
+      }}
+      onChangeCapture={(event) => {
+        context?.setContentState({
+          pending: context.pending,
+          hasUnsavedChanges: true,
+        });
+        props.onChangeCapture?.(event);
+      }}
     >
       {hiddenChildren}
       <div

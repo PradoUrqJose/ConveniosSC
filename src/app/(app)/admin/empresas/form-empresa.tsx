@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { actualizarEmpresa, crearEmpresa } from "@/modules/empresas/actions";
 import type { FilaEmpresa } from "@/modules/empresas/query";
 import type { Resultado } from "@/lib/tipos";
@@ -81,6 +82,7 @@ export function FormEmpresa({
   }, [estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  useDialogFormError(estado, formulario, "error-form-empresa");
   const desactiva = esEdicion && !activo && (empresa?.activo ?? true);
 
   return (
@@ -240,7 +242,11 @@ export function FormEmpresa({
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p
+            id="error-form-empresa"
+            role="alert"
+            className="text-destructive text-sm"
+          >
             {error}
           </p>
         ) : null}

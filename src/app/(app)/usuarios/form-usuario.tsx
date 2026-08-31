@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import type { Resultado } from "@/lib/tipos";
 import {
   actualizarUsuario,
@@ -110,6 +111,8 @@ export function FormUsuario({
       return;
     }
     if (!esEdicion) {
+      toast.success("Usuario creado");
+      router.refresh();
       onCreado(username, estado.data.passwordTemporal!);
       return;
     }
@@ -120,6 +123,7 @@ export function FormUsuario({
   }, [estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  useDialogFormError(estado, formulario, "error-form-usuario");
   const esSuperadminRol = rol === "SUPERADMIN";
 
   return (
@@ -276,7 +280,11 @@ export function FormUsuario({
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p
+            id="error-form-usuario"
+            role="alert"
+            className="text-destructive text-sm"
+          >
             {error}
           </p>
         ) : null}

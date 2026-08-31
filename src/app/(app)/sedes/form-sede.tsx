@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Store } from "lucide-react";
@@ -18,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { actualizarSede, crearSede } from "@/modules/sedes/actions";
 import type { FilaSede } from "@/modules/sedes/query";
 import type { Resultado } from "@/lib/tipos";
@@ -59,6 +60,7 @@ export function FormSede({
     ESTADO_INICIAL,
   );
   const [activo, setActivo] = useState(sede?.activo ?? true);
+  const formulario = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!estado.ok || !estado.data) {
@@ -71,6 +73,7 @@ export function FormSede({
   }, [estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  useDialogFormError(estado, formulario, "error-form-sede");
 
   return (
     <DialogContent pending={pendiente} className="sm:max-w-md">
@@ -83,7 +86,7 @@ export function FormSede({
         </DialogDescription>
       </DialogHeader>
 
-      <DialogForm action={formAction}>
+      <DialogForm ref={formulario} action={formAction}>
         {esEdicion ? (
           <input type="hidden" name="sedeId" value={sede!.id} />
         ) : (
@@ -134,7 +137,11 @@ export function FormSede({
         ) : null}
 
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p
+            id="error-form-sede"
+            role="alert"
+            className="text-destructive text-sm"
+          >
             {error}
           </p>
         ) : null}

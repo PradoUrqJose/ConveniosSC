@@ -17,6 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { formatearFechaUI, hoyLima } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
 import { cambiarTermino } from "@/modules/convenios/actions";
@@ -101,6 +102,7 @@ export function DialogoCambiarTermino({
   }, [estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  useDialogFormError(estado, formulario, "error-cambiar-descuento");
 
   return (
     <DialogContent pending={pendiente} className="sm:max-w-md">
@@ -116,8 +118,8 @@ export function DialogoCambiarTermino({
         </DialogDescription>
       </DialogHeader>
 
-      <div className="flex flex-col gap-1">
-        <Label>Dirección</Label>
+      <fieldset className="flex flex-col gap-1">
+        <legend className="text-sm font-medium">Dirección</legend>
         <div className="flex flex-col gap-2">
           {direcciones.map((d, i) => (
             <label
@@ -137,7 +139,7 @@ export function DialogoCambiarTermino({
             </label>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       <DialogForm
         ref={formulario}
@@ -199,7 +201,11 @@ export function DialogoCambiarTermino({
         </p>
 
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p
+            id="error-cambiar-descuento"
+            role="alert"
+            className="text-destructive text-sm"
+          >
             {error}
           </p>
         ) : null}
