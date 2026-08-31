@@ -58,6 +58,7 @@ export function DashboardClient({
         />
 
         <form className="control-bar grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-2 sm:gap-3 md:w-fit md:shrink-0 md:grid-cols-[minmax(0,10rem)_minmax(0,10rem)_auto]">
+          <input type="hidden" name="dir" value={direccion} />
           <label className="flex min-w-0 flex-col">
             <span className="text-muted-foreground mb-1 flex items-center gap-1.5 text-[10px] font-bold tracking-wide uppercase sm:mb-1.5 sm:text-[11px]">
               <CalendarRange className="size-3.5 shrink-0" /> Desde
@@ -99,6 +100,15 @@ export function DashboardClient({
           ]}
           onNavegar={(href) => startTransition(() => router.push(href))}
         />
+      )}
+      {datos.anuladas.cantidad > 0 && (
+        <p className="text-muted-foreground text-sm">
+          {datos.anuladas.cantidad} venta
+          {datos.anuladas.cantidad === 1 ? "" : "s"} anulada
+          {datos.anuladas.cantidad === 1 ? "" : "s"} (
+          {formatearSoles(datos.anuladas.sumaBrutoCentimos)}) — excluidas de los
+          totales.
+        </p>
       )}
       <div className="relative">
         <div
@@ -164,15 +174,6 @@ function ContenidoDashboard({ datos }: { datos: Dashboard }) {
           tono="neutral"
         />
       </div>
-      {datos.anuladas.cantidad > 0 && (
-        <p className="text-muted-foreground text-sm">
-          {datos.anuladas.cantidad} venta
-          {datos.anuladas.cantidad === 1 ? "" : "s"} anulada
-          {datos.anuladas.cantidad === 1 ? "" : "s"} (
-          {formatearSoles(datos.anuladas.sumaBrutoCentimos)}) — excluidas de los
-          totales.
-        </p>
-      )}
       <Bloque titulo="Ventas por periodo">
         {datos.serie.length ? (
           <div
@@ -210,68 +211,117 @@ function ContenidoDashboard({ datos }: { datos: Dashboard }) {
         )}
       </Bloque>
       <div className="grid gap-3 lg:grid-cols-2 lg:gap-4">
-        <Lista
-          titulo="Por convenio"
-          filas={datos.porConvenio.map((x) => ({
-            clave: x.empresaNombre,
-            etiqueta: x.empresaNombre,
-            valor: formatearSoles(x.brutoCentimos),
-            peso: x.brutoCentimos,
-          }))}
-        />
-        <Lista
-          titulo="Por sede"
-          filas={datos.porSede.map((x) => ({
-            clave: x.nombre,
-            etiqueta: x.nombre,
-            valor: `${x.cantidad}`,
-            sufijo: x.cantidad === 1 ? "venta" : "ventas",
-            peso: x.cantidad,
-          }))}
-        />
-        <Lista
-          titulo="Top vendedores"
-          filas={datos.topVendedores.map((x) => ({
-            clave: x.nombre,
-            etiqueta: x.nombre,
-            detalle: `${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
-            valor: formatearSoles(x.brutoCentimos),
-            peso: x.brutoCentimos,
-          }))}
-        />
-        <Lista
-          titulo="Top empleados beneficiarios"
-          filas={datos.topEmpleados.map((x) => ({
-            clave: `${x.tipoDocumento}:${x.numeroDocumento}`,
-            etiqueta: x.nombre,
-            detalle: `${x.tipoDocumento === "DNI" ? "DNI" : "CE"} ${x.numeroDocumento} · ${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
-            valor: formatearSoles(x.brutoCentimos),
-            peso: x.brutoCentimos,
-          }))}
+        {datos.direccion === "vendidas" ? (
+          <>
+            <Lista
+              titulo="Empresas compradoras"
+              filas={filasEmpresas(datos.empresasCompradoras)}
+            />
+            <Lista
+              titulo="Por sede propia"
+              filas={datos.porSede.map((x) => ({
+                clave: x.sedeId,
+                etiqueta: x.nombre,
+                valor: `${x.cantidad}`,
+                sufijo: x.cantidad === 1 ? "venta" : "ventas",
+                peso: x.cantidad,
+              }))}
+            />
+            <Lista
+              titulo="Top vendedores propios"
+              filas={datos.topVendedores.map((x) => ({
+                clave: x.usuarioId,
+                etiqueta: x.nombre,
+                detalle: `${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
+                valor: formatearSoles(x.brutoCentimos),
+                peso: x.brutoCentimos,
+              }))}
+            />
+            <Lista
+              titulo="Beneficiarios únicos"
+              filas={filasEmpleados(datos.beneficiarios)}
+            />
+          </>
+        ) : (
+          <>
+            <Lista
+              titulo="Empresas vendedoras"
+              filas={filasEmpresas(datos.empresasVendedoras)}
+            />
+            <Lista
+              titulo="Empleados propios beneficiados"
+              filas={filasEmpleados(datos.topEmpleados)}
+            />
+          </>
+        )}
+      </div>
+      {datos.direccion === "compradas" && <Adopcion datos={datos.adopcion} />}
+    </>
+  );
+}
+
+function filasEmpresas(
+  empresas: Array<{
+    empresaId: string;
+    empresaNombre: string;
+    brutoCentimos: number;
+  }>,
+): FilaLista[] {
+  return empresas.map((x) => ({
+    clave: x.empresaId,
+    etiqueta: x.empresaNombre,
+    valor: formatearSoles(x.brutoCentimos),
+    peso: x.brutoCentimos,
+  }));
+}
+
+function filasEmpleados(
+  empleados: Array<{
+    empleadoId: string;
+    nombre: string;
+    tipoDocumento: string;
+    numeroDocumento: string;
+    cantidad: number;
+    brutoCentimos: number;
+  }>,
+): FilaLista[] {
+  return empleados.map((x) => ({
+    clave: x.empleadoId,
+    etiqueta: x.nombre,
+    detalle: `${x.tipoDocumento === "DNI" ? "DNI" : "CE"} ${x.numeroDocumento} · ${x.cantidad} venta${x.cantidad === 1 ? "" : "s"}`,
+    valor: formatearSoles(x.brutoCentimos),
+    peso: x.brutoCentimos,
+  }));
+}
+
+function Adopcion({
+  datos,
+}: {
+  datos: {
+    empleadosQueCompraron: number;
+    empleadosActivos: number;
+    tasa: number;
+  };
+}) {
+  return (
+    <Bloque titulo="Adopción de empleados propios">
+      <div className="flex items-end gap-4">
+        <p className="text-4xl leading-none font-bold tracking-tight">
+          {datos.tasa}
+          <span className="text-muted-foreground text-2xl">%</span>
+        </p>
+        <p className="text-muted-foreground pb-0.5 text-sm leading-5">
+          {datos.empleadosQueCompraron} de {datos.empleadosActivos} empleados
+          activos usaron el beneficio.
+        </p>
+      </div>
+      <div className="bg-muted mt-4 h-2 overflow-hidden rounded-full">
+        <div
+          className="bg-primary h-full rounded-full"
+          style={{ width: `${Math.min(100, Math.max(0, datos.tasa))}%` }}
         />
       </div>
-      <Bloque titulo="Adopción">
-        <div className="flex items-end gap-4">
-          <p className="text-4xl leading-none font-bold tracking-tight">
-            {datos.adopcion.tasa}
-            <span className="text-muted-foreground text-2xl">%</span>
-          </p>
-          <p className="text-muted-foreground pb-0.5 text-sm leading-5">
-            {datos.adopcion.empleadosQueCompraron} de{" "}
-            {datos.adopcion.empleadosActivos} empleados activos usaron el
-            beneficio.
-          </p>
-        </div>
-        <div className="bg-muted mt-4 h-2 overflow-hidden rounded-full">
-          <div
-            className="bg-primary h-full rounded-full"
-            style={{
-              width: `${Math.min(100, Math.max(0, datos.adopcion.tasa))}%`,
-            }}
-          />
-        </div>
-      </Bloque>
-    </>
+    </Bloque>
   );
 }
 

@@ -3,124 +3,230 @@ import { describe, expect, it } from "vitest";
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
 import type { SessionContext } from "@/lib/auth/guardas";
 
-import { obtenerDashboard } from "./query";
+import { completarSerie, obtenerDashboard, obtenerGranularidad } from "./query";
 
 const ctx: SessionContext = {
   usuarioId: "11111111-1111-4111-8111-111111111111",
-  empresaId: null,
-  rol: "SUPERADMIN",
+  empresaId: "22222222-2222-4222-8222-222222222222",
+  rol: "ADMIN_EMPRESA",
   requestId: "test-dashboard",
   ip: null,
   userAgent: null,
 };
 
-describe("obtenerDashboard", () => {
-  it("fusiona las métricas compatibles en cinco consultas sin alterar el resultado", async () => {
-    const respuestas = [
-      [
-        {
-          cantidad: 3,
-          bruto: 10000,
-          descuento: 1200,
-          final: 8800,
-          anuladas_cantidad: 1,
-          anuladas_bruto: 2500,
-          compradores: 2,
-          activos: 8,
-        },
-      ],
-      [
-        {
-          periodo: "2026-08-01",
-          cantidad: 3,
-          bruto: 10000,
-          descuento: 1200,
-        },
-      ],
-      [
-        {
-          id: "22222222-2222-4222-8222-222222222222",
-          nombre: "Empresa compradora",
-          cantidad: 3,
-          bruto: 10000,
-          descuento: 1200,
-        },
-      ],
-      [
-        {
-          id: "33333333-3333-4333-8333-333333333333",
-          nombre: "Vendedora Uno",
-          cantidad: 3,
-          bruto: 10000,
-        },
-      ],
-      [
-        {
-          tipo: "empleado",
-          id: "44444444-4444-4444-8444-444444444444",
-          nombre: "Empleada Uno",
-          tipo_documento: "DNI",
-          numero_documento: "12345678",
-          cantidad: 2,
-          bruto: 7000,
-        },
-        {
-          tipo: "sede",
-          id: "55555555-5555-4555-8555-555555555555",
-          nombre: "Sede Centro",
-          tipo_documento: null,
-          numero_documento: null,
-          cantidad: 3,
-          bruto: 10000,
-        },
-      ],
-    ];
-    let llamadas = 0;
-    const ejecutor: TransaccionAuditada = {
-      async execute() {
-        return respuestas[llamadas++]!;
-      },
-    };
+function ejecutor(
+  respuestas: unknown[],
+  contador: { total: number },
+): TransaccionAuditada {
+  return {
+    async execute() {
+      return respuestas[contador.total++]!;
+    },
+  };
+}
 
+describe("series del dashboard", () => {
+  it("usa días para 31 días aunque crucen de mes y completa los ceros", () => {
+    expect(obtenerGranularidad("2026-01-15", "2026-02-14")).toBe("dia");
+    expect(
+      completarSerie(
+        [
+          {
+            periodo: "2026-01-16",
+            cantidad: 1,
+            brutoCentimos: 500,
+            descuentoCentimos: 50,
+          },
+        ],
+        "2026-01-15",
+        "2026-02-14",
+        "dia",
+      ),
+    ).toHaveLength(31);
+    expect(
+      completarSerie([], "2026-01-15", "2026-02-14", "dia")[0],
+    ).toMatchObject({
+      periodo: "2026-01-15",
+      cantidad: 0,
+    });
+    expect(obtenerGranularidad("2026-01-01", "2026-04-01")).toBe("mes");
+  });
+});
+
+describe("obtenerDashboard", () => {
+  it("devuelve sólo rankings propios y beneficiarios para ventas vendidas", async () => {
+    const contador = { total: 0 };
     const dashboard = await obtenerDashboard(
       ctx,
-      { desde: "2026-08-01", hasta: "2026-08-31" },
-      ejecutor,
+      {
+        desde: "2026-08-01",
+        hasta: "2026-08-31",
+        direccion: "vendidas",
+      },
+      ejecutor(
+        [
+          [
+            {
+              cantidad: 3,
+              bruto: 10000,
+              descuento: 1200,
+              final: 8800,
+              anuladas_cantidad: 1,
+              anuladas_bruto: 2500,
+            },
+          ],
+          [
+            {
+              periodo: "2026-08-01",
+              cantidad: 3,
+              bruto: 10000,
+              descuento: 1200,
+            },
+          ],
+          [
+            {
+              id: "empresa-compradora",
+              nombre: "Empresa compradora",
+              cantidad: 3,
+              bruto: 10000,
+              descuento: 1200,
+            },
+          ],
+          [
+            {
+              id: "vendedor-propio",
+              nombre: "Vendedora propia",
+              cantidad: 3,
+              bruto: 10000,
+            },
+          ],
+          [
+            {
+              tipo: "beneficiario",
+              id: "empleado-externo",
+              nombre: "Beneficiaria",
+              tipo_documento: "DNI",
+              numero_documento: "12345678",
+              cantidad: 2,
+              bruto: 7000,
+            },
+            {
+              tipo: "sede",
+              id: "sede-propia",
+              nombre: "Sede Centro",
+              cantidad: 3,
+              bruto: 10000,
+            },
+          ],
+        ],
+        contador,
+      ),
     );
 
-    expect(llamadas).toBe(5);
+    expect(contador.total).toBe(5);
     expect(dashboard).toMatchObject({
-      totales: {
-        cantidad: 3,
-        sumaBrutoCentimos: 10000,
-        sumaDescuentoCentimos: 1200,
-        sumaFinalCentimos: 8800,
-        ticketPromedioCentimos: 2933,
+      direccion: "vendidas",
+      empresasCompradoras: [{ empresaNombre: "Empresa compradora" }],
+      topVendedores: [{ nombre: "Vendedora propia" }],
+      beneficiarios: [{ nombre: "Beneficiaria" }],
+      porSede: [{ nombre: "Sede Centro" }],
+    });
+    expect("adopcion" in dashboard).toBe(false);
+  });
+
+  it("calcula adopción sólo con empleados propios en ventas compradas", async () => {
+    const contador = { total: 0 };
+    const dashboard = await obtenerDashboard(
+      ctx,
+      {
+        desde: "2026-08-01",
+        hasta: "2026-08-31",
+        direccion: "compradas",
       },
-      anuladas: { cantidad: 1, sumaBrutoCentimos: 2500 },
-      adopcion: {
-        empleadosQueCompraron: 2,
-        empleadosActivos: 8,
-        tasa: 25,
+      ejecutor(
+        [
+          [
+            {
+              cantidad: 2,
+              bruto: 5000,
+              descuento: 500,
+              final: 4500,
+              anuladas_cantidad: 3,
+              anuladas_bruto: 7500,
+              compradores: 2,
+            },
+          ],
+          [],
+          [
+            {
+              id: "empresa-vendedora",
+              nombre: "Empresa vendedora",
+              cantidad: 2,
+              bruto: 5000,
+              descuento: 500,
+            },
+          ],
+          [{ activos: 8 }],
+          [
+            {
+              id: "empleado-propio",
+              nombre: "Empleado propio",
+              tipo_documento: "DNI",
+              numero_documento: "87654321",
+              cantidad: 1,
+              bruto: 2500,
+            },
+          ],
+        ],
+        contador,
+      ),
+    );
+
+    expect(contador.total).toBe(5);
+    expect(dashboard).toMatchObject({
+      direccion: "compradas",
+      empresasVendedoras: [{ empresaNombre: "Empresa vendedora" }],
+      topEmpleados: [{ nombre: "Empleado propio" }],
+      adopcion: { empleadosQueCompraron: 2, empleadosActivos: 8, tasa: 25 },
+    });
+    expect("topVendedores" in dashboard).toBe(false);
+    expect("porSede" in dashboard).toBe(false);
+  });
+
+  it("conserva las anuladas aunque no haya registradas", async () => {
+    const contador = { total: 0 };
+    const dashboard = await obtenerDashboard(
+      ctx,
+      {
+        desde: "2026-08-01",
+        hasta: "2026-08-31",
+        direccion: "vendidas",
       },
-      topEmpleados: [
-        {
-          empleadoId: "44444444-4444-4444-8444-444444444444",
-          nombre: "Empleada Uno",
-          tipoDocumento: "DNI",
-          numeroDocumento: "12345678",
-          cantidad: 2,
-          brutoCentimos: 7000,
-        },
-      ],
-      porSede: [
-        {
-          sedeId: "55555555-5555-4555-8555-555555555555",
-          nombre: "Sede Centro",
-          cantidad: 3,
-          brutoCentimos: 10000,
-        },
-      ],
+      ejecutor(
+        [
+          [
+            {
+              cantidad: 0,
+              bruto: 0,
+              descuento: 0,
+              final: 0,
+              anuladas_cantidad: 3,
+              anuladas_bruto: 7500,
+            },
+          ],
+          [],
+          [],
+          [],
+          [],
+        ],
+        contador,
+      ),
+    );
+
+    expect(dashboard.totales.cantidad).toBe(0);
+    expect(dashboard.anuladas).toEqual({
+      cantidad: 3,
+      sumaBrutoCentimos: 7500,
     });
   });
 });
