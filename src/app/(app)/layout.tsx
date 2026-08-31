@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
+import { Suspense } from "react";
 
 import { db } from "@/db";
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
@@ -13,6 +14,7 @@ import { Header } from "@/components/shell/header";
 import { CabeceraPuntoVenta } from "@/components/shell/cabecera-punto-venta";
 import { TabBarMovil } from "@/components/shell/tab-bar-movil";
 import { BannerOffline } from "@/components/shell/banner-offline";
+import { BadgePendientes } from "@/components/shell/badge-pendientes";
 import { medirServidor } from "@/lib/observabilidad";
 
 export default async function AppLayout({
@@ -47,10 +49,10 @@ export default async function AppLayout({
   const perfil = perfilNavDesdeSesion(sesion);
   const pendientesEmpleados =
     sesion.rol === "ADMIN_EMPRESA" && sesion.empresaId
-      ? await medirServidor("layout.badge-pendientes", () =>
+      ? medirServidor("layout.badge-pendientes", () =>
           contarPendientesVerificacion(db, sesion.empresaId!),
         )
-      : 0;
+      : Promise.resolve(0);
   const nav = navegacionPorRol(sesion.rol);
   const esPuntoVenta = pathname === "/ventas/nueva";
 
@@ -59,7 +61,14 @@ export default async function AppLayout({
       <Sidebar
         nav={nav}
         perfil={perfil}
-        pendientesEmpleados={pendientesEmpleados}
+        pendientesEmpleados={
+          <Suspense fallback={null}>
+            <BadgePendientes
+              pendientes={pendientesEmpleados}
+              variante="sidebar"
+            />
+          </Suspense>
+        }
       />
       <div className="flex min-w-0 flex-1 flex-col">
         {esPuntoVenta ? (
@@ -91,7 +100,14 @@ export default async function AppLayout({
       {!esPuntoVenta ? (
         <TabBarMovil
           rol={sesion.rol}
-          pendientesEmpleados={pendientesEmpleados}
+          pendientesEmpleados={
+            <Suspense fallback={null}>
+              <BadgePendientes
+                pendientes={pendientesEmpleados}
+                variante="movil"
+              />
+            </Suspense>
+          }
         />
       ) : null}
     </div>

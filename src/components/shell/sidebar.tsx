@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { LogOut, Settings2 } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { EnlaceNav } from "@/components/shell/enlace-nav";
 import { IconoDestino } from "@/components/shell/iconos";
@@ -17,7 +18,7 @@ export function Sidebar({
 }: {
   nav: Navegacion;
   perfil: PerfilNav;
-  pendientesEmpleados: number;
+  pendientesEmpleados: ReactNode;
 }) {
   const rutasOperacion = new Set([
     "/",
@@ -91,11 +92,7 @@ export function Sidebar({
               >
                 <IconoDestino destino={destino} className="size-[18px]" />
                 <span className="truncate">{destino.etiqueta}</span>
-                {destino.href === "/empleados" && pendientesEmpleados > 0 ? (
-                  <span className="ml-auto rounded-full bg-cyan-300 px-2 py-0.5 text-[10px] font-extrabold text-slate-950">
-                    {pendientesEmpleados}
-                  </span>
-                ) : null}
+                {destino.href === "/empleados" ? pendientesEmpleados : null}
               </EnlaceNav>
             ))}
           </>

@@ -5,6 +5,7 @@ import { obtenerFilas, type TransaccionAuditada } from "@/lib/audit/registrar";
 import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import { calcularDescuento, type Centimos } from "@/lib/dinero";
 import { fechaLimaDe, hoyLima } from "@/lib/fechas";
+import { medirServidor } from "@/lib/observabilidad";
 import type { CodigoError, Pagina, Resultado } from "@/lib/tipos";
 import type { EstadoEmpleado } from "@/modules/empleados/query";
 import type { TipoDocumento } from "@/lib/zod";
@@ -260,6 +261,12 @@ export type FiltrosVentas = {
   direccion?: DireccionVentas;
   orden?: OrdenVentas;
   cursor?: string;
+  /**
+   * Sólo lo usa la navegación cliente después de cambiar de página. El
+   * resumen ya fue obtenido para el mismo conjunto filtrado y no debe volver a
+   * ejecutar el agregado.
+   */
+  resumenReutilizado?: ResumenVentas;
 };
 
 export const POR_PAGINA_VENTAS = 25;
@@ -590,8 +597,13 @@ export async function listarVentas(
     entrada,
   );
 
-  const [resumenResultado, filasResultado] = await Promise.all([
-    consultarResumenVentas(ejecutor, whereFiltros),
+  const resumenResultado = entrada.resumenReutilizado
+    ? Promise.resolve(entrada.resumenReutilizado)
+    : medirServidor("ventas.resumen", () =>
+        consultarResumenVentas(ejecutor, whereFiltros),
+      );
+  const [resumen, filasResultado] = await Promise.all([
+    resumenResultado,
     ejecutor.execute(sql`
       WITH pagina AS (
         SELECT v.id
@@ -613,7 +625,6 @@ export async function listarVentas(
       ORDER BY ${fragmentoOrden(orden)}
     `),
   ]);
-  const resumen = resumenResultado;
   const filas = obtenerFilas(filasResultado);
 
   const haySiguiente = filas.length > POR_PAGINA_VENTAS;

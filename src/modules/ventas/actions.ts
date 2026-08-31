@@ -7,7 +7,8 @@ import { db, dbTx } from "@/db";
 import { MAX_BYTES_ARCHIVO, MIME_PERMITIDOS } from "@/lib/archivos";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { zFecha, zMontoSoles, zUuid } from "@/lib/zod";
-import type { Resultado } from "@/lib/tipos";
+import type { Pagina, Resultado } from "@/lib/tipos";
+import { medirConsultasServidor, medirServidor } from "@/lib/observabilidad";
 import {
   anularVentaCore,
   buscarVentaExistente,
@@ -17,9 +18,24 @@ import {
   type VentaCreada,
 } from "./acciones";
 import {
+  listarContrapartesVentas,
+  listarVendedoresPropios,
+  listarVentas,
   previsualizarDescuento as previsualizarDescuentoQuery,
+  sedesParaVenta,
+  type ContraparteOpcion,
+  type FilaVenta,
+  type ResumenVentas,
+  type SedeOpcion,
+  type VendedorOpcion,
   type PrevisualizacionDescuento,
 } from "./query";
+import {
+  filtrosDesdeParametros,
+  mismoConjuntoVentas,
+  normalizarParametrosVentas,
+  parametrosDesdeEntrada,
+} from "./filtros";
 
 const zArchivo = z.object({
   blobPath: z.string().min(1),
@@ -77,6 +93,106 @@ async function capturarErrores<T>(
       mensaje: "Ocurrió un error inesperado.",
     };
   }
+}
+
+export type CatalogosVentas = {
+  empresas: ContraparteOpcion[];
+  vendedores: VendedorOpcion[];
+  sedes: SedeOpcion[];
+};
+
+type PaginaVentas = Pagina<FilaVenta> & { resumen: ResumenVentas };
+
+const zDireccionVentas = z.enum(["vendidas", "compradas"]);
+const zResumenVentas = z.object({
+  cantidad: z.number().int().nonnegative(),
+  sumaBruto: z.number().int().nonnegative(),
+  sumaDescuento: z.number().int().nonnegative(),
+  sumaFinal: z.number().int().nonnegative(),
+});
+
+/**
+ * Carga el resultado de una vista de Ventas sin volver a renderizar la ruta.
+ * La entrada se normaliza en servidor porque también puede venir de una URL o
+ * de un cliente manipulado. El resumen sólo se reutiliza para un cursor; para
+ * una búsqueda, filtro u orden nuevos siempre se calcula en base de datos.
+ */
+export async function cargarPaginaVentas(
+  entrada: unknown,
+  resumenAnterior?: unknown,
+  parametrosAnteriores?: unknown,
+): Promise<Resultado<PaginaVentas>> {
+  return capturarErrores<PaginaVentas>(async () => {
+    const ctx = await requireSession();
+    const parametros = normalizarParametrosVentas(
+      parametrosDesdeEntrada(entrada),
+    );
+    const anteriores = parametrosDesdeEntrada(parametrosAnteriores);
+    const resumen =
+      parametros.cursor && mismoConjuntoVentas(parametros, anteriores)
+        ? zResumenVentas.safeParse(resumenAnterior)
+        : { success: false as const };
+    const filtros = filtrosDesdeParametros(
+      parametros,
+      ctx.rol === "ADMIN_EMPRESA",
+      resumen.success ? resumen.data : undefined,
+    );
+    const pagina = await medirConsultasServidor(
+      "ventas.pagina",
+      db,
+      (ejecutor) => listarVentas(ctx, filtros, ejecutor),
+    );
+    return { ok: true, data: pagina };
+  });
+}
+
+/**
+ * Catálogos del panel de filtros. Se invoca sólo cuando el usuario abre el
+ * panel, por lo que una visita a `/ventas` no paga opciones que no utiliza.
+ */
+export async function cargarCatalogosVentas(
+  direccion: unknown,
+): Promise<Resultado<CatalogosVentas>> {
+  return capturarErrores<CatalogosVentas>(async () => {
+    const ctx = await requireSession();
+    const parseDireccion = zDireccionVentas.safeParse(direccion);
+    if (!parseDireccion.success) {
+      return {
+        ok: false,
+        codigo: "VALIDACION",
+        mensaje: "Dirección de ventas inválida.",
+        campo: "direccion",
+      };
+    }
+
+    const direccionEfectiva =
+      ctx.rol === "VENDEDOR" ? "vendidas" : parseDireccion.data;
+    const soportaVendedorSede =
+      ctx.rol === "ADMIN_EMPRESA" && direccionEfectiva === "vendidas";
+
+    const [empresas, vendedores, sedes] = await medirConsultasServidor(
+      "ventas.catalogos",
+      db,
+      (ejecutor) =>
+        Promise.all([
+          medirServidor("ventas.catalogo-empresas", () =>
+            listarContrapartesVentas(ctx, direccionEfectiva, ejecutor),
+          ),
+          soportaVendedorSede
+            ? medirServidor("ventas.catalogo-vendedores", () =>
+                listarVendedoresPropios(ctx, ejecutor),
+              )
+            : Promise.resolve([] as VendedorOpcion[]),
+          soportaVendedorSede
+            ? medirServidor("ventas.catalogo-sedes", () =>
+                sedesParaVenta(ctx, ejecutor),
+              )
+            : Promise.resolve([] as SedeOpcion[]),
+        ]),
+    );
+
+    return { ok: true, data: { empresas, vendedores, sedes } };
+  });
 }
 
 function campoInvalido<T extends { error: z.ZodError }>(

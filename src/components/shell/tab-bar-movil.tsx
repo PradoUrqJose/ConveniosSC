@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -17,11 +18,11 @@ function Pestaña({
   pendientesEmpleados,
 }: {
   destino: DestinoNav;
-  pendientesEmpleados: number;
+  pendientesEmpleados: ReactNode;
 }) {
   const pathname = usePathname();
   const activo = estaActivo(pathname, destino.href);
-  const mostrarBadge = destino.href === "/empleados" && pendientesEmpleados > 0;
+  const mostrarBadge = destino.href === "/empleados";
 
   if (destino.destacado) {
     return (
@@ -51,11 +52,7 @@ function Pestaña({
     >
       <span className="relative flex h-6 items-center justify-center">
         <IconoDestino destino={destino} className="size-[1.3rem]" />
-        {mostrarBadge ? (
-          <span className="bg-primary text-primary-foreground absolute -top-1 left-1/2 min-w-4 translate-x-1.5 rounded-full px-1 text-center text-[0.58rem] leading-4 font-bold">
-            {pendientesEmpleados}
-          </span>
-        ) : null}
+        {mostrarBadge ? pendientesEmpleados : null}
       </span>
       <span className="w-full truncate px-0.5 text-center">
         {destino.etiqueta}
@@ -69,7 +66,7 @@ export function TabBarMovil({
   pendientesEmpleados,
 }: {
   rol: RolUsuario;
-  pendientesEmpleados: number;
+  pendientesEmpleados: ReactNode;
 }) {
   const nav = navegacionPorRol(rol);
 

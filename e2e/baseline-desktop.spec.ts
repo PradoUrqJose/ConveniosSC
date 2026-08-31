@@ -4,6 +4,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const habilitado = process.env.E2E_BASELINE === "1";
+const etapaBaseline =
+  process.env.BASELINE_ETAPA === "despues" ? "despues" : "antes";
 const muestrasPorRuta = 11;
 const cookieSesion = process.env.SESSION_COOKIE_NAME ?? "convenios_sesion";
 const viewports = [
@@ -193,17 +195,17 @@ async function guardarReporte(info: TestInfo, resultados: MetricaRuta[]) {
     process.cwd(),
     "artifacts",
     "baseline",
-    "antes.json",
+    `${etapaBaseline}.json`,
   );
   await mkdir(path.dirname(destino), { recursive: true });
   await writeFile(destino, `${JSON.stringify(reporte, null, 2)}\n`);
-  await info.attach("baseline-antes", {
+  await info.attach(`baseline-${etapaBaseline}`, {
     body: JSON.stringify(reporte, null, 2),
     contentType: "application/json",
   });
 }
 
-test.describe("baseline desktop antes del rediseño", () => {
+test.describe(`baseline desktop ${etapaBaseline} del rediseño`, () => {
   test.skip(
     !habilitado,
     "Se ejecuta explícitamente con E2E_BASELINE=1 en un entorno aislado.",
@@ -281,7 +283,7 @@ test.describe("baseline desktop antes del rediseño", () => {
             await page.goto(ruta, { waitUntil: "networkidle" });
             await page.screenshot({
               path: testInfo.outputPath(
-                `antes-${escenario.rol}-${ruta.replaceAll("/", "-") || "inicio"}-${viewport.nombre}-${colorScheme}.png`,
+                `${etapaBaseline}-${escenario.rol}-${ruta.replaceAll("/", "-") || "inicio"}-${viewport.nombre}-${colorScheme}.png`,
               ),
               fullPage: true,
             });
@@ -334,7 +336,7 @@ test.describe("baseline desktop antes del rediseño", () => {
       contentType: "application/json",
     });
     await page.screenshot({
-      path: testInfo.outputPath(`antes-modal-${tipo}.png`),
+      path: testInfo.outputPath(`${etapaBaseline}-modal-${tipo}.png`),
     });
   }
 

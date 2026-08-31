@@ -45,12 +45,15 @@ export function SalesDirectionTabs({
   onNavegar,
   className,
   ariaLabel = "Dirección de ventas",
+  prefetch = true,
 }: {
   opciones: readonly OpcionDireccionVentas[];
   direccion: DireccionVentas;
   onNavegar?: (href: string) => void;
   className?: string;
   ariaLabel?: string;
+  /** Desactiva GETs especulativos cuando el consumidor carga por Server Action. */
+  prefetch?: boolean;
 }) {
   const router = useRouter();
   const [optimista, setOptimista] = useOptimistic(direccion);
@@ -93,12 +96,13 @@ export function SalesDirectionTabs({
   }, [direccion, setOptimista]);
 
   useEffect(() => {
+    if (!prefetch) return;
     for (const opcion of opciones) {
       if (opcion.id !== direccion) router.prefetch(opcion.href);
     }
     // Solo al montar: opciones/href son estables para una misma pantalla.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [prefetch]);
 
   const seleccionar = (opcion: OpcionDireccionVentas) => {
     if (opcion.id === optimista) return;

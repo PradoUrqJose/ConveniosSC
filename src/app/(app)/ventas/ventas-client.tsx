@@ -3,12 +3,13 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type ReactNode,
 } from "react";
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   BadgePercent,
   ChevronLeft,
@@ -64,7 +65,17 @@ import type {
   SedeOpcion,
   VendedorOpcion,
 } from "@/modules/ventas/query";
-import type { SearchParamsVentas } from "./page";
+import {
+  cargarCatalogosVentas,
+  cargarPaginaVentas,
+  type CatalogosVentas,
+} from "@/modules/ventas/actions";
+import {
+  mismoConjuntoVentas,
+  normalizarParametrosVentas,
+  parametrosDesdeUrl,
+  type SearchParamsVentas,
+} from "@/modules/ventas/filtros";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ariaSortDe,
@@ -125,46 +136,100 @@ export function VentasClient({
   pagina,
   sp,
   esAdmin,
-  empresas,
-  vendedores,
-  sedes,
   puedeCrear,
   porPagina,
 }: {
   pagina: Pagina<FilaVenta> & { resumen: ResumenVentas };
   sp: SearchParamsVentas;
   esAdmin: boolean;
-  empresas: ContraparteOpcion[];
-  vendedores: VendedorOpcion[];
-  sedes: SedeOpcion[];
   puedeCrear: boolean;
   porPagina: number;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const [vista, setVista] = useState({ pagina, sp });
+  const vistaRef = useRef(vista);
   const [texto, setTexto] = useState(sp.q ?? "");
   const [popoverAbierto, setPopoverAbierto] = useState(false);
   const [sheetAbierto, setSheetAbierto] = useState(false);
-  const [pendiente, startTransition] = useTransition();
+  const [cargando, setCargando] = useState(false);
+  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  const [catalogosPorDireccion, setCatalogosPorDireccion] = useState<
+    Partial<Record<"vendidas" | "compradas", CatalogosVentas>>
+  >({});
+  const [direccionCatalogoCargando, setDireccionCatalogoCargando] = useState<
+    string | null
+  >(null);
+  const [pendienteTransicion, startTransition] = useTransition();
+  const solicitud = useRef(0);
+  const busquedaRestaurada = useRef<string | null>(null);
 
-  const direccion = sp.dir === "compradas" ? "compradas" : "vendidas";
-  const orden = sp.orden ?? "fecha_desc";
+  useEffect(() => {
+    vistaRef.current = vista;
+  }, [vista]);
+
+  const paginaVisible = vista.pagina;
+  const spVisible = vista.sp;
+
+  const direccion =
+    spVisible.dir === "compradas" ? "compradas" : ("vendidas" as const);
+  const orden = spVisible.orden ?? "fecha_desc";
   const hoy = hoyLima();
   const ayer = sumarDias(hoy, -1);
+  const catalogos = catalogosPorDireccion[direccion];
+  const pendiente = cargando || pendienteTransicion;
 
-  // Navega dentro de una transición para no descartar la tabla actual: React
-  // mantiene el contenido visible (isPending=true) en vez de mostrar el
-  // fallback de loading.tsx, y nosotros dibujamos nuestro propio skeleton.
-  const irA = (url: string) => {
+  /**
+   * Cambia la URL sólo cuando el resultado está listo. Mientras tanto se
+   * conserva la vista anterior y el overlay de pendiente evita un salto a un
+   * skeleton de ruta o una tabla vacía.
+   */
+  const irA = (url: string, reemplazar = false) => {
+    const parametros = parametrosDesdeUrl(
+      new URL(url, window.location.origin).searchParams,
+    );
+    const anterior = vistaRef.current;
+    const mismoConjunto = mismoConjuntoVentas(parametros, anterior.sp);
+    const resumenAnterior =
+      parametros.cursor && mismoConjunto ? anterior.pagina.resumen : undefined;
+    const idSolicitud = ++solicitud.current;
+    setErrorCarga(null);
+    setCargando(true);
     startTransition(() => {
-      router.push(url);
+      void cargarPaginaVentas(parametros, resumenAnterior, anterior.sp)
+        .then((resultado) => {
+          if (idSolicitud !== solicitud.current) return;
+          if (!resultado.ok) {
+            setErrorCarga(resultado.mensaje);
+            setCargando(false);
+            return;
+          }
+          window.history[reemplazar ? "replaceState" : "pushState"](
+            null,
+            "",
+            url,
+          );
+          setVista({
+            pagina: resultado.data,
+            sp: normalizarParametrosVentas(parametros),
+          });
+          setCargando(false);
+        })
+        .catch(() => {
+          if (idSolicitud !== solicitud.current) return;
+          setErrorCarga("No se pudo actualizar el listado.");
+          setCargando(false);
+        });
     });
   };
 
   useEffect(() => {
+    if (busquedaRestaurada.current !== null) {
+      const restaurada = busquedaRestaurada.current;
+      busquedaRestaurada.current = null;
+      if (restaurada === texto) return;
+    }
     const timer = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(window.location.search);
       params.delete("cursor");
       params.delete("antes");
       if (texto) {
@@ -172,17 +237,35 @@ export function VentasClient({
       } else {
         params.delete("q");
       }
-      const target = `${pathname}?${params.toString()}`;
-      if (target !== `${pathname}?${searchParams.toString()}`) {
-        startTransition(() => router.replace(target));
+      const target = `${pathname}${params.size ? `?${params.toString()}` : ""}`;
+      if (target !== `${pathname}${window.location.search}`) {
+        irA(target, true);
       }
     }, 300);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [texto]);
+  }, [texto, pathname]);
+
+  useEffect(() => {
+    const alVolver = () => {
+      const url = `${pathname}${window.location.search}`;
+      const parametros = parametrosDesdeUrl(
+        new URLSearchParams(window.location.search),
+      );
+      // La actualización de `texto` sólo refleja el historial. Evita que el
+      // debounce vuelva a navegar a la misma URL tras un back/forward.
+      busquedaRestaurada.current = parametros.q ?? "";
+      setTexto(parametros.q ?? "");
+      irA(url, true);
+    };
+    window.addEventListener("popstate", alVolver);
+    return () => window.removeEventListener("popstate", alVolver);
+  }, [pathname]);
 
   const urlDe = (cambios: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams();
+    for (const [clave, valor] of Object.entries(spVisible)) {
+      if (valor) params.set(clave, valor);
+    }
     // Cualquier cambio ajeno a la paginación reinicia la página: descarta el
     // cursor actual y la pila de páginas visitadas (ver `antes` más abajo).
     params.delete("cursor");
@@ -197,12 +280,34 @@ export function VentasClient({
     return `${pathname}?${params.toString()}`;
   };
 
+  const asegurarCatalogos = () => {
+    if (catalogos || direccionCatalogoCargando === direccion) return;
+    setDireccionCatalogoCargando(direccion);
+    void cargarCatalogosVentas(direccion)
+      .then((resultado) => {
+        if (!resultado.ok) {
+          setErrorCarga(resultado.mensaje);
+        } else {
+          setCatalogosPorDireccion((actuales) => ({
+            ...actuales,
+            [direccion]: resultado.data,
+          }));
+        }
+      })
+      .catch(() => setErrorCarga("No se pudieron cargar los filtros."))
+      .finally(() => {
+        setDireccionCatalogoCargando((actual) =>
+          actual === direccion ? null : actual,
+        );
+      });
+  };
+
   const aplicarFiltros = (cambios: Record<string, string>) => {
     irA(urlDe(cambios));
   };
 
   const filtrosActivos = CAMPOS_FILTRO_CHIP.filter((campo) =>
-    esFiltroActivo(campo, sp, direccion),
+    esFiltroActivo(campo, spVisible, direccion),
   );
 
   // --- Paginación por cursor con historial ------------------------------
@@ -211,17 +316,20 @@ export function VentasClient({
   // permitir "anterior" guardamos en la URL (`antes`) la pila de cursores
   // usados para llegar a cada página anterior; "primera página" se
   // representa como cadena vacía. Ir atrás = desapilar y reusar ese cursor.
-  const historial = sp.antes ? sp.antes.split(",") : [];
+  const historial = spVisible.antes ? spVisible.antes.split(",") : [];
   const paginaActual = historial.length + 1;
   const totalPaginas = Math.max(
     1,
-    Math.ceil(pagina.resumen.cantidad / porPagina),
+    Math.ceil(paginaVisible.resumen.cantidad / porPagina),
   );
 
-  const urlSiguiente = pagina.cursor
+  const urlSiguiente = paginaVisible.cursor
     ? urlDe({
-        cursor: pagina.cursor,
-        antes: [...historial, sp.cursor ?? CENTINELA_PRIMERA_PAGINA].join(","),
+        cursor: paginaVisible.cursor,
+        antes: [
+          ...historial,
+          spVisible.cursor ?? CENTINELA_PRIMERA_PAGINA,
+        ].join(","),
       })
     : null;
 
@@ -294,6 +402,7 @@ export function VentasClient({
             },
           ]}
           onNavegar={irA}
+          prefetch={false}
         />
       ) : null}
 
@@ -309,7 +418,13 @@ export function VentasClient({
         </div>
 
         <div className="hidden lg:block">
-          <Popover open={popoverAbierto} onOpenChange={setPopoverAbierto}>
+          <Popover
+            open={popoverAbierto}
+            onOpenChange={(abierto) => {
+              setPopoverAbierto(abierto);
+              if (abierto) asegurarCatalogos();
+            }}
+          >
             <PopoverTrigger render={<Button variant="outline" size="sm" />}>
               <Filter className="size-4" />
               Filtros
@@ -317,12 +432,13 @@ export function VentasClient({
             </PopoverTrigger>
             <PopoverContent align="end" className="w-96 max-w-[95vw]">
               <FiltrosVenta
-                sp={sp}
+                sp={spVisible}
                 esAdmin={esAdmin}
                 direccion={direccion}
-                empresas={empresas}
-                vendedores={vendedores}
-                sedes={sedes}
+                empresas={catalogos?.empresas ?? []}
+                vendedores={catalogos?.vendedores ?? []}
+                sedes={catalogos?.sedes ?? []}
+                cargandoCatalogos={direccionCatalogoCargando === direccion}
                 onAplicar={(c) => {
                   aplicarFiltros(c);
                   setPopoverAbierto(false);
@@ -333,7 +449,13 @@ export function VentasClient({
         </div>
 
         <div className="lg:hidden">
-          <Sheet open={sheetAbierto} onOpenChange={setSheetAbierto}>
+          <Sheet
+            open={sheetAbierto}
+            onOpenChange={(abierto) => {
+              setSheetAbierto(abierto);
+              if (abierto) asegurarCatalogos();
+            }}
+          >
             <SheetTrigger render={<Button variant="outline" size="sm" />}>
               <Filter className="size-4" />
               Filtros
@@ -348,12 +470,13 @@ export function VentasClient({
               </SheetHeader>
               <div className="px-4 pb-6">
                 <FiltrosVenta
-                  sp={sp}
+                  sp={spVisible}
                   esAdmin={esAdmin}
                   direccion={direccion}
-                  empresas={empresas}
-                  vendedores={vendedores}
-                  sedes={sedes}
+                  empresas={catalogos?.empresas ?? []}
+                  vendedores={catalogos?.vendedores ?? []}
+                  sedes={catalogos?.sedes ?? []}
+                  cargandoCatalogos={direccionCatalogoCargando === direccion}
                   onAplicar={(c) => {
                     aplicarFiltros(c);
                     setSheetAbierto(false);
@@ -369,35 +492,56 @@ export function VentasClient({
         <div className="flex flex-wrap items-center gap-2">
           {filtrosActivos.map((campo) => (
             <Badge key={campo} variant="outline" className="gap-1">
-              {etiquetaFiltro(campo, sp, empresas, vendedores, sedes)}
-              <Link
-                href={urlDe({ [campo]: null })}
+              {etiquetaFiltro(
+                campo,
+                spVisible,
+                catalogos?.empresas ?? [],
+                catalogos?.vendedores ?? [],
+                catalogos?.sedes ?? [],
+              )}
+              <button
+                type="button"
+                onClick={() => irA(urlDe({ [campo]: null }))}
                 aria-label="Quitar filtro"
                 className="ml-1"
               >
                 ✕
-              </Link>
+              </button>
             </Badge>
           ))}
-          <Link
-            href={urlDe(
-              Object.fromEntries(CAMPOS_FILTRO_CHIP.map((c) => [c, null])),
-            )}
+          <button
+            type="button"
+            onClick={() =>
+              irA(
+                urlDe(
+                  Object.fromEntries(CAMPOS_FILTRO_CHIP.map((c) => [c, null])),
+                ),
+              )
+            }
             className="text-muted-foreground text-xs underline underline-offset-2"
           >
             Limpiar filtros
-          </Link>
+          </button>
+        </div>
+      ) : null}
+
+      {errorCarga ? (
+        <div
+          role="alert"
+          className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border px-4 py-3 text-sm"
+        >
+          {errorCarga}
         </div>
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Metrica
           etiqueta="Operaciones"
-          valor={pagina.resumen.cantidad}
+          valor={paginaVisible.resumen.cantidad}
           detalle={
-            sp.estado === "ANULADA"
+            spVisible.estado === "ANULADA"
               ? "Anuladas, según los filtros actuales"
-              : sp.estado === "TODAS"
+              : spVisible.estado === "TODAS"
                 ? "Incluye anuladas"
                 : "Registradas, según los filtros actuales"
           }
@@ -407,7 +551,7 @@ export function VentasClient({
           etiqueta="Total pagado"
           valor={
             <span className="money">
-              {formatearSoles(pagina.resumen.sumaFinal)}
+              {formatearSoles(paginaVisible.resumen.sumaFinal)}
             </span>
           }
           detalle="Bruto menos descuentos"
@@ -418,7 +562,7 @@ export function VentasClient({
           etiqueta="Monto bruto"
           valor={
             <span className="money">
-              {formatearSoles(pagina.resumen.sumaBruto)}
+              {formatearSoles(paginaVisible.resumen.sumaBruto)}
             </span>
           }
           detalle="Antes de descuentos"
@@ -428,7 +572,7 @@ export function VentasClient({
           etiqueta="Descuentos"
           valor={
             <span className="money">
-              {formatearSoles(pagina.resumen.sumaDescuento)}
+              {formatearSoles(paginaVisible.resumen.sumaDescuento)}
             </span>
           }
           detalle="Beneficios aplicados"
@@ -437,89 +581,97 @@ export function VentasClient({
         />
       </div>
 
-      {pagina.items.length === 0 ? (
-        <EstadoVacio
-          icono={<Receipt className="size-6" />}
-          titulo={
-            filtrosActivos.length > 0 || sp.q
-              ? "No encontramos coincidencias"
-              : "Aún no hay ventas registradas"
-          }
-          descripcion={
-            filtrosActivos.length > 0 || sp.q
-              ? "Prueba con otros términos o limpia los filtros para ver más resultados."
-              : "Cuando registres una operación, aparecerá aquí con su monto y estado."
-          }
-          accion={
-            filtrosActivos.length > 0 || sp.q ? (
-              <Link
-                href={urlDe({
-                  ...Object.fromEntries(
-                    CAMPOS_FILTRO_CHIP.map((c) => [c, null]),
-                  ),
-                  q: null,
-                })}
-                className="bg-primary text-primary-foreground rounded-xl px-4 py-2.5 text-sm font-bold"
-              >
-                Limpiar filtros
-              </Link>
-            ) : null
-          }
-        />
-      ) : (
-        <>
-          {/* Móvil: tarjetas agrupadas por día */}
-          <div className="flex flex-col gap-3 lg:hidden">
-            <ListaMovil
-              items={pagina.items}
-              esAdmin={esAdmin}
-              direccion={direccion}
-              orden={orden}
-              hoy={hoy}
-              ayer={ayer}
-              pendiente={pendiente}
-            />
-            <Paginador
-              paginaActual={paginaActual}
-              totalPaginas={totalPaginas}
-              porPagina={porPagina}
-              cantidad={pagina.items.length}
-              total={pagina.resumen.cantidad}
-              urlAnterior={urlAnterior}
-              urlSiguiente={urlSiguiente}
-              pendiente={pendiente}
-              onNavegar={irA}
-              className="surface-panel px-2"
-            />
-          </div>
+      <div className="relative">
+        {paginaVisible.items.length === 0 ? (
+          <EstadoVacio
+            icono={<Receipt className="size-6" />}
+            titulo={
+              filtrosActivos.length > 0 || spVisible.q
+                ? "No encontramos coincidencias"
+                : "Aún no hay ventas registradas"
+            }
+            descripcion={
+              filtrosActivos.length > 0 || spVisible.q
+                ? "Prueba con otros términos o limpia los filtros para ver más resultados."
+                : "Cuando registres una operación, aparecerá aquí con su monto y estado."
+            }
+            accion={
+              filtrosActivos.length > 0 || spVisible.q ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTexto("");
+                    irA(
+                      urlDe({
+                        ...Object.fromEntries(
+                          CAMPOS_FILTRO_CHIP.map((c) => [c, null]),
+                        ),
+                        q: null,
+                      }),
+                    );
+                  }}
+                  className="bg-primary text-primary-foreground rounded-xl px-4 py-2.5 text-sm font-bold"
+                >
+                  Limpiar filtros
+                </button>
+              ) : null
+            }
+          />
+        ) : (
+          <>
+            {/* Móvil: tarjetas agrupadas por día */}
+            <div className="flex flex-col gap-3 lg:hidden">
+              <ListaMovil
+                items={paginaVisible.items}
+                esAdmin={esAdmin}
+                direccion={direccion}
+                orden={orden}
+                hoy={hoy}
+                ayer={ayer}
+                pendiente={pendiente}
+              />
+              <Paginador
+                paginaActual={paginaActual}
+                totalPaginas={totalPaginas}
+                porPagina={porPagina}
+                cantidad={paginaVisible.items.length}
+                total={paginaVisible.resumen.cantidad}
+                urlAnterior={urlAnterior}
+                urlSiguiente={urlSiguiente}
+                pendiente={pendiente}
+                onNavegar={irA}
+                className="surface-panel px-2"
+              />
+            </div>
 
-          {/* Escritorio: tabla */}
-          <div className="hidden lg:block">
-            <TablaVentas
-              items={pagina.items}
-              esAdmin={esAdmin}
-              direccion={direccion}
-              urlDe={urlDe}
-              onNavegar={irA}
-              orden={orden}
-              pendiente={pendiente}
-              paginador={
-                <Paginador
-                  paginaActual={paginaActual}
-                  totalPaginas={totalPaginas}
-                  porPagina={porPagina}
-                  cantidad={pagina.items.length}
-                  total={pagina.resumen.cantidad}
-                  urlAnterior={urlAnterior}
-                  urlSiguiente={urlSiguiente}
-                  pendiente={pendiente}
-                  onNavegar={irA}
-                />
-              }
-            />
-          </div>
-        </>
-      )}
+            {/* Escritorio: tabla */}
+            <div className="hidden lg:block">
+              <TablaVentas
+                items={paginaVisible.items}
+                esAdmin={esAdmin}
+                direccion={direccion}
+                urlDe={urlDe}
+                onNavegar={irA}
+                orden={orden}
+                pendiente={pendiente}
+                paginador={
+                  <Paginador
+                    paginaActual={paginaActual}
+                    totalPaginas={totalPaginas}
+                    porPagina={porPagina}
+                    cantidad={paginaVisible.items.length}
+                    total={paginaVisible.resumen.cantidad}
+                    urlAnterior={urlAnterior}
+                    urlSiguiente={urlSiguiente}
+                    pendiente={pendiente}
+                    onNavegar={irA}
+                  />
+                }
+              />
+            </div>
+          </>
+        )}
+      </div>
     </section>
   );
 }
@@ -567,6 +719,7 @@ function FiltrosVenta({
   empresas,
   vendedores,
   sedes,
+  cargandoCatalogos,
   onAplicar,
 }: {
   sp: SearchParamsVentas;
@@ -575,6 +728,7 @@ function FiltrosVenta({
   empresas: ContraparteOpcion[];
   vendedores: VendedorOpcion[];
   sedes: SedeOpcion[];
+  cargandoCatalogos: boolean;
   onAplicar: (cambios: Record<string, string>) => void;
 }) {
   const claseSelect =
@@ -638,7 +792,9 @@ function FiltrosVenta({
           defaultValue={sp.empresa ?? ""}
           className={claseSelect}
         >
-          <option value="">Todas</option>
+          <option value="">
+            {cargandoCatalogos ? "Cargando opciones…" : "Todas"}
+          </option>
           {empresas.map((e) => (
             <option key={e.id} value={e.id}>
               {e.nombre}
@@ -670,7 +826,9 @@ function FiltrosVenta({
             defaultValue={sp.vendedor ?? ""}
             className={claseSelect}
           >
-            <option value="">Todos</option>
+            <option value="">
+              {cargandoCatalogos ? "Cargando opciones…" : "Todos"}
+            </option>
             {vendedores.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.nombres} {v.apellidos}
@@ -689,7 +847,9 @@ function FiltrosVenta({
             defaultValue={sp.sede ?? ""}
             className={claseSelect}
           >
-            <option value="">Todas</option>
+            <option value="">
+              {cargandoCatalogos ? "Cargando opciones…" : "Todas"}
+            </option>
             {sedes.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.nombre}
