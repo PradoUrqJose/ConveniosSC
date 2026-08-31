@@ -3,6 +3,7 @@
 import { CalendarRange } from "lucide-react";
 
 import { SalesDirectionTabs } from "@/components/shell/sales-direction-tabs";
+import { serializarParametrosDashboard } from "@/modules/metricas/filtros";
 import { useNavegacionDashboard } from "./dashboard-transition";
 
 /** La única parte interactiva del encabezado; los módulos de datos son RSC. */
@@ -19,7 +20,7 @@ export function DashboardControls({
 }) {
   const { navegar } = useNavegacionDashboard();
   const url = (dir: "vendidas" | "compradas") =>
-    `/dashboard?${new URLSearchParams({ desde, hasta, dir })}`;
+    `/dashboard?${serializarParametrosDashboard({ desde, hasta, dir })}`;
   return (
     <div className="w-full space-y-3 lg:justify-self-end">
       {esAdmin ? (

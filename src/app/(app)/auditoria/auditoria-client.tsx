@@ -8,6 +8,7 @@ import type { FilaAuditoria, FiltroAuditoria } from "@/modules/auditoria/query";
 import type { Pagina } from "@/lib/tipos";
 import { verificarIntegridad } from "./actions";
 import { CabeceraPagina, EstadoVacio } from "@/components/shell/pagina-ui";
+import { serializarParametrosAuditoria } from "@/modules/auditoria/filtros";
 export function AuditoriaClient({
   pagina,
   filtros,
@@ -20,11 +21,8 @@ export function AuditoriaClient({
   alcanceGlobal: boolean;
 }) {
   const [resultado, setResultado] = useState<string>();
-  const params = new URLSearchParams();
-  for (const [k, v] of Object.entries(filtros))
-    if (v && k !== "cursor") params.set(k, String(v));
   const siguiente = pagina.cursor
-    ? `/auditoria?${new URLSearchParams({ ...Object.fromEntries(params), cursor: pagina.cursor })}`
+    ? `/auditoria?${serializarParametrosAuditoria({ ...filtros, cursor: pagina.cursor })}`
     : "";
   return (
     <section className="page-shell">

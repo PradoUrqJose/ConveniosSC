@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { serializarParametrosEmpleados } from "@/modules/empleados/filtros";
 import { toast } from "sonner";
 import {
   Check,
@@ -122,11 +123,12 @@ export function EmpleadosClient({
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.delete("cursor");
-      if (texto) params.set("q", texto);
-      else params.delete("q");
-      const target = `${pathname}?${params.toString()}`;
+      const entrada = Object.fromEntries(searchParams.entries());
+      delete entrada.cursor;
+      if (texto) entrada.q = texto;
+      else delete entrada.q;
+      const query = serializarParametrosEmpleados(entrada);
+      const target = query.size ? `${pathname}?${query}` : pathname;
       if (target !== `${pathname}?${searchParams.toString()}`) {
         router.replace(target);
       }
@@ -137,13 +139,14 @@ export function EmpleadosClient({
   }, [texto]);
 
   const urlDe = (cambios: Record<string, string | null>) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete("cursor");
+    const entrada = Object.fromEntries(searchParams.entries());
+    delete entrada.cursor;
     for (const [clave, valor] of Object.entries(cambios)) {
-      if (valor === null) params.delete(clave);
-      else params.set(clave, valor);
+      if (valor === null) delete entrada[clave];
+      else entrada[clave] = valor;
     }
-    return `${pathname}?${params.toString()}`;
+    const query = serializarParametrosEmpleados(entrada);
+    return query.size ? `${pathname}?${query}` : pathname;
   };
 
   const empleados = useMemo(() => {

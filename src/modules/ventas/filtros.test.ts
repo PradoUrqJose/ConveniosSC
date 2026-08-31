@@ -89,4 +89,37 @@ describe("filtros de Ventas", () => {
     expect(mismoConjuntoVentas(primera, segundaPagina)).toBe(true);
     expect(mismoConjuntoVentas(primera, busquedaDistinta)).toBe(false);
   });
+
+  it("elimina rangos, cursores y filtros incompatibles de una URL manipulada", () => {
+    const sp = normalizarParametrosVentas({
+      dir: "desconocida",
+      desde: "2026-09-10",
+      hasta: "2026-09-01",
+      montoMin: "200",
+      montoMax: "100",
+      empresa: "id-mal-formado",
+      cursor: "cursor-corrupto",
+    });
+
+    expect(sp).toMatchObject({
+      dir: undefined,
+      desde: undefined,
+      hasta: undefined,
+      montoMin: undefined,
+      montoMax: undefined,
+      empresa: undefined,
+      cursor: undefined,
+    });
+  });
+
+  it("descarta vendedor y sede al cambiar a compras", () => {
+    const sp = normalizarParametrosVentas({
+      dir: "compradas",
+      vendedor: "550e8400-e29b-41d4-a716-446655440000",
+      sede: "550e8400-e29b-41d4-a716-446655440001",
+    });
+
+    expect(sp.vendedor).toBeUndefined();
+    expect(sp.sede).toBeUndefined();
+  });
 });

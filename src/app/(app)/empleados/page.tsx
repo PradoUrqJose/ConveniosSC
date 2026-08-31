@@ -6,21 +6,18 @@ import {
   listarEmpresasParaEmpleado,
   listarEmpleados,
   resumirEmpleados,
-  type EstadoEmpleado,
 } from "@/modules/empleados/query";
 import { EmpleadosClient } from "./empleados-client";
-
-const ESTADOS_POR_TAB: Record<string, EstadoEmpleado> = {
-  pendientes: "PENDIENTE_VERIFICACION",
-  activos: "ACTIVO",
-  inactivos: "INACTIVO",
-  rechazados: "RECHAZADO",
-};
+import {
+  normalizarParametrosEmpleados,
+  serializarParametrosEmpleados,
+  urlEmpleadosCanonica,
+} from "@/modules/empleados/filtros";
 
 export default async function EmpleadosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; q?: string; cursor?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let sesion;
   try {
@@ -54,13 +51,12 @@ export default async function EmpleadosPage({
     );
   }
 
-  const { tab, q, cursor } = await searchParams;
-  const tabValido =
-    tab === "pendientes" ||
-    tab === "activos" ||
-    tab === "inactivos" ||
-    tab === "rechazados";
-  const estado = tabValido ? ESTADOS_POR_TAB[tab!] : undefined;
+  const sp = await searchParams;
+  if (!urlEmpleadosCanonica(sp)) {
+    const query = serializarParametrosEmpleados(sp);
+    redirect(query.size ? `/empleados?${query}` : "/empleados");
+  }
+  const { tab, estado, q, cursor } = normalizarParametrosEmpleados(sp);
 
   const [pagina, empresas, resumen] = await Promise.all([
     listarEmpleados(sesion, { estado, q, cursor }),
@@ -71,7 +67,7 @@ export default async function EmpleadosPage({
   return (
     <EmpleadosClient
       pagina={pagina}
-      tab={tabValido ? tab! : "todos"}
+      tab={tab}
       q={q}
       empresas={empresas}
       resumen={resumen}

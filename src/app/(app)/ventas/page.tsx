@@ -7,7 +7,8 @@ import { VentasClient } from "./ventas-client";
 import {
   filtrosDesdeParametros,
   normalizarParametrosVentas,
-  type SearchParamsVentas,
+  serializarParametrosVentas,
+  urlVentasCanonica,
 } from "@/modules/ventas/filtros";
 import { medirConsultasServidor } from "@/lib/observabilidad";
 
@@ -16,7 +17,7 @@ export type { SearchParamsVentas } from "@/modules/ventas/filtros";
 export default async function VentasPage({
   searchParams,
 }: {
-  searchParams: Promise<SearchParamsVentas>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let sesion;
   try {
@@ -28,7 +29,12 @@ export default async function VentasPage({
     throw error;
   }
 
-  const sp = normalizarParametrosVentas(await searchParams);
+  const entrada = await searchParams;
+  if (!urlVentasCanonica(entrada)) {
+    const query = serializarParametrosVentas(entrada);
+    redirect(query.size ? `/ventas?${query}` : "/ventas");
+  }
+  const sp = normalizarParametrosVentas(entrada);
   const esAdmin = sesion.rol === "ADMIN_EMPRESA";
   const filtros = filtrosDesdeParametros(sp, esAdmin);
   const pagina = await medirConsultasServidor("ventas.pagina", db, (ejecutor) =>

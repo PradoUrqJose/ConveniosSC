@@ -1,5 +1,11 @@
 import { parsearSoles } from "@/lib/dinero";
-import { zFecha, zUuid } from "@/lib/zod";
+import {
+  parametrosUrlCanonicos,
+  rangoFechasUrl,
+  textoUrl,
+  uuidUrl,
+  type ParametrosUrl,
+} from "@/lib/url-parametros";
 
 import type {
   DireccionVentas,
@@ -51,32 +57,8 @@ const ORDENES: readonly OrdenVentas[] = [
   "monto_asc",
 ];
 
-function texto(valor: unknown, maximo = 200): string | undefined {
-  if (typeof valor !== "string") return undefined;
-  const limpio = valor.trim();
-  return limpio && limpio.length <= maximo ? limpio : undefined;
-}
-
-function uuid(valor: unknown): string | undefined {
-  const candidato = texto(valor, 100);
-  return candidato && zUuid.safeParse(candidato).success
-    ? candidato
-    : undefined;
-}
-
-function fecha(valor: unknown): string | undefined {
-  const candidato = texto(valor, 10);
-  if (!candidato || !zFecha.safeParse(candidato).success) return undefined;
-
-  const fechaParseada = new Date(`${candidato}T00:00:00Z`);
-  return Number.isNaN(fechaParseada.getTime()) ||
-    fechaParseada.toISOString().slice(0, 10) !== candidato
-    ? undefined
-    : candidato;
-}
-
 function monto(valor: unknown): string | undefined {
-  const candidato = texto(valor, 20);
+  const candidato = textoUrl(valor, 20);
   if (!candidato) return undefined;
   try {
     parsearSoles(candidato);
@@ -92,35 +74,94 @@ function monto(valor: unknown): string | undefined {
  * la consulta vuelve a aplicar el alcance por rol y no puede exponer datos.
  */
 export function normalizarParametrosVentas(
-  entrada: SearchParamsVentas,
+  entrada: Record<string, unknown>,
 ): SearchParamsVentas {
-  const direccion = entrada.dir === "compradas" ? "compradas" : undefined;
-  const estado =
+  const direccion: DireccionVentas | undefined =
+    entrada.dir === "compradas" ? "compradas" : undefined;
+  const estado: EstadoVenta | "TODAS" | undefined =
     entrada.estado === "ANULADA" ||
     entrada.estado === "TODAS" ||
     entrada.estado === "REGISTRADA"
-      ? entrada.estado
+      ? (entrada.estado as EstadoVenta | "TODAS")
       : undefined;
-  const orden = ORDENES.includes(entrada.orden as OrdenVentas)
-    ? entrada.orden
+  const orden: OrdenVentas | undefined = ORDENES.includes(
+    entrada.orden as OrdenVentas,
+  )
+    ? (entrada.orden as OrdenVentas)
     : undefined;
+  const fechas = rangoFechasUrl(entrada.desde, entrada.hasta);
+  const montoMin = monto(entrada.montoMin);
+  const montoMax = monto(entrada.montoMax);
+  const montosValidos =
+    montoMin && montoMax && parsearSoles(montoMin) > parsearSoles(montoMax)
+      ? {}
+      : { montoMin, montoMax };
+  const cursor = cursorVenta(entrada.cursor, orden ?? "fecha_desc");
+  const antes = historialVenta(entrada.antes, orden ?? "fecha_desc");
 
   return {
-    q: texto(entrada.q, 100),
-    desde: fecha(entrada.desde),
-    hasta: fecha(entrada.hasta),
-    empresa: uuid(entrada.empresa),
+    q: textoUrl(entrada.q, 100),
+    desde: fechas.desde,
+    hasta: fechas.hasta,
+    empresa: uuidUrl(entrada.empresa),
     estado,
-    vendedor: uuid(entrada.vendedor),
-    sede: uuid(entrada.sede),
-    montoMin: monto(entrada.montoMin),
-    montoMax: monto(entrada.montoMax),
+    vendedor: direccion === "compradas" ? undefined : uuidUrl(entrada.vendedor),
+    sede: direccion === "compradas" ? undefined : uuidUrl(entrada.sede),
+    montoMin: montosValidos.montoMin,
+    montoMax: montosValidos.montoMax,
     revision: entrada.revision === "1" ? "1" : undefined,
     dir: direccion,
     orden,
-    cursor: texto(entrada.cursor, 512),
-    antes: texto(entrada.antes, 4096),
+    cursor,
+    antes,
   };
+}
+
+function cursorVenta(valor: unknown, orden: OrdenVentas): string | undefined {
+  const candidato = textoUrl(valor, 512);
+  if (!candidato) return undefined;
+  try {
+    const raw = JSON.parse(
+      Buffer.from(candidato, "base64url").toString("utf8"),
+    );
+    if (typeof raw.v !== "string" || !uuidUrl(raw.id)) return undefined;
+    if (orden.startsWith("fecha")) {
+      return rangoFechasUrl(raw.v, raw.v).desde ? candidato : undefined;
+    }
+    return Number.isSafeInteger(Number(raw.v)) ? candidato : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function historialVenta(
+  valor: unknown,
+  orden: OrdenVentas,
+): string | undefined {
+  const candidato = textoUrl(valor, 4096);
+  if (!candidato) return undefined;
+  const partes = candidato.split(",");
+  return partes.length <= 100 &&
+    partes.every((parte) => parte === "-" || cursorVenta(parte, orden))
+    ? candidato
+    : undefined;
+}
+
+/** Serializa la vista de Ventas en su representación canónica de URL. */
+export function serializarParametrosVentas(
+  entrada: Record<string, unknown>,
+): URLSearchParams {
+  const parametros = normalizarParametrosVentas(entrada);
+  const salida = new URLSearchParams();
+  for (const clave of CLAVES) {
+    const valor = parametros[clave];
+    if (valor) salida.set(clave, valor);
+  }
+  return salida;
+}
+
+export function urlVentasCanonica(entrada: ParametrosUrl): boolean {
+  return parametrosUrlCanonicos(entrada, serializarParametrosVentas(entrada));
 }
 
 /** Convierte `URLSearchParams` en un objeto que puede viajar a una action. */

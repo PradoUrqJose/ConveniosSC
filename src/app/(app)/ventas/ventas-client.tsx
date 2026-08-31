@@ -74,6 +74,7 @@ import {
   mismoConjuntoVentas,
   normalizarParametrosVentas,
   parametrosDesdeUrl,
+  serializarParametrosVentas,
   type SearchParamsVentas,
 } from "@/modules/ventas/filtros";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -187,6 +188,8 @@ export function VentasClient({
     const parametros = parametrosDesdeUrl(
       new URL(url, window.location.origin).searchParams,
     );
+    const query = serializarParametrosVentas(parametros);
+    const urlCanonica = query.size ? `${pathname}?${query}` : pathname;
     const anterior = vistaRef.current;
     const mismoConjunto = mismoConjuntoVentas(parametros, anterior.sp);
     const resumenAnterior =
@@ -206,7 +209,7 @@ export function VentasClient({
           window.history[reemplazar ? "replaceState" : "pushState"](
             null,
             "",
-            url,
+            urlCanonica,
           );
           setVista({
             pagina: resultado.data,
@@ -229,20 +232,22 @@ export function VentasClient({
       if (restaurada === texto) return;
     }
     const timer = setTimeout(() => {
-      const params = new URLSearchParams(window.location.search);
-      params.delete("cursor");
-      params.delete("antes");
-      if (texto) {
-        params.set("q", texto);
-      } else {
-        params.delete("q");
-      }
-      const target = `${pathname}${params.size ? `?${params.toString()}` : ""}`;
+      const entrada = Object.fromEntries(
+        new URLSearchParams(window.location.search),
+      );
+      delete entrada.cursor;
+      delete entrada.antes;
+      if (texto) entrada.q = texto;
+      else delete entrada.q;
+      const query = serializarParametrosVentas(entrada);
+      const target = query.size ? `${pathname}?${query}` : pathname;
       if (target !== `${pathname}${window.location.search}`) {
         irA(target, true);
       }
     }, 300);
     return () => clearTimeout(timer);
+    // `irA` se recrea al renderizar; el efecto debe depender sólo del texto y ruta actuales.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texto, pathname]);
 
   useEffect(() => {
@@ -259,25 +264,25 @@ export function VentasClient({
     };
     window.addEventListener("popstate", alVolver);
     return () => window.removeEventListener("popstate", alVolver);
+    // `irA` usa la vista vigente mediante refs, por lo que no debe reiniciar el listener.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
   const urlDe = (cambios: Record<string, string | null>) => {
-    const params = new URLSearchParams();
-    for (const [clave, valor] of Object.entries(spVisible)) {
-      if (valor) params.set(clave, valor);
-    }
+    const siguiente: Record<string, unknown> = { ...spVisible };
     // Cualquier cambio ajeno a la paginación reinicia la página: descarta el
     // cursor actual y la pila de páginas visitadas (ver `antes` más abajo).
-    params.delete("cursor");
-    params.delete("antes");
+    delete siguiente.cursor;
+    delete siguiente.antes;
     for (const [clave, valor] of Object.entries(cambios)) {
       if (valor === null || valor === "") {
-        params.delete(clave);
+        delete siguiente[clave];
       } else {
-        params.set(clave, valor);
+        siguiente[clave] = valor;
       }
     }
-    return `${pathname}?${params.toString()}`;
+    const query = serializarParametrosVentas(siguiente);
+    return query.size ? `${pathname}?${query}` : pathname;
   };
 
   const asegurarCatalogos = () => {

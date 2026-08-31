@@ -1,6 +1,11 @@
 import { redirect } from "next/navigation";
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
-import { hoyLima, sumarDias } from "@/lib/fechas";
+import { hoyLima } from "@/lib/fechas";
+import {
+  normalizarParametrosDashboard,
+  serializarParametrosDashboard,
+  urlDashboardCanonica,
+} from "@/modules/metricas/filtros";
 import { obtenerDashboard } from "@/modules/metricas/query";
 import { ultimasVentas } from "@/modules/ventas/query";
 import { db } from "@/db";
@@ -25,7 +30,7 @@ import {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string; dir?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let sesion;
   try {
@@ -36,13 +41,15 @@ export default async function DashboardPage({
   }
   if (sesion.rol === "VENDEDOR") redirect("/");
   const sp = await searchParams;
-  const hasta = /^\d{4}-\d{2}-\d{2}$/.test(sp.hasta ?? "")
-    ? sp.hasta!
-    : hoyLima();
-  const desde = /^\d{4}-\d{2}-\d{2}$/.test(sp.desde ?? "")
-    ? sp.desde!
-    : sumarDias(hasta, -29);
-  const direccion = sp.dir === "compradas" ? "compradas" : "vendidas";
+  const hoy = hoyLima();
+  if (!urlDashboardCanonica(sp, hoy)) {
+    redirect(`/dashboard?${serializarParametrosDashboard(sp, hoy)}`);
+  }
+  const {
+    desde,
+    hasta,
+    dir: direccion,
+  } = normalizarParametrosDashboard(sp, hoy);
   // Se comparte la misma promesa entre fronteras: las cinco sentencias siguen
   // ejecutándose una sola vez por navegación y PERF_BASELINE informa su total.
   const datos = medirServidor("dashboard.pagina", () =>

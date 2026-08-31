@@ -1,16 +1,18 @@
 import { redirect } from "next/navigation";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
-import {
-  listarAuditoria,
-  type FiltroAuditoria,
-} from "@/modules/auditoria/query";
+import { listarAuditoria } from "@/modules/auditoria/query";
 import { AuditoriaClient } from "./auditoria-client";
 import { medirServidor } from "@/lib/observabilidad";
+import {
+  normalizarParametrosAuditoria,
+  serializarParametrosAuditoria,
+  urlAuditoriaCanonica,
+} from "@/modules/auditoria/filtros";
 
 export default async function AuditoriaPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | undefined>>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let sesion;
   try {
@@ -25,15 +27,11 @@ export default async function AuditoriaPage({
     redirect("/");
   }
   const sp = await searchParams;
-  const filtros: FiltroAuditoria = {
-    desde: sp.desde,
-    hasta: sp.hasta,
-    accion: sp.accion as FiltroAuditoria["accion"],
-    entidad: sp.entidad,
-    entidadId: sp.entidadId,
-    actorId: sp.actorId,
-    cursor: sp.cursor,
-  };
+  if (!urlAuditoriaCanonica(sp)) {
+    const query = serializarParametrosAuditoria(sp);
+    redirect(query.size ? `/auditoria?${query}` : "/auditoria");
+  }
+  const filtros = normalizarParametrosAuditoria(sp);
   return (
     <AuditoriaClient
       pagina={await medirServidor("auditoria.pagina", () =>
