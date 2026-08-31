@@ -31,6 +31,15 @@ export type EjecutorLectura = {
   execute(query: SQL): Promise<unknown>;
 };
 
+export type ResultadoLoteVerificacion =
+  | {
+      verificadas: number;
+      rota: false;
+      ultimoId: number | null;
+      completa: boolean;
+    }
+  | { verificadas: number; rota: true; enId: number };
+
 const CADENA_LEGADA = "";
 
 function claveCadena(fila: Pick<FilaCadena, "cadena">): string {
@@ -68,34 +77,39 @@ export function verificarFilas(
 }
 
 /**
- * Verifica la cadena completa en la BD (o un tramo desde `desdeId`).
+ * Verifica un lote de la cadena en la BD. `desdeId` es el último ID ya
+ * comprobado, por lo que el siguiente lote empieza estrictamente después.
+ * Esto mantiene el consumo de filas acotado incluso con auditorías grandes.
  * `ejecutor` por defecto: el cliente de la app (`@/db`), importado en diferido.
  */
 export async function verificarCadena(
   opciones?: { desdeId?: number; limite?: number },
   ejecutor?: EjecutorLectura,
-): Promise<ResultadoVerificacion> {
+): Promise<ResultadoLoteVerificacion> {
   const ejecutante = ejecutor ?? (await import("@/db")).db;
   const desdeId = opciones?.desdeId;
   const limite = opciones?.limite;
 
+  const limiteEfectivo = limite ?? 250;
   const condiciones =
-    desdeId !== undefined ? sql` WHERE id >= ${desdeId}` : sql``;
-  const limiteSql = limite !== undefined ? sql` LIMIT ${limite}` : sql``;
+    desdeId !== undefined ? sql` WHERE id > ${desdeId}` : sql``;
 
   const filas = obtenerFilas(
     await ejecutante.execute(sql`
       SELECT id, cadena, prev_hash, hash, ts, actor_usuario_id, actor_empresa_id, actor_rol,
              accion, entidad, entidad_id, datos_antes, datos_despues, ip, request_id,
              user_agent
-      FROM auditoria${condiciones} ORDER BY id ASC${limiteSql}
+      FROM auditoria${condiciones} ORDER BY id ASC LIMIT ${limiteEfectivo + 1}
     `),
   ) as FilaCadena[];
 
+  const tieneMas = filas.length > limiteEfectivo;
+  const lote = filas.slice(0, limiteEfectivo);
+
   const prevHashes = new Map<string, string | null>();
-  if (desdeId !== undefined && filas.length > 0) {
+  if (desdeId !== undefined && lote.length > 0) {
     const cadenas = new Map(
-      filas.map((fila) => [claveCadena(fila), fila.cadena] as const),
+      lote.map((fila) => [claveCadena(fila), fila.cadena] as const),
     );
     const condicionesPrevias = sql.join(
       [...cadenas.values()].map((cadena) =>
@@ -119,7 +133,13 @@ export async function verificarCadena(
     }
   }
 
-  return verificarFilas(filas, null, prevHashes);
+  const resultado = verificarFilas(lote, null, prevHashes);
+  if (resultado.rota) return resultado;
+  return {
+    ...resultado,
+    ultimoId: lote.at(-1)?.id ?? desdeId ?? null,
+    completa: !tieneMas,
+  };
 }
 
 function camposCadena(fila: FilaCadena) {

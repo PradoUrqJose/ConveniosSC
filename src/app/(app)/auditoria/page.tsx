@@ -34,6 +34,7 @@ export default async function AuditoriaPage({
   const filtros = normalizarParametrosAuditoria(sp);
   return (
     <AuditoriaClient
+      key={JSON.stringify(filtros)}
       pagina={await medirServidor("auditoria.pagina", () =>
         listarAuditoria(sesion, filtros),
       )}

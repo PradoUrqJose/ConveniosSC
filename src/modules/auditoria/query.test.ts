@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type { TransaccionAuditada } from "@/lib/audit/registrar";
 import type { SessionContext } from "@/lib/auth/guardas";
-import { listarAuditoria } from "./query";
+import { listarAuditoria, obtenerDetalleAuditoria } from "./query";
 
 const ctx: SessionContext = {
   usuarioId: "11111111-1111-4111-8111-111111111111",
@@ -89,6 +89,27 @@ describe("listarAuditoria", () => {
     const query = new PgDialect().sqlToQuery(consulta!);
     expect(query.sql).toContain("a.actor_empresa_id = $1");
     expect(query.params).toContain(ctxAdminEmpresa.empresaId);
+  });
+
+  it("lista metadatos sin snapshots y vuelve a imponer el alcance al leer detalle", async () => {
+    const consultas: SQL[] = [];
+    const ejecutor: TransaccionAuditada = {
+      async execute(sql) {
+        consultas.push(sql);
+        return [];
+      },
+    };
+
+    await listarAuditoria(ctxAdminEmpresa, {}, ejecutor);
+    await obtenerDetalleAuditoria(ctxAdminEmpresa, 99, ejecutor);
+
+    const listado = new PgDialect().sqlToQuery(consultas[0]!);
+    const detalle = new PgDialect().sqlToQuery(consultas[1]!);
+    expect(listado.sql).not.toContain("datos_antes");
+    expect(listado.sql).not.toContain("datos_despues");
+    expect(detalle.sql).toContain("a.actor_empresa_id = $1");
+    expect(detalle.params).toContain(ctxAdminEmpresa.empresaId);
+    expect(detalle.params).toContain(99);
   });
 
   it("mantiene la auditoría global para SUPERADMIN y rechaza al VENDEDOR", async () => {

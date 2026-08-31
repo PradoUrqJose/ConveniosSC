@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { calcularHash, canonicalizar } from "./canonico";
-import { verificarFilas, type FilaCadena } from "./verificar";
+import { verificarCadena, verificarFilas, type FilaCadena } from "./verificar";
+import type { SQL } from "drizzle-orm";
+import { PgDialect } from "drizzle-orm/pg-core";
 
 const TS = "2026-08-03T00:00:00.000Z";
 
@@ -146,5 +148,28 @@ describe("verificarFilas", () => {
       verificadas: 3,
       rota: false,
     });
+  });
+});
+
+describe("verificarCadena", () => {
+  it("lee y reporta lotes acotados con el último ID", async () => {
+    const f1 = construirFila(1, null, calcularHash(null, canon(1)));
+    const f2 = construirFila(2, f1.hash, calcularHash(f1.hash, canon(2)));
+    let consulta: SQL | undefined;
+    const ejecutor = {
+      async execute(sql: SQL) {
+        consulta = sql;
+        return [f1, f2];
+      },
+    };
+
+    await expect(verificarCadena({ limite: 1 }, ejecutor)).resolves.toEqual({
+      verificadas: 1,
+      rota: false,
+      ultimoId: 1,
+      completa: false,
+    });
+    expect(new PgDialect().sqlToQuery(consulta!).sql).toContain("LIMIT $1");
+    expect(new PgDialect().sqlToQuery(consulta!).params).toContain(2);
   });
 });

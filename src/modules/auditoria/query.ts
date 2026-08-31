@@ -31,6 +31,8 @@ export type FilaAuditoria = {
   accion: string;
   entidad: string;
   entidadId: string;
+};
+export type DetalleAuditoria = {
   datosAntes: unknown;
   datosDespues: unknown;
   ip: string | null;
@@ -44,6 +46,63 @@ export async function listarAuditoria(
   ejecutor: TransaccionAuditada = db,
 ): Promise<Pagina<FilaAuditoria>> {
   requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+  const filtros = filtrosSql(ctx, entrada);
+  const where = whereSql(filtros);
+  const rows = obtenerFilas(
+    await ejecutor.execute(
+      // Los snapshots se consultan únicamente al abrir un evento.
+      sql`SELECT a.id,a.ts,a.accion,a.entidad,a.entidad_id,u.id actor_id,u.username,u.nombres,u.apellidos,u.rol FROM auditoria a LEFT JOIN usuarios u ON u.id=a.actor_usuario_id ${where} ORDER BY a.ts DESC, a.id DESC LIMIT ${POR_PAGINA + 1}`,
+    ),
+  );
+  const hasMore = rows.length > POR_PAGINA;
+  const items = rows.slice(0, POR_PAGINA).map((f) => ({
+    id: Number(f.id),
+    ts: String(f.ts),
+    accion: String(f.accion),
+    entidad: String(f.entidad),
+    entidadId: String(f.entidad_id),
+    actor: f.actor_id
+      ? {
+          id: String(f.actor_id),
+          username: String(f.username),
+          nombres: String(f.nombres),
+          apellidos: String(f.apellidos),
+          rol: String(f.rol),
+        }
+      : null,
+  }));
+  const ultimo = rows[POR_PAGINA - 1];
+  return {
+    items,
+    cursor: hasMore && ultimo ? codificarCursor(ultimo) : null,
+  };
+}
+
+/** Devuelve los snapshots de un único evento, tras volver a imponer el alcance. */
+export async function obtenerDetalleAuditoria(
+  ctx: SessionContext,
+  id: number,
+  ejecutor: TransaccionAuditada = db,
+): Promise<DetalleAuditoria | null> {
+  requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+  const filtros = filtrosSql(ctx, {});
+  filtros.push(sql`a.id = ${id}`);
+  const filas = obtenerFilas(
+    await ejecutor.execute(
+      sql`SELECT a.datos_antes,a.datos_despues,a.ip FROM auditoria a ${whereSql(filtros)} LIMIT 1`,
+    ),
+  );
+  const fila = filas[0];
+  return fila
+    ? {
+        datosAntes: fila.datos_antes,
+        datosDespues: fila.datos_despues,
+        ip: fila.ip ? String(fila.ip) : null,
+      }
+    : null;
+}
+
+function filtrosSql(ctx: SessionContext, entrada: FiltroAuditoria): SQL[] {
   const filtros: SQL[] = [];
   // El alcance no depende de parámetros de URL ni de la UI: la empresa del
   // actor se incorpora siempre a la consulta para los administradores.
@@ -61,39 +120,11 @@ export async function listarAuditoria(
   const cursor = decodificarCursor(entrada.cursor);
   if (cursor)
     filtros.push(sql`(a.ts, a.id) < (${cursor.ts}::timestamptz, ${cursor.id})`);
-  const where = filtros.length
-    ? sql`WHERE ${sql.join(filtros, sql` AND `)}`
-    : sql``;
-  const rows = obtenerFilas(
-    await ejecutor.execute(
-      sql`SELECT a.id,a.ts,a.accion,a.entidad,a.entidad_id,a.datos_antes,a.datos_despues,a.ip,u.id actor_id,u.username,u.nombres,u.apellidos,u.rol FROM auditoria a LEFT JOIN usuarios u ON u.id=a.actor_usuario_id ${where} ORDER BY a.ts DESC, a.id DESC LIMIT ${POR_PAGINA + 1}`,
-    ),
-  );
-  const hasMore = rows.length > POR_PAGINA;
-  const items = rows.slice(0, POR_PAGINA).map((f) => ({
-    id: Number(f.id),
-    ts: String(f.ts),
-    accion: String(f.accion),
-    entidad: String(f.entidad),
-    entidadId: String(f.entidad_id),
-    datosAntes: f.datos_antes,
-    datosDespues: f.datos_despues,
-    ip: f.ip ? String(f.ip) : null,
-    actor: f.actor_id
-      ? {
-          id: String(f.actor_id),
-          username: String(f.username),
-          nombres: String(f.nombres),
-          apellidos: String(f.apellidos),
-          rol: String(f.rol),
-        }
-      : null,
-  }));
-  const ultimo = rows[POR_PAGINA - 1];
-  return {
-    items,
-    cursor: hasMore && ultimo ? codificarCursor(ultimo) : null,
-  };
+  return filtros;
+}
+
+function whereSql(filtros: SQL[]): SQL {
+  return filtros.length ? sql`WHERE ${sql.join(filtros, sql` AND `)}` : sql``;
 }
 
 function decodificarCursor(
