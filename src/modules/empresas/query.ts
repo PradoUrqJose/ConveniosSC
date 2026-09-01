@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { db } from "@/db";
-import { obtenerFilas } from "@/lib/audit/registrar";
+import { obtenerFilas, type TransaccionAuditada } from "@/lib/audit/registrar";
 import { requireRol, type SessionContext } from "@/lib/auth/guardas";
 import type { Pagina } from "@/lib/tipos";
 
@@ -25,6 +25,7 @@ const POR_PAGINA = 20;
 export async function listarEmpresas(
   ctx: SessionContext,
   entrada: { q?: string; activo?: boolean; cursor?: string },
+  ejecutor: TransaccionAuditada = db,
 ): Promise<Pagina<FilaEmpresa>> {
   requireRol(ctx, ["SUPERADMIN"]);
 
@@ -44,48 +45,64 @@ export async function listarEmpresas(
     ? sql`WHERE ${sql.join(condicion, sql` AND `)}`
     : sql``;
 
-  const filasPromise = db.execute(sql`
-      SELECT e.id, e.ruc, e.nombre_comercial, e.razon_social, e.activo,
-        e.tope_monto_venta_centimos, e.requiere_evidencia_en_venta,
-        e.dias_retroactivos_venta,
+  // La página base se resuelve antes de contar relaciones. Así los GROUP BY
+  // recorren solo los IDs que se van a mostrar y no todas las empresas.
+  const filasPromise = ejecutor.execute(sql`
+      WITH empresas_candidatas AS (
+        SELECT e.id, e.ruc, e.nombre_comercial, e.razon_social, e.activo,
+          e.tope_monto_venta_centimos, e.requiere_evidencia_en_venta,
+          e.dias_retroactivos_venta
+        FROM empresas e
+        ${where}
+        ORDER BY e.nombre_comercial ASC, e.id ASC
+        LIMIT ${POR_PAGINA + 1}
+      ),
+      empresas_pagina AS (
+        SELECT * FROM empresas_candidatas
+        LIMIT ${POR_PAGINA}
+      ),
+      usuarios_pagina AS (
+        SELECT u.empresa_id, count(*)::int AS total_usuarios
+        FROM usuarios u
+        JOIN empresas_pagina ep ON ep.id = u.empresa_id
+        GROUP BY u.empresa_id
+      ),
+      empleados_pagina AS (
+        SELECT em.empresa_id, count(*)::int AS total_empleados
+        FROM empleados em
+        JOIN empresas_pagina ep ON ep.id = em.empresa_id
+        GROUP BY em.empresa_id
+      ),
+      convenios_pagina AS (
+        SELECT ep.id AS empresa_id, count(c.id)::int AS total_convenios
+        FROM empresas_pagina ep
+        LEFT JOIN convenios c ON c.empresa_a_id = ep.id OR c.empresa_b_id = ep.id
+        GROUP BY ep.id
+      )
+      SELECT ep.id, ep.ruc, ep.nombre_comercial, ep.razon_social, ep.activo,
+        ep.tope_monto_venta_centimos, ep.requiere_evidencia_en_venta,
+        ep.dias_retroactivos_venta,
         COALESCE(u.total_usuarios, 0)::int AS total_usuarios,
         COALESCE(em.total_empleados, 0)::int AS total_empleados,
-        COALESCE(c.total_convenios, 0)::int AS total_convenios
-      FROM empresas e
-      LEFT JOIN (
-        SELECT empresa_id, count(*)::int AS total_usuarios
-        FROM usuarios
-        GROUP BY empresa_id
-      ) u ON u.empresa_id = e.id
-      LEFT JOIN (
-        SELECT empresa_id, count(*)::int AS total_empleados
-        FROM empleados
-        GROUP BY empresa_id
-      ) em ON em.empresa_id = e.id
-      LEFT JOIN (
-        SELECT empresa_id, count(*)::int AS total_convenios
-        FROM (
-          SELECT empresa_a_id AS empresa_id FROM convenios
-          UNION ALL
-          SELECT empresa_b_id AS empresa_id FROM convenios
-        ) empresas_convenio
-        GROUP BY empresa_id
-      ) c ON c.empresa_id = e.id
-      ${where}
-      ORDER BY e.nombre_comercial ASC, e.id ASC
-      LIMIT ${POR_PAGINA + 1}
+        COALESCE(c.total_convenios, 0)::int AS total_convenios,
+        (SELECT count(*) > ${POR_PAGINA} FROM empresas_candidatas) AS hay_siguiente
+      FROM empresas_pagina ep
+      LEFT JOIN usuarios_pagina u ON u.empresa_id = ep.id
+      LEFT JOIN empleados_pagina em ON em.empresa_id = ep.id
+      LEFT JOIN convenios_pagina c ON c.empresa_id = ep.id
+      ORDER BY ep.nombre_comercial ASC, ep.id ASC
     `);
   const conteoPromise = cursor
     ? null
-    : db.execute(sql`SELECT count(*)::int AS n FROM empresas e ${where}`);
+    : ejecutor.execute(sql`SELECT count(*)::int AS n FROM empresas e ${where}`);
   const [filasResultado, conteoResultado] = await Promise.all([
     filasPromise,
     conteoPromise,
   ]);
   const filas = obtenerFilas(filasResultado);
 
-  const haySiguiente = filas.length > POR_PAGINA;
-  const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
+  const haySiguiente = Boolean(filas[0]?.hay_siguiente);
+  const pagina = filas;
 
   let total: number | undefined;
   if (conteoResultado) {

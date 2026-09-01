@@ -8,7 +8,7 @@ import { EmpresasClient } from "./empresas-client";
 export default async function AdminEmpresasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cursor?: string }>;
+  searchParams: Promise<{ q?: string; activo?: string; cursor?: string }>;
 }) {
   let sesion;
   try {
@@ -42,8 +42,14 @@ export default async function AdminEmpresasPage({
     );
   }
 
-  const { q, cursor } = await searchParams;
-  const pagina = await listarEmpresas(sesion, { q, cursor });
+  const { q, activo, cursor } = await searchParams;
+  const activoFiltro =
+    activo === "true" ? true : activo === "false" ? false : undefined;
+  const pagina = await listarEmpresas(sesion, {
+    q,
+    activo: activoFiltro,
+    cursor,
+  });
 
-  return <EmpresasClient pagina={pagina} q={q} />;
+  return <EmpresasClient pagina={pagina} q={q} activo={activoFiltro} />;
 }
