@@ -2,13 +2,22 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
-import { listarUsuarios } from "@/modules/usuarios/query";
+import {
+  listarUsuarios,
+  obtenerEmpresaUsuario,
+  POR_PAGINA_USUARIOS,
+} from "@/modules/usuarios/query";
+import {
+  normalizarParametrosUsuarios,
+  serializarParametrosUsuarios,
+  urlUsuariosCanonica,
+} from "@/modules/usuarios/filtros";
 import { UsuariosClient } from "./usuarios-client";
 
 export default async function UsuariosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; cursor?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let sesion;
   try {
@@ -42,13 +51,25 @@ export default async function UsuariosPage({
     );
   }
 
-  const { q, cursor } = await searchParams;
-  const pagina = await listarUsuarios(sesion, { q, cursor });
+  const parametros = await searchParams;
+  if (!urlUsuariosCanonica(parametros)) {
+    const query = serializarParametrosUsuarios(parametros);
+    redirect(query.size ? `/usuarios?${query}` : "/usuarios");
+  }
+  const filtros = normalizarParametrosUsuarios(parametros);
+  const [pagina, empresaFiltro] = await Promise.all([
+    listarUsuarios(sesion, filtros),
+    obtenerEmpresaUsuario(sesion, filtros.empresaId),
+  ]);
 
   return (
     <UsuariosClient
       pagina={pagina}
-      q={q}
+      q={filtros.q}
+      rol={filtros.rol}
+      activo={filtros.activo}
+      empresaFiltro={empresaFiltro}
+      porPagina={POR_PAGINA_USUARIOS}
       esSuperadmin={true}
       yoUsuarioId={sesion.usuarioId}
     />

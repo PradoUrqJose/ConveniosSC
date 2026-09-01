@@ -6,6 +6,7 @@ import { LockOpen } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import type { Resultado } from "@/lib/tipos";
 import { desbloquearUsuario } from "@/modules/usuarios/actions";
 import type { FilaUsuario } from "@/modules/usuarios/query";
@@ -23,7 +24,13 @@ const ESTADO_INICIAL: Estado = {
  * es reversible (el usuario puede volver a bloquearse fallando otra vez) y
  * quien lo pulsa está resolviendo a alguien que no puede trabajar.
  */
-export function BotonDesbloquear({ usuario }: { usuario: FilaUsuario }) {
+export function BotonDesbloquear({
+  usuario,
+  enMenu = false,
+}: {
+  usuario: FilaUsuario;
+  enMenu?: boolean;
+}) {
   const router = useRouter();
   const [estado, formAction, pendiente] = useActionState(
     desbloquearUsuario,
@@ -47,10 +54,23 @@ export function BotonDesbloquear({ usuario }: { usuario: FilaUsuario }) {
   return (
     <form action={formAction} className="contents">
       <input type="hidden" name="usuarioId" value={usuario.id} />
-      <Button type="submit" variant="secondary" size="sm" disabled={pendiente}>
-        <LockOpen className="size-3.5" />
-        {pendiente ? "Desbloqueando…" : "Desbloquear"}
-      </Button>
+      {enMenu ? (
+        <DropdownMenuItem
+          render={<button type="submit" disabled={pendiente} />}
+        >
+          <LockOpen /> {pendiente ? "Desbloqueando…" : "Desbloquear"}
+        </DropdownMenuItem>
+      ) : (
+        <Button
+          type="submit"
+          variant="secondary"
+          size="sm"
+          disabled={pendiente}
+        >
+          <LockOpen className="size-3.5" />
+          {pendiente ? "Desbloqueando…" : "Desbloquear"}
+        </Button>
+      )}
     </form>
   );
 }

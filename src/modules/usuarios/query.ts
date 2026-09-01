@@ -37,10 +37,10 @@ export type EmpleadoOpcion = {
 };
 export type SedeOpcion = { id: string; empresaId: string; nombre: string };
 
-const POR_PAGINA = 20;
+export const POR_PAGINA_USUARIOS = 20;
 const LIMITE_OPCIONES = 50;
 
-/** `listarUsuarios` (03 §5). El ADMIN_EMPRESA ve solo su empresa. */
+/** Lista de gestión exclusiva de `SUPERADMIN`, paginada antes de enriquecerla. */
 export async function listarUsuarios(
   ctx: SessionContext,
   entrada: {
@@ -76,23 +76,30 @@ export async function listarUsuarios(
     : sql``;
 
   const filasPromise = db.execute(sql`
+      WITH pagina AS (
+        SELECT u.id, u.username, u.nombres, u.apellidos, u.rol, u.empresa_id,
+          u.activo, u.ultimo_acceso_at, u.debe_cambiar_password,
+          u.empleado_id, u.sede_por_defecto_id,
+          (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > now()) AS bloqueado
+        FROM usuarios u
+        ${where}
+        ORDER BY u.username ASC, u.id ASC
+        LIMIT ${POR_PAGINA_USUARIOS + 1}
+      )
       SELECT u.id, u.username, u.nombres, u.apellidos, u.rol, u.empresa_id,
         e.nombre_comercial AS empresa_nombre, u.activo, u.ultimo_acceso_at,
-        u.debe_cambiar_password, u.empleado_id, u.sede_por_defecto_id,
-        (u.bloqueado_hasta IS NOT NULL AND u.bloqueado_hasta > now()) AS bloqueado,
+        u.debe_cambiar_password, u.empleado_id, u.sede_por_defecto_id, u.bloqueado,
         COALESCE(metricas.ventas_30d, 0)::int AS ventas_30d
-      FROM usuarios u
+      FROM pagina u
       LEFT JOIN empresas e ON e.id = u.empresa_id
-      LEFT JOIN (
-        SELECT v.vendedor_usuario_id, count(*)::int AS ventas_30d
+      LEFT JOIN LATERAL (
+        SELECT count(*)::int AS ventas_30d
         FROM ventas v
-        WHERE v.estado = 'REGISTRADA'
+        WHERE v.vendedor_usuario_id = u.id
+          AND v.estado = 'REGISTRADA'
           AND v.fecha_venta >= ${sumarDias(hoy, -29)}
-        GROUP BY v.vendedor_usuario_id
-      ) metricas ON metricas.vendedor_usuario_id = u.id
-      ${where}
+      ) metricas ON TRUE
       ORDER BY u.username ASC, u.id ASC
-      LIMIT ${POR_PAGINA + 1}
     `);
   const conteoPromise = cursor
     ? null
@@ -103,8 +110,8 @@ export async function listarUsuarios(
   ]);
   const filas = obtenerFilas(filasResultado);
 
-  const haySiguiente = filas.length > POR_PAGINA;
-  const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
+  const haySiguiente = filas.length > POR_PAGINA_USUARIOS;
+  const pagina = haySiguiente ? filas.slice(0, POR_PAGINA_USUARIOS) : filas;
 
   let total: number | undefined;
   if (conteoResultado) {
@@ -158,6 +165,23 @@ export async function listarEmpresasOpciones(
     id: String(f.id),
     nombreComercial: String(f.nombre_comercial),
   }));
+}
+
+/** Etiqueta de empresa al restaurar un filtro desde una URL compartida. */
+export async function obtenerEmpresaUsuario(
+  ctx: SessionContext,
+  empresaId: string | undefined,
+): Promise<EmpresaOpcion | null> {
+  requireRol(ctx, ["SUPERADMIN"]);
+  if (!empresaId) return null;
+  const fila = obtenerFilas(
+    await db.execute(sql`
+      SELECT id, nombre_comercial FROM empresas WHERE id = ${empresaId} LIMIT 1
+    `),
+  )[0];
+  return fila
+    ? { id: String(fila.id), nombreComercial: String(fila.nombre_comercial) }
+    : null;
 }
 
 /** Empleados (formulario de usuario). El ADMIN_EMPRESA ve solo los suyos. */
