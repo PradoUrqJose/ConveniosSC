@@ -78,12 +78,14 @@ export function ConveniosClient({
   empresaId,
   estado,
   vigencia,
+  empresasParaCrear,
 }: {
   pagina: Pagina<FilaConvenio>;
   empresas: EmpresaParaConvenio[];
   empresaId?: string;
   estado?: FilaConvenio["estado"];
   vigencia?: FiltroVigenciaConvenio;
+  empresasParaCrear: EmpresaParaConvenio[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -330,7 +332,10 @@ export function ConveniosClient({
       {dialogo ? (
         <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
           {dialogo.tipo === "crear" ? (
-            <FormConvenio onCerrar={() => setDialogo(null)} />
+            <FormConvenio
+              empresas={empresasParaCrear}
+              onCerrar={() => setDialogo(null)}
+            />
           ) : dialogo.tipo === "editar" ? (
             <FormEditarConvenio
               convenio={dialogo.convenio}

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import {
   listarSedes,
+  buscarEmpresasParaSedes,
   obtenerEmpresaSedes,
   POR_PAGINA_SEDES,
 } from "@/modules/sedes/query";
@@ -57,9 +58,10 @@ export default async function SedesPage({
     redirect(query.size ? `/sedes?${query}` : "/sedes");
   }
   const filtros = normalizarParametrosSedes(parametros);
-  const [pagina, empresaFiltro] = await Promise.all([
+  const [pagina, empresaFiltro, empresas] = await Promise.all([
     listarSedes(sesion, filtros),
     obtenerEmpresaSedes(sesion, filtros.empresaId),
+    sesion.rol === "SUPERADMIN" ? buscarEmpresasParaSedes(sesion) : [],
   ]);
   const empresaId = sesion.empresaId ?? "";
 
@@ -72,6 +74,7 @@ export default async function SedesPage({
       q={filtros.q}
       activo={filtros.activo}
       empresaFiltro={empresaFiltro}
+      empresas={empresas}
       porPagina={POR_PAGINA_SEDES}
     />
   );

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useActionState,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Handshake } from "lucide-react";
@@ -15,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { SelectorAsincrono } from "@/components/selector-asincrono";
+import { SelectorLocal } from "@/components/selector-local";
 import {
   DialogClose,
   DialogContent,
@@ -28,10 +22,8 @@ import {
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { hoyLima } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
-import {
-  buscarEmpresasParaConvenio,
-  crearConvenio,
-} from "@/modules/convenios/actions";
+import { crearConvenio } from "@/modules/convenios/actions";
+import type { EmpresaParaConvenio } from "@/modules/convenios/query";
 
 type Estado = Resultado<{ convenioId?: string }>;
 
@@ -41,7 +33,13 @@ const ESTADO_INICIAL: Estado = {
   mensaje: "",
 };
 
-export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
+export function FormConvenio({
+  empresas,
+  onCerrar,
+}: {
+  empresas: EmpresaParaConvenio[];
+  onCerrar: () => void;
+}) {
   const router = useRouter();
   const [estado, formAction, pendiente] = useActionState(
     async (estadoAnterior: Estado, formData: FormData): Promise<Estado> => {
@@ -61,11 +59,6 @@ export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
   const [vigenciaHasta, setVigenciaHasta] = useState("");
   const [activar, setActivar] = useState(true);
   const formulario = useRef<HTMLFormElement>(null);
-
-  const buscarEmpresas = useCallback(
-    (q: string) => buscarEmpresasParaConvenio(q),
-    [],
-  );
 
   useEffect(() => {
     if (!estado.ok || !estado.data) {
@@ -97,11 +90,14 @@ export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="empresaX">Empresa X</Label>
-            <SelectorAsincrono
+            <SelectorLocal
               id="empresaX"
               name="empresaXId"
               value={empresaX}
-              buscar={buscarEmpresas}
+              opciones={empresas.map((empresa) => ({
+                id: empresa.id,
+                etiqueta: empresa.nombreComercial,
+              }))}
               onChange={setEmpresaX}
               disabled={pendiente}
               placeholder="Buscar empresa"
@@ -110,11 +106,14 @@ export function FormConvenio({ onCerrar }: { onCerrar: () => void }) {
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="empresaY">Empresa Y</Label>
-            <SelectorAsincrono
+            <SelectorLocal
               id="empresaY"
               name="empresaYId"
               value={empresaY}
-              buscar={buscarEmpresas}
+              opciones={empresas.map((empresa) => ({
+                id: empresa.id,
+                etiqueta: empresa.nombreComercial,
+              }))}
               onChange={setEmpresaY}
               disabled={pendiente}
               placeholder="Buscar empresa"

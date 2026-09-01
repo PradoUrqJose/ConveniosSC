@@ -79,6 +79,7 @@ export function UsuariosClient({
   porPagina,
   esSuperadmin,
   yoUsuarioId,
+  empresasParaCrear,
 }: {
   pagina: Pagina<FilaUsuario>;
   q?: string;
@@ -88,6 +89,7 @@ export function UsuariosClient({
   porPagina: number;
   esSuperadmin: boolean;
   yoUsuarioId: string;
+  empresasParaCrear: EmpresaOpcion[];
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -425,6 +427,7 @@ export function UsuariosClient({
               onCreado={(username, passwordTemporal) =>
                 mostrarPassword(username, passwordTemporal)
               }
+              empresas={empresasParaCrear}
             />
           ) : dialogo.tipo === "editar" ? (
             <FormUsuario
@@ -433,6 +436,7 @@ export function UsuariosClient({
               esUnoMismo={dialogo.usuario.id === yoUsuarioId}
               onCerrar={() => setDialogo(null)}
               onCreado={() => undefined}
+              empresas={empresasParaCrear}
             />
           ) : dialogo.tipo === "reset" ? (
             <DialogoResetear

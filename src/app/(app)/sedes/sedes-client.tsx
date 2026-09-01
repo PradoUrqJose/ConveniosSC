@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Activity, MapPin, Plus, Search, Store } from "lucide-react";
 
-import { buscarEmpresasFiltroSedes } from "@/modules/sedes/actions";
 import type { EmpresaSedeOpcion, FilaSede } from "@/modules/sedes/query";
 import type { Pagina } from "@/lib/tipos";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import { SelectorAsincrono } from "@/components/selector-asincrono";
+import { SelectorLocal } from "@/components/selector-local";
 import { FormSede } from "./form-sede";
 import {
   CabeceraPagina,
@@ -28,6 +27,7 @@ export function SedesClient({
   q,
   activo,
   empresaFiltro,
+  empresas,
   porPagina,
 }: {
   pagina: Pagina<FilaSede>;
@@ -37,6 +37,7 @@ export function SedesClient({
   q?: string;
   activo?: boolean;
   empresaFiltro: EmpresaSedeOpcion | null;
+  empresas: EmpresaSedeOpcion[];
   porPagina: number;
 }) {
   const router = useRouter();
@@ -72,10 +73,6 @@ export function SedesClient({
     return () => window.clearTimeout(espera);
   }, [actualizarFiltros, consulta, q]);
 
-  const buscarEmpresas = useCallback(
-    (consulta: string) => buscarEmpresasFiltroSedes(consulta),
-    [],
-  );
   const sedes = pagina.items;
   const activas = sedes.filter((sede) => sede.activo).length;
   const totalVentas = sedes.reduce(
@@ -145,12 +142,15 @@ export function SedesClient({
           />
         </div>
         {esSuperadmin ? (
-          <SelectorAsincrono
+          <SelectorLocal
             id="empresa"
             name="empresa"
             value={empresaSeleccionada}
             etiquetaInicial={empresaFiltro?.nombreComercial}
-            buscar={buscarEmpresas}
+            opciones={empresas.map((empresa) => ({
+              id: empresa.id,
+              etiqueta: empresa.nombreComercial,
+            }))}
             onChange={(empresa) => {
               setEmpresaSeleccionada(empresa);
               actualizarFiltros({ empresa });

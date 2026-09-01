@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import {
   listarUsuarios,
+  listarEmpresasOpciones,
   obtenerEmpresaUsuario,
   POR_PAGINA_USUARIOS,
 } from "@/modules/usuarios/query";
@@ -57,9 +58,10 @@ export default async function UsuariosPage({
     redirect(query.size ? `/usuarios?${query}` : "/usuarios");
   }
   const filtros = normalizarParametrosUsuarios(parametros);
-  const [pagina, empresaFiltro] = await Promise.all([
+  const [pagina, empresaFiltro, empresas] = await Promise.all([
     listarUsuarios(sesion, filtros),
     obtenerEmpresaUsuario(sesion, filtros.empresaId),
+    listarEmpresasOpciones(sesion),
   ]);
 
   return (
@@ -72,6 +74,7 @@ export default async function UsuariosPage({
       porPagina={POR_PAGINA_USUARIOS}
       esSuperadmin={true}
       yoUsuarioId={sesion.usuarioId}
+      empresasParaCrear={empresas}
     />
   );
 }

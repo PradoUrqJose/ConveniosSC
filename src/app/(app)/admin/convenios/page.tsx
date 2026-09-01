@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import {
   listarConvenios,
+  listarEmpresasParaConvenio,
   listarEmpresasParaFiltroConvenios,
   type FiltroVigenciaConvenio,
 } from "@/modules/convenios/query";
@@ -64,9 +65,10 @@ export default async function AdminConveniosPage({
     : undefined;
   const empresaId = valor("empresa");
   const cursor = valor("cursor");
-  const [pagina, empresas] = await Promise.all([
+  const [pagina, empresas, empresasParaCrear] = await Promise.all([
     listarConvenios(sesion, { empresaId, estado, vigencia, cursor }),
     listarEmpresasParaFiltroConvenios(sesion),
+    listarEmpresasParaConvenio(sesion),
   ]);
 
   return (
@@ -76,6 +78,7 @@ export default async function AdminConveniosPage({
       empresaId={empresaId}
       estado={estado}
       vigencia={vigencia}
+      empresasParaCrear={empresasParaCrear}
     />
   );
 }

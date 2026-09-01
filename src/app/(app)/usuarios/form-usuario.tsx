@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { SelectorAsincrono } from "@/components/selector-asincrono";
+import { SelectorLocal } from "@/components/selector-local";
 import {
   DialogClose,
   DialogContent,
@@ -30,11 +31,10 @@ import type { Resultado } from "@/lib/tipos";
 import {
   actualizarUsuario,
   buscarEmpleadosOpciones,
-  buscarEmpresasOpciones,
   buscarSedesOpciones,
   crearUsuario,
 } from "@/modules/usuarios/actions";
-import type { FilaUsuario } from "@/modules/usuarios/query";
+import type { EmpresaOpcion, FilaUsuario } from "@/modules/usuarios/query";
 
 const ROLES = ["SUPERADMIN", "ADMIN_EMPRESA", "VENDEDOR"] as const;
 const ROLES_ADMIN = ["ADMIN_EMPRESA", "VENDEDOR"] as const;
@@ -55,12 +55,14 @@ export function FormUsuario({
   esUnoMismo,
   onCerrar,
   onCreado,
+  empresas,
 }: {
   usuario?: FilaUsuario | null;
   esSuperadmin: boolean;
   esUnoMismo: boolean;
   onCerrar: () => void;
   onCreado: (username: string, passwordTemporal: string) => void;
+  empresas: EmpresaOpcion[];
 }) {
   const esEdicion = Boolean(usuario);
   const router = useRouter();
@@ -93,10 +95,6 @@ export function FormUsuario({
   const [activo, setActivo] = useState(usuario?.activo ?? true);
   const formulario = useRef<HTMLFormElement>(null);
 
-  const buscarEmpresas = useCallback(
-    (q: string) => buscarEmpresasOpciones(q),
-    [],
-  );
   const buscarEmpleados = useCallback(
     (q: string) => buscarEmpleadosOpciones(q, empresaId),
     [empresaId],
@@ -208,12 +206,15 @@ export function FormUsuario({
         {!esEdicion && esSuperadmin ? (
           <div className="flex flex-col gap-2">
             <Label htmlFor="empresaId">Empresa</Label>
-            <SelectorAsincrono
+            <SelectorLocal
               id="empresaId"
               name="empresaId"
               value={esSuperadminRol ? "" : empresaId}
               etiquetaInicial={usuario?.empresaNombre ?? ""}
-              buscar={buscarEmpresas}
+              opciones={empresas.map((empresa) => ({
+                id: empresa.id,
+                etiqueta: empresa.nombreComercial,
+              }))}
               onChange={(id) => {
                 setEmpresaId(id);
                 setEmpleadoId("");
