@@ -145,7 +145,12 @@ export function ConfirmarDestructivo({
               >
                 Cancelar
               </AlertDialog.Close>
-              <Button type="submit" variant="destructive" disabled={pendiente}>
+              <Button
+                type="submit"
+                variant="destructive"
+                disabled={pendiente}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 {pendiente ? accionPendiente : accion}
               </Button>
             </div>

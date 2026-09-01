@@ -924,7 +924,7 @@ export function FormVenta({
             aria-live="polite"
             className="mx-[18px] mb-[18px] rounded-[22px] bg-[var(--venta-azul)] p-[22px] text-white"
           >
-            <div className="flex justify-between py-0.5 font-mono text-sm text-white/75">
+            <div className="flex justify-between py-0.5 font-mono text-sm text-white/90">
               <span>Monto de venta</span>
               <b className="font-bold text-white">
                 {montoBrutoCentimos === null
@@ -932,7 +932,7 @@ export function FormVenta({
                   : formatearSoles(montoBrutoCentimos)}
               </b>
             </div>
-            <div className="flex justify-between py-0.5 font-mono text-sm text-white/75">
+            <div className="flex justify-between py-0.5 font-mono text-sm text-white/90">
               <span>Descuento convenio</span>
               <b className="font-bold text-white">
                 − {preview ? formatearSoles(preview.descuento) : "S/ 0.00"}
@@ -942,7 +942,7 @@ export function FormVenta({
             {/* Apilado, no en línea: la columna mide 372 px y en Courier un
                 importe de cinco cifras no cabe junto al rótulo. */}
             <div>
-              <span className="block font-mono text-[12px] font-bold tracking-[0.14em] text-white/75 uppercase">
+              <span className="block font-mono text-[12px] font-bold tracking-[0.14em] text-white/90 uppercase">
                 Total final
               </span>
               <p className="mt-2 font-mono text-[clamp(28px,3vw,36px)] leading-none font-bold tracking-[-0.02em] tabular-nums">

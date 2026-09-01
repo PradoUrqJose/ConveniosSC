@@ -18,7 +18,11 @@ export default function DashboardChart({
   granularidad: "dia" | "semana" | "mes";
 }) {
   return (
-    <div className="h-64 lg:h-72" aria-label="Gráfico de ventas por periodo">
+    <div
+      className="h-64 lg:h-72"
+      role="img"
+      aria-label="Gráfico de ventas por periodo"
+    >
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <BarChart data={serie}>
           <XAxis

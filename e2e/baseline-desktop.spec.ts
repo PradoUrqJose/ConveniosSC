@@ -274,6 +274,16 @@ test.describe(`baseline desktop ${etapaBaseline} del rediseño`, () => {
         }
         const axe = await new AxeBuilder({ page }).analyze();
         medicion.axeViolaciones = axe.violations.length;
+        // El baseline conserva el total para mostrar la evolución de deuda
+        // conocida, pero el gate de la release no admite regresiones que
+        // bloqueen el uso: ninguna ruta puede tener impacto serious/critical.
+        expect(
+          axe.violations.filter(
+            (violacion) =>
+              violacion.impact === "serious" || violacion.impact === "critical",
+          ),
+          `${ruta} no debe tener violaciones Axe serias ni críticas`,
+        ).toEqual([]);
         resultados.push(medicion);
 
         for (const viewport of viewports) {
@@ -315,13 +325,25 @@ test.describe(`baseline desktop ${etapaBaseline} del rediseño`, () => {
     });
     const tarjeta = page
       .getByText(`@${usuarioTemporal}`, { exact: true })
-      .locator("xpath=ancestor::div[.//button][1]");
+      .locator("xpath=ancestor::div[.//button[@aria-label]][1]");
+    const abrirAcciones = async () => {
+      await tarjeta
+        .getByRole("button", {
+          name: `Más acciones para @${usuarioTemporal}`,
+        })
+        .click();
+      await expect(
+        page.locator('[data-slot="dropdown-menu-content"]'),
+      ).toBeVisible();
+    };
     if (tipo === "largo") {
       await page.getByRole("button", { name: "Crear usuario" }).click();
     } else if (tipo === "destructivo") {
-      await tarjeta.getByRole("button", { name: "Desactivar" }).click();
+      await abrirAcciones();
+      await page.getByText("Desactivar usuario", { exact: true }).click();
     } else {
-      await tarjeta.getByRole("button", { name: "Restablecer" }).click();
+      await abrirAcciones();
+      await page.getByText("Restablecer contraseña", { exact: true }).click();
       if (tipo === "password-temporal") {
         await page
           .getByRole("button", { name: "Restablecer contraseña" })
@@ -329,8 +351,19 @@ test.describe(`baseline desktop ${etapaBaseline} del rediseño`, () => {
         await expect(page.getByText("Usuario listo")).toBeVisible();
       }
     }
-    await expect(page.locator('[data-slot="dialog-content"]')).toBeVisible();
+    // Los formularios usan Dialog y las confirmaciones destructivas usan
+    // AlertDialog; ambos son modales válidos para el lector de pantalla.
+    await expect(
+      page.locator('[role="dialog"], [role="alertdialog"]'),
+    ).toBeVisible();
     const axe = await new AxeBuilder({ page }).analyze();
+    expect(
+      axe.violations.filter(
+        (violacion) =>
+          violacion.impact === "serious" || violacion.impact === "critical",
+      ),
+      `El modal ${tipo} no debe tener violaciones Axe serias ni críticas`,
+    ).toEqual([]);
     await testInfo.attach(`axe-modal-${tipo}`, {
       body: JSON.stringify(axe, null, 2),
       contentType: "application/json",

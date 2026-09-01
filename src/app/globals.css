@@ -672,8 +672,11 @@
     --venta-papel: #ffffff;
     --venta-linea: #e5e8ef;
     --venta-hueco: #f3f4f8;
-    --venta-gris: #7d8492;
-    --venta-gris-claro: #a9aeb9;
+    /* Ambos tonos superan 4.5:1 sobre --venta-papel. El segundo se usa en
+       valores pendientes y placeholders, que siguen siendo información
+       operativa y no deben depender de un gris de bajo contraste. */
+    --venta-gris: #626b7c;
+    --venta-gris-claro: #626b7c;
     --venta-tinta: #12141a;
   }
 
