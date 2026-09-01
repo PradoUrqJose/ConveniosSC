@@ -8,6 +8,7 @@ import type { Pagina } from "@/lib/tipos";
 import type { EstadoConvenio } from "./acciones";
 
 export type TerminoVigente = { bps: number; desde: string };
+export type FiltroVigenciaConvenio = "vigente" | "vencido" | "sin_vencimiento";
 
 export type FilaConvenio = {
   id: string;
@@ -30,27 +31,61 @@ export type ConvenioVigenteMio = {
   terminoId: string;
 };
 
-const POR_PAGINA = 20;
+export const POR_PAGINA_CONVENIOS = 20;
 
 /** `listarConvenios` (03 §4). Términos vigentes a hoy y ventas de 30 días. */
 export async function listarConvenios(
   ctx: SessionContext,
-  entrada: { cursor?: string } = {},
+  entrada: {
+    empresaId?: string;
+    estado?: EstadoConvenio;
+    vigencia?: FiltroVigenciaConvenio;
+    cursor?: string;
+  } = {},
   ejecutor: TransaccionAuditada = db,
 ): Promise<Pagina<FilaConvenio>> {
   requireRol(ctx, ["SUPERADMIN"]);
   const hoy = hoyLima();
 
   const cursor = decodificarCursor(entrada.cursor);
-  const where = cursor
-    ? sql`WHERE (c.created_at, c.id) < (${cursor.createdAt}, ${cursor.id})`
+  const filtros = [
+    entrada.empresaId
+      ? sql`(c.empresa_a_id = ${entrada.empresaId} OR c.empresa_b_id = ${entrada.empresaId})`
+      : undefined,
+    entrada.estado ? sql`c.estado = ${entrada.estado}` : undefined,
+    entrada.vigencia === "vigente"
+      ? sql`c.vigencia_desde <= ${hoy} AND (c.vigencia_hasta IS NULL OR c.vigencia_hasta >= ${hoy})`
+      : entrada.vigencia === "vencido"
+        ? sql`c.vigencia_hasta < ${hoy}`
+        : entrada.vigencia === "sin_vencimiento"
+          ? sql`c.vigencia_hasta IS NULL`
+          : undefined,
+  ].filter((filtro) => filtro !== undefined) as ReturnType<typeof sql>[];
+  const whereFiltros = filtros.length
+    ? sql`WHERE ${sql.join(filtros, sql` AND `)}`
     : sql``;
+  const wherePagina = cursor
+    ? filtros.length
+      ? sql`WHERE ${sql.join([...filtros, sql`(c.created_at, c.id) < (${cursor.createdAt}, ${cursor.id})`], sql` AND `)}`
+      : sql`WHERE (c.created_at, c.id) < (${cursor.createdAt}, ${cursor.id})`
+    : whereFiltros;
 
-  const filas = obtenerFilas(
-    await ejecutor.execute(sql`
-      WITH ventas_30d AS (
+  // Primero se eligen los IDs de la página. Las ventas de 30 días se agregan
+  // recién sobre esos IDs; así la métrica no crece con todo el historial.
+  const filasPromise = ejecutor.execute(sql`
+      WITH convenios_candidatos AS (
+        SELECT c.id, c.created_at, c.estado, c.vigencia_desde, c.vigencia_hasta,
+          c.notas, c.empresa_a_id, c.empresa_b_id
+        FROM convenios c
+        ${wherePagina}
+        ORDER BY c.created_at DESC NULLS LAST, c.id DESC NULLS LAST
+        LIMIT ${POR_PAGINA_CONVENIOS + 1}
+      ), convenios_pagina AS (
+        SELECT * FROM convenios_candidatos LIMIT ${POR_PAGINA_CONVENIOS}
+      ), ventas_pagina AS (
         SELECT v.convenio_id, count(*)::int AS total
         FROM ventas v
+        JOIN convenios_pagina cp ON cp.id = v.convenio_id
         WHERE v.estado = 'REGISTRADA'
           AND v.fecha_venta >= ${sumarDias(hoy, -29)}
         GROUP BY v.convenio_id
@@ -60,8 +95,9 @@ export async function listarConvenios(
         eb.id AS b_id, eb.nombre_comercial AS b_nombre,
         ta.descuento_bps AS a_bps, ta.vigencia_desde AS a_desde,
         tb.descuento_bps AS b_bps, tb.vigencia_desde AS b_desde,
-        COALESCE(v30.total, 0)::int AS ventas_30d
-      FROM convenios c
+        COALESCE(v30.total, 0)::int AS ventas_30d,
+        (SELECT count(*) > ${POR_PAGINA_CONVENIOS} FROM convenios_candidatos) AS hay_siguiente
+      FROM convenios_pagina c
       JOIN empresas ea ON ea.id = c.empresa_a_id
       JOIN empresas eb ON eb.id = c.empresa_b_id
       LEFT JOIN LATERAL (
@@ -84,15 +120,20 @@ export async function listarConvenios(
         ORDER BY ct.vigencia_desde DESC
         LIMIT 1
       ) tb ON TRUE
-      LEFT JOIN ventas_30d v30 ON v30.convenio_id = c.id
-      ${where}
+      LEFT JOIN ventas_pagina v30 ON v30.convenio_id = c.id
       ORDER BY c.created_at DESC NULLS LAST, c.id DESC NULLS LAST
-      LIMIT ${POR_PAGINA + 1}
-    `),
+    `);
+  const conteoPromise = ejecutor.execute(
+    sql`SELECT count(*)::int AS n FROM convenios c ${whereFiltros}`,
   );
+  const [filasResultado, conteoResultado] = await Promise.all([
+    filasPromise,
+    conteoPromise,
+  ]);
+  const filas = obtenerFilas(filasResultado);
 
-  const haySiguiente = filas.length > POR_PAGINA;
-  const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
+  const haySiguiente = Boolean(filas[0]?.hay_siguiente);
+  const pagina = filas;
   const items = pagina.map((f) => ({
     id: String(f.id),
     estado: String(f.estado) as EstadoConvenio,
@@ -116,6 +157,7 @@ export async function listarConvenios(
   return {
     items,
     cursor: haySiguiente && ultimo ? codificarCursor(ultimo) : null,
+    total: Number(obtenerFilas(conteoResultado)[0]?.n ?? 0),
   };
 }
 
@@ -199,6 +241,23 @@ export async function misConveniosVigentes(
 }
 
 export type EmpresaParaConvenio = { id: string; nombreComercial: string };
+
+/** Empresas para filtrar el padrón de convenios, incluidas las inactivas. */
+export async function listarEmpresasParaFiltroConvenios(
+  ctx: SessionContext,
+): Promise<EmpresaParaConvenio[]> {
+  requireRol(ctx, ["SUPERADMIN"]);
+  const filas = obtenerFilas(
+    await db.execute(sql`
+      SELECT id, nombre_comercial FROM empresas
+      ORDER BY nombre_comercial ASC
+    `),
+  );
+  return filas.map((f) => ({
+    id: String(f.id),
+    nombreComercial: String(f.nombre_comercial),
+  }));
+}
 
 /** Empresas activas para el formulario de crear convenio. */
 export async function listarEmpresasParaConvenio(

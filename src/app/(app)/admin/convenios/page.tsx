@@ -2,13 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
-import { listarConvenios } from "@/modules/convenios/query";
+import {
+  listarConvenios,
+  listarEmpresasParaFiltroConvenios,
+  type FiltroVigenciaConvenio,
+} from "@/modules/convenios/query";
+import type { EstadoConvenio } from "@/modules/convenios/acciones";
 import { ConveniosClient } from "./convenios-client";
 
 export default async function AdminConveniosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cursor?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   let sesion;
   try {
@@ -42,8 +47,35 @@ export default async function AdminConveniosPage({
     );
   }
 
-  const { cursor } = await searchParams;
-  const pagina = await listarConvenios(sesion, { cursor });
+  const parametros = await searchParams;
+  const valor = (nombre: string) =>
+    typeof parametros[nombre] === "string" ? parametros[nombre] : undefined;
+  const estadoValor = valor("estado");
+  const estado = ["BORRADOR", "VIGENTE", "SUSPENDIDO", "TERMINADO"].includes(
+    estadoValor ?? "",
+  )
+    ? (estadoValor as EstadoConvenio)
+    : undefined;
+  const vigenciaValor = valor("vigencia");
+  const vigencia = ["vigente", "vencido", "sin_vencimiento"].includes(
+    vigenciaValor ?? "",
+  )
+    ? (vigenciaValor as FiltroVigenciaConvenio)
+    : undefined;
+  const empresaId = valor("empresa");
+  const cursor = valor("cursor");
+  const [pagina, empresas] = await Promise.all([
+    listarConvenios(sesion, { empresaId, estado, vigencia, cursor }),
+    listarEmpresasParaFiltroConvenios(sesion),
+  ]);
 
-  return <ConveniosClient pagina={pagina} />;
+  return (
+    <ConveniosClient
+      pagina={pagina}
+      empresas={empresas}
+      empresaId={empresaId}
+      estado={estado}
+      vigencia={vigencia}
+    />
+  );
 }

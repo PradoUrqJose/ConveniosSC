@@ -1,8 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, BadgePercent, Handshake, Plus } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BadgePercent,
+  ChevronLeft,
+  ChevronRight,
+  Handshake,
+  Plus,
+  TriangleAlert,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,7 +19,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
 import { formatearFechaUI } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
-import type { FilaConvenio } from "@/modules/convenios/query";
+import type {
+  EmpresaParaConvenio,
+  FiltroVigenciaConvenio,
+  FilaConvenio,
+} from "@/modules/convenios/query";
 import { FormConvenio } from "./form-convenio";
 import { FormEditarConvenio } from "./form-editar";
 import {
@@ -32,17 +45,93 @@ function etiquetaVigencia(c: FilaConvenio): string {
 }
 
 function EtiquetaEstado({ estado }: { estado: FilaConvenio["estado"] }) {
-  if (estado === "VIGENTE") {
-    return <Badge>Vigente</Badge>;
-  }
-  return <Badge variant="secondary">{estado}</Badge>;
+  const etiquetas: Record<FilaConvenio["estado"], string> = {
+    BORRADOR: "Borrador",
+    VIGENTE: "Vigente",
+    SUSPENDIDO: "Suspendido",
+    TERMINADO: "Terminado",
+  };
+  return (
+    <Badge variant={estado === "VIGENTE" ? "success" : "secondary"}>
+      {etiquetas[estado]}
+    </Badge>
+  );
 }
 
-export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
+function Termino({ termino }: { termino: FilaConvenio["terminoAotorga"] }) {
+  return termino ? (
+    <strong className="text-primary flex shrink-0 items-center gap-1">
+      <BadgePercent className="size-3.5" />
+      {bpsAPorcentaje(termino.bps)}%
+    </strong>
+  ) : (
+    <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-amber-700 dark:text-amber-400">
+      <TriangleAlert className="size-3.5" aria-hidden />
+      Sin descuento vigente
+    </span>
+  );
+}
+
+export function ConveniosClient({
+  pagina,
+  empresas,
+  empresaId,
+  estado,
+  vigencia,
+}: {
+  pagina: Pagina<FilaConvenio>;
+  empresas: EmpresaParaConvenio[];
+  empresaId?: string;
+  estado?: FilaConvenio["estado"];
+  vigencia?: FiltroVigenciaConvenio;
+}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [dialogo, setDialogo] = useState<Dialogo | null>(null);
   const convenios = pagina.items;
+  const historial = (searchParams.get("antes") ?? "")
+    .split(",")
+    .filter(Boolean);
+  const paginaActual = historial.length + 1;
+  const totalPaginas = Math.max(1, Math.ceil((pagina.total ?? 0) / 20));
+  const cursorActual = searchParams.get("cursor");
+  const desde = convenios.length ? (paginaActual - 1) * 20 + 1 : 0;
+  const hasta = desde ? desde + convenios.length - 1 : 0;
+
+  const urlDe = (cambios: Record<string, string | null>, paginar = false) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (!paginar) {
+      params.delete("cursor");
+      params.delete("antes");
+    }
+    for (const [clave, valor] of Object.entries(cambios)) {
+      if (valor === null || valor === "") params.delete(clave);
+      else params.set(clave, valor);
+    }
+    const query = params.toString();
+    return query ? `/admin/convenios?${query}` : "/admin/convenios";
+  };
+  const hrefSiguiente = pagina.cursor
+    ? urlDe(
+        {
+          cursor: pagina.cursor,
+          antes: [...historial, cursorActual ?? "-"].join(","),
+        },
+        true,
+      )
+    : null;
+  const hrefAnterior = historial.length
+    ? urlDe(
+        {
+          cursor:
+            historial[historial.length - 1] === "-"
+              ? null
+              : historial[historial.length - 1]!,
+          antes: historial.slice(0, -1).join(",") || null,
+        },
+        true,
+      )
+    : null;
 
   return (
     <section className="page-shell">
@@ -51,8 +140,8 @@ export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
         titulo="Convenios"
         descripcion={
           <>
-            {convenios.length} convenio{convenios.length === 1 ? "" : "s"} en
-            esta página.
+            {pagina.total ?? 0} convenio{pagina.total === 1 ? "" : "s"} en
+            total.
           </>
         }
         icono={<Handshake className="size-5" />}
@@ -63,6 +152,51 @@ export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
           </Button>
         }
       />
+
+      <div className="control-bar flex flex-wrap items-center gap-2">
+        <select
+          value={empresaId ?? ""}
+          onChange={(event) =>
+            router.replace(urlDe({ empresa: event.target.value }))
+          }
+          aria-label="Filtrar por empresa"
+          className="border-input bg-background h-11 min-w-48 rounded-xl border px-3 text-sm"
+        >
+          <option value="">Todas las empresas</option>
+          {empresas.map((empresa) => (
+            <option key={empresa.id} value={empresa.id}>
+              {empresa.nombreComercial}
+            </option>
+          ))}
+        </select>
+        <select
+          value={vigencia ?? ""}
+          onChange={(event) =>
+            router.replace(urlDe({ vigencia: event.target.value }))
+          }
+          aria-label="Filtrar por vigencia"
+          className="border-input bg-background h-11 rounded-xl border px-3 text-sm"
+        >
+          <option value="">Todas las vigencias</option>
+          <option value="vigente">Vigentes hoy</option>
+          <option value="vencido">Vencidos</option>
+          <option value="sin_vencimiento">Sin vencimiento</option>
+        </select>
+        <select
+          value={estado ?? ""}
+          onChange={(event) =>
+            router.replace(urlDe({ estado: event.target.value }))
+          }
+          aria-label="Filtrar por estado"
+          className="border-input bg-background h-11 rounded-xl border px-3 text-sm"
+        >
+          <option value="">Todos los estados</option>
+          <option value="BORRADOR">Borrador</option>
+          <option value="VIGENTE">Vigente</option>
+          <option value="SUSPENDIDO">Suspendido</option>
+          <option value="TERMINADO">Terminado</option>
+        </select>
+      </div>
 
       {convenios.length === 0 ? (
         <EstadoVacio
@@ -75,15 +209,18 @@ export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
           {convenios.map((c) => (
             <Card
               key={c.id}
-              className="bg-card/90 rounded-[1.4rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+              className="bg-card/90 h-full rounded-[1.4rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
             >
-              <CardContent className="flex flex-col gap-4 p-5 sm:p-6">
+              <CardContent className="flex h-full flex-col gap-4 p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h2 className="flex items-center gap-2 font-bold">
                       <span className="truncate">{c.empresaA.nombre}</span>
-                      <span className="bg-primary/10 text-primary grid size-7 shrink-0 place-items-center rounded-full">
-                        <ArrowRight className="size-3.5" />
+                      <span
+                        className="bg-primary/10 text-primary grid size-7 shrink-0 place-items-center rounded-full"
+                        aria-label="Convenio bidireccional"
+                      >
+                        <ArrowLeftRight className="size-3.5" />
                       </span>
                       <span className="truncate">{c.empresaB.nombre}</span>
                     </h2>
@@ -99,23 +236,13 @@ export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
                     <span className="min-w-0 truncate">
                       {c.empresaA.nombre} → empleados de {c.empresaB.nombre}
                     </span>
-                    <strong className="text-primary flex shrink-0 items-center gap-1">
-                      <BadgePercent className="size-3.5" />
-                      {c.terminoAotorga
-                        ? `${bpsAPorcentaje(c.terminoAotorga.bps)}%`
-                        : "—"}
-                    </strong>
+                    <Termino termino={c.terminoAotorga} />
                   </div>
                   <div className="bg-muted/65 flex items-center justify-between gap-3 rounded-xl px-3.5 py-3">
                     <span className="min-w-0 truncate">
                       {c.empresaB.nombre} → empleados de {c.empresaA.nombre}
                     </span>
-                    <strong className="text-primary flex shrink-0 items-center gap-1">
-                      <BadgePercent className="size-3.5" />
-                      {c.terminoBotorga
-                        ? `${bpsAPorcentaje(c.terminoBotorga.bps)}%`
-                        : "—"}
-                    </strong>
+                    <Termino termino={c.terminoBotorga} />
                   </div>
                 </div>
 
@@ -124,7 +251,7 @@ export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
                   últimos 30 días
                 </p>
 
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-auto flex flex-wrap gap-2 pt-1">
                   <Button
                     variant="outline"
                     size="sm"
@@ -145,19 +272,59 @@ export function ConveniosClient({ pagina }: { pagina: Pagina<FilaConvenio> }) {
         </div>
       )}
 
-      {pagina.cursor ? (
-        <div className="flex justify-center">
-          <Button
-            variant="secondary"
-            onClick={() => {
-              const params = new URLSearchParams(searchParams.toString());
-              params.set("cursor", pagina.cursor!);
-              router.push(`/admin/convenios?${params.toString()}`);
-            }}
-          >
-            Cargar más
-          </Button>
-        </div>
+      {convenios.length > 0 ? (
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs">
+          <span className="text-muted-foreground">
+            Mostrando <strong className="text-foreground">{desde}</strong> a{" "}
+            <strong className="text-foreground">{hasta}</strong> de{" "}
+            <strong className="text-foreground">{pagina.total ?? 0}</strong>{" "}
+            convenios
+          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-muted-foreground hidden sm:inline">
+              Página <strong className="text-foreground">{paginaActual}</strong>{" "}
+              de <strong className="text-foreground">{totalPaginas}</strong>
+            </span>
+            <div className="flex gap-1">
+              {hrefAnterior ? (
+                <Link
+                  href={hrefAnterior}
+                  aria-label="Página anterior"
+                  className="border-input hover:bg-muted grid size-8 place-items-center rounded-md border"
+                >
+                  <ChevronLeft className="size-4" />
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  disabled
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+              )}
+              {hrefSiguiente ? (
+                <Link
+                  href={hrefSiguiente}
+                  aria-label="Página siguiente"
+                  className="border-input hover:bg-muted grid size-8 place-items-center rounded-md border"
+                >
+                  <ChevronRight className="size-4" />
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  disabled
+                  aria-label="Página siguiente"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </footer>
       ) : null}
 
       {dialogo ? (

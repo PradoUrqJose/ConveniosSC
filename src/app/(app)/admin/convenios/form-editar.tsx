@@ -24,6 +24,12 @@ import { actualizarConvenio } from "@/modules/convenios/actions";
 import type { FilaConvenio } from "@/modules/convenios/query";
 
 const ESTADOS = ["BORRADOR", "VIGENTE", "SUSPENDIDO", "TERMINADO"] as const;
+const ETIQUETAS_ESTADO: Record<(typeof ESTADOS)[number], string> = {
+  BORRADOR: "Borrador",
+  VIGENTE: "Vigente",
+  SUSPENDIDO: "Suspendido",
+  TERMINADO: "Terminado",
+};
 
 type Estado = Resultado<Record<string, never>>;
 
@@ -98,7 +104,7 @@ export function FormEditarConvenio({
           >
             {ESTADOS.map((e) => (
               <option key={e} value={e}>
-                {e}
+                {ETIQUETAS_ESTADO[e]}
               </option>
             ))}
           </select>
