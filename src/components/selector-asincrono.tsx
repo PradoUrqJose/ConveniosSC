@@ -15,6 +15,7 @@ export function SelectorAsincrono({
   onChange,
   disabled,
   placeholder,
+  className,
 }: {
   id: string;
   name: string;
@@ -24,6 +25,7 @@ export function SelectorAsincrono({
   onChange: (id: string) => void;
   disabled?: boolean;
   placeholder: string;
+  className?: string;
 }) {
   const [consulta, setConsulta] = useState(etiquetaInicial);
   const [opciones, setOpciones] = useState<Opcion[]>([]);
@@ -126,6 +128,7 @@ export function SelectorAsincrono({
           }
         }}
         placeholder={placeholder}
+        className={className}
         disabled={disabled}
         autoComplete="off"
         role="combobox"

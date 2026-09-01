@@ -13,6 +13,7 @@ import {
   type DatosActualizarSede,
   type DatosCrearSede,
 } from "./acciones";
+import { buscarEmpresasParaSedes } from "./query";
 
 const zCrearSede = z.object({
   empresaId: zUuid,
@@ -26,6 +27,16 @@ const zActualizarSede = z.object({
   direccion: z.string().trim().max(200).optional(),
   activo: zCheckbox,
 });
+
+const zBusqueda = z.string().trim().max(100).catch("");
+
+/** Búsqueda diferida para el filtro de empresa de /sedes. */
+export async function buscarEmpresasFiltroSedes(q: string) {
+  const ctx = await requireSession();
+  return (await buscarEmpresasParaSedes(ctx, zBusqueda.parse(q))).map(
+    (empresa) => ({ id: empresa.id, etiqueta: empresa.nombreComercial }),
+  );
+}
 
 async function capturarErrores<T>(
   fn: () => Promise<Resultado<T>>,
