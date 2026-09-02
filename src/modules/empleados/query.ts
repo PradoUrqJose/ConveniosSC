@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQL } from "drizzle-orm";
 
 import { after } from "next/server";
 
@@ -13,6 +13,10 @@ import { zDocumentoIdentidad, type TipoDocumento } from "@/lib/zod";
 
 export type EstadoEmpleado =
   "PENDIENTE_VERIFICACION" | "ACTIVO" | "RECHAZADO" | "INACTIVO";
+
+export type OrdenEmpleados =
+  "nombre_asc" | "nombre_desc" | "monto_desc" | "reciente";
+export type ActividadEmpleados = "con_compras" | "sin_compras";
 
 export type FilaEmpleado = {
   id: string;
@@ -42,7 +46,9 @@ export type ResumenEmpleados = {
   montoUltimos30d: number;
 };
 
-const POR_PAGINA = 20;
+export const POR_PAGINA_EMPLEADOS = 20;
+/** Tope defensivo de filas por exportación (03 §6, issue #41). */
+const LIMITE_EXPORTACION = 20_000;
 
 export type EmpleadoEncontrado = {
   id: string;
@@ -352,9 +358,188 @@ export async function existeConvenioVigenteCon(
   return filas.length > 0;
 }
 
+function mapearFilaEmpleado(f: Record<string, unknown>): FilaEmpleado {
+  return {
+    id: String(f.id),
+    tipoDocumento: String(f.tipo_documento) as TipoDocumento,
+    numeroDocumento: String(f.numero_documento),
+    nombres: String(f.nombres),
+    apellidos: String(f.apellidos),
+    telefono: (f.telefono as string | null) ?? null,
+    estado: String(f.estado) as EstadoEmpleado,
+    empresaId: String(f.empresa_id),
+    empresaNombre: String(f.empresa_nombre),
+    creadoPorNombre:
+      f.creado_por_nombre === null ? null : String(f.creado_por_nombre),
+    createdAt: String(f.created_at),
+    comprasUltimos30d: Number(f.compras_30d ?? 0),
+    montoUltimos30d: Number(f.monto_30d ?? 0),
+  };
+}
+
+/** Fragmento `ORDER BY` para cada valor de `OrdenEmpleados`. */
+function fragmentoOrdenEmpleados(orden: OrdenEmpleados): SQL {
+  switch (orden) {
+    case "nombre_desc":
+      return sql`em.apellidos DESC, em.nombres DESC, em.id DESC`;
+    case "monto_desc":
+      return sql`COALESCE(metricas.monto_30d, 0) DESC, em.id DESC`;
+    case "reciente":
+      return sql`em.created_at DESC, em.id DESC`;
+    case "nombre_asc":
+    default:
+      return sql`em.apellidos ASC, em.nombres ASC, em.id ASC`;
+  }
+}
+
+type CursorEmpleados =
+  | { apellidos: string; nombres: string; id: string }
+  | { monto: string; id: string }
+  | { creadoEn: string; id: string };
+
 /**
- * `listarEmpleados` (03 §6): listado con filtros y paginación por cursor.
- * El ADMIN_EMPRESA ve solo los de su empresa.
+ * Condición de keyset pagination para el siguiente registro tras `cursor`,
+ * coherente con `fragmentoOrdenEmpleados`. `metricas` ya está unida en
+ * `listarEmpleados`, así que `monto_desc` puede referenciarla directamente.
+ */
+function condicionCursorEmpleados(
+  orden: OrdenEmpleados,
+  cursor: CursorEmpleados | null,
+): SQL | undefined {
+  if (!cursor) return undefined;
+  switch (orden) {
+    case "nombre_desc": {
+      const c = cursor as { apellidos: string; nombres: string; id: string };
+      return sql`(em.apellidos, em.nombres, em.id) < (${c.apellidos}, ${c.nombres}, ${c.id})`;
+    }
+    case "monto_desc": {
+      const c = cursor as { monto: string; id: string };
+      return sql`(COALESCE(metricas.monto_30d, 0), em.id) < (${Number(c.monto)}, ${c.id})`;
+    }
+    case "reciente": {
+      const c = cursor as { creadoEn: string; id: string };
+      return sql`(em.created_at, em.id) < (${c.creadoEn}, ${c.id})`;
+    }
+    case "nombre_asc":
+    default: {
+      const c = cursor as { apellidos: string; nombres: string; id: string };
+      return sql`(em.apellidos, em.nombres, em.id) > (${c.apellidos}, ${c.nombres}, ${c.id})`;
+    }
+  }
+}
+
+function decodificarCursor(
+  cursor: string | undefined,
+  orden: OrdenEmpleados,
+): CursorEmpleados | null {
+  if (!cursor) return null;
+  try {
+    const raw = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
+    if (typeof raw.id !== "string" || !raw.id) return null;
+    if (orden === "monto_desc") {
+      return typeof raw.monto === "string" && Number.isFinite(Number(raw.monto))
+        ? { monto: raw.monto, id: raw.id }
+        : null;
+    }
+    if (orden === "reciente") {
+      return typeof raw.creadoEn === "string" && raw.creadoEn
+        ? { creadoEn: raw.creadoEn, id: raw.id }
+        : null;
+    }
+    return typeof raw.apellidos === "string" &&
+      typeof raw.nombres === "string" &&
+      raw.apellidos &&
+      raw.nombres
+      ? { apellidos: raw.apellidos, nombres: raw.nombres, id: raw.id }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function codificarCursor(
+  fila: Record<string, unknown>,
+  orden: OrdenEmpleados,
+): string {
+  const base =
+    orden === "monto_desc"
+      ? { monto: String(fila.monto_30d ?? 0) }
+      : orden === "reciente"
+        ? { creadoEn: String(fila.created_at) }
+        : { apellidos: String(fila.apellidos), nombres: String(fila.nombres) };
+  return Buffer.from(
+    JSON.stringify({ ...base, id: String(fila.id) }),
+    "utf8",
+  ).toString("base64url");
+}
+
+/**
+ * Condiciones de filtro comunes a `listarEmpleados` y `exportarEmpleados`:
+ * alcance por empresa, estado, texto y actividad de compra. No incluyen el
+ * cursor de paginación, que cada consumidor añade por separado.
+ */
+function condicionesFiltroEmpleados(
+  ctx: SessionContext,
+  entrada: {
+    empresaId?: string;
+    estado?: EstadoEmpleado;
+    q?: string;
+    actividad?: ActividadEmpleados;
+  },
+  ventana30d: string,
+): SQL[] {
+  const empresaFiltro =
+    ctx.rol === "ADMIN_EMPRESA" ? ctx.empresaId : (entrada.empresaId ?? null);
+  const existeCompra30d = sql`EXISTS (
+    SELECT 1 FROM ventas v
+    WHERE v.empleado_comprador_id = em.id
+      AND v.estado = 'REGISTRADA'
+      AND v.fecha_venta >= ${ventana30d}
+  )`;
+  return [
+    empresaFiltro ? sql`em.empresa_id = ${empresaFiltro}` : undefined,
+    entrada.estado ? sql`em.estado = ${entrada.estado}` : undefined,
+    entrada.q
+      ? sql`(em.dni = ${entrada.q} OR (em.nombres || ' ' || em.apellidos) ILIKE ${`%${entrada.q}%`})`
+      : undefined,
+    entrada.actividad === "con_compras"
+      ? existeCompra30d
+      : entrada.actividad === "sin_compras"
+        ? sql`NOT ${existeCompra30d}`
+        : undefined,
+  ].filter((c) => c !== undefined) as SQL[];
+}
+
+const CAMPOS_EMPLEADO = sql`
+  em.id, em.tipo_documento, em.dni AS numero_documento, em.nombres, em.apellidos, em.telefono, em.estado,
+  em.empresa_id, em.created_at,
+  emp.nombre_comercial AS empresa_nombre,
+  (u.nombres || ' ' || u.apellidos) AS creado_por_nombre,
+  COALESCE(metricas.compras_30d, 0)::int AS compras_30d,
+  COALESCE(metricas.monto_30d, 0)::bigint AS monto_30d
+`;
+
+function joinsEmpleado(ventana30d: string): SQL {
+  return sql`
+    FROM empleados em
+    JOIN empresas emp ON emp.id = em.empresa_id
+    LEFT JOIN usuarios u ON u.id = em.creado_por_usuario_id
+    LEFT JOIN (
+      SELECT v.empleado_comprador_id,
+        count(*)::int AS compras_30d,
+        COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS monto_30d
+      FROM ventas v
+      WHERE v.estado = 'REGISTRADA'
+        AND v.fecha_venta >= ${ventana30d}
+      GROUP BY v.empleado_comprador_id
+    ) metricas ON metricas.empleado_comprador_id = em.id
+  `;
+}
+
+/**
+ * `listarEmpleados` (03 §6): listado con filtros, orden y paginación por
+ * cursor sobre todo el padrón filtrado (no solo la página visible — issue
+ * #41). El ADMIN_EMPRESA ve solo los de su empresa.
  */
 export async function listarEmpleados(
   ctx: SessionContext,
@@ -362,94 +547,115 @@ export async function listarEmpleados(
     empresaId?: string;
     estado?: EstadoEmpleado;
     q?: string;
+    orden?: OrdenEmpleados;
+    actividad?: ActividadEmpleados;
     cursor?: string;
   },
 ): Promise<Pagina<FilaEmpleado>> {
   requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
   const hoy = hoyLima();
+  const ventana30d = sumarDias(hoy, -29);
+  const orden = entrada.orden ?? "nombre_asc";
+  const cursorDatos = decodificarCursor(entrada.cursor, orden);
 
-  const { empresaId, estado, q, cursor } = entrada;
-  const empresaFiltro =
-    ctx.rol === "ADMIN_EMPRESA" ? ctx.empresaId : (empresaId ?? null);
-  const cursorDatos = decodificarCursor(cursor);
+  const condicionesFiltro = condicionesFiltroEmpleados(
+    ctx,
+    entrada,
+    ventana30d,
+  );
+  const whereFiltros = condicionesFiltro.length
+    ? sql`WHERE ${sql.join(condicionesFiltro, sql` AND `)}`
+    : sql``;
 
-  const condicion = [
-    empresaFiltro ? sql`em.empresa_id = ${empresaFiltro}` : undefined,
-    estado ? sql`em.estado = ${estado}` : undefined,
-    q
-      ? sql`(em.dni = ${q} OR (em.nombres || ' ' || em.apellidos) ILIKE ${`%${q}%`})`
-      : undefined,
-    cursorDatos
-      ? sql`(em.apellidos, em.nombres, em.id) > (${cursorDatos.apellidos}, ${cursorDatos.nombres}, ${cursorDatos.id})`
-      : undefined,
-  ].filter((c) => c !== undefined) as ReturnType<typeof sql>[];
-
-  const where = condicion.length
-    ? sql`WHERE ${sql.join(condicion, sql` AND `)}`
+  const condicionCursor = condicionCursorEmpleados(orden, cursorDatos);
+  const condicionesPagina = condicionCursor
+    ? [...condicionesFiltro, condicionCursor]
+    : condicionesFiltro;
+  const wherePagina = condicionesPagina.length
+    ? sql`WHERE ${sql.join(condicionesPagina, sql` AND `)}`
     : sql``;
 
   const filasPromise = db.execute(sql`
-      SELECT em.id, em.tipo_documento, em.dni AS numero_documento, em.nombres, em.apellidos, em.telefono, em.estado,
-        em.empresa_id, em.created_at,
-        emp.nombre_comercial AS empresa_nombre,
-        (u.nombres || ' ' || u.apellidos) AS creado_por_nombre,
-        COALESCE(metricas.compras_30d, 0)::int AS compras_30d,
-        COALESCE(metricas.monto_30d, 0)::bigint AS monto_30d
-      FROM empleados em
-      JOIN empresas emp ON emp.id = em.empresa_id
-      LEFT JOIN usuarios u ON u.id = em.creado_por_usuario_id
-      LEFT JOIN (
-        SELECT v.empleado_comprador_id,
-          count(*)::int AS compras_30d,
-          COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS monto_30d
-        FROM ventas v
-        WHERE v.estado = 'REGISTRADA'
-          AND v.fecha_venta >= ${sumarDias(hoy, -29)}
-        GROUP BY v.empleado_comprador_id
-      ) metricas ON metricas.empleado_comprador_id = em.id
-      ${where}
-      ORDER BY em.apellidos ASC, em.nombres ASC, em.id ASC
-      LIMIT ${POR_PAGINA + 1}
+      SELECT ${CAMPOS_EMPLEADO}
+      ${joinsEmpleado(ventana30d)}
+      ${wherePagina}
+      ORDER BY ${fragmentoOrdenEmpleados(orden)}
+      LIMIT ${POR_PAGINA_EMPLEADOS + 1}
     `);
-  const conteoPromise = cursor
-    ? null
-    : db.execute(sql`SELECT count(*)::int AS n FROM empleados em ${where}`);
+  // Sin la optimización de reutilizar el conteo entre páginas que tiene
+  // Ventas (navegación cliente con caché): aquí cada página es una
+  // navegación de servidor completa, así que se recalcula siempre — es la
+  // única forma de que "Mostrando X a Y de N" sea correcto en cualquier
+  // página, no solo en la primera.
+  const conteoPromise = db.execute(
+    sql`SELECT count(*)::int AS n FROM empleados em ${whereFiltros}`,
+  );
   const [filasResultado, conteoResultado] = await Promise.all([
     filasPromise,
     conteoPromise,
   ]);
   const filas = obtenerFilas(filasResultado);
 
-  const haySiguiente = filas.length > POR_PAGINA;
-  const pagina = haySiguiente ? filas.slice(0, POR_PAGINA) : filas;
-
-  let total: number | undefined;
-  if (conteoResultado) {
-    const conteo = obtenerFilas(conteoResultado)[0];
-    total = Number(conteo?.n ?? 0);
-  }
-
+  const haySiguiente = filas.length > POR_PAGINA_EMPLEADOS;
+  const pagina = haySiguiente ? filas.slice(0, POR_PAGINA_EMPLEADOS) : filas;
+  const total = Number(obtenerFilas(conteoResultado)[0]?.n ?? 0);
   const ultimo = pagina[pagina.length - 1];
+
   return {
-    items: pagina.map((f) => ({
-      id: String(f.id),
-      tipoDocumento: String(f.tipo_documento) as TipoDocumento,
-      numeroDocumento: String(f.numero_documento),
-      nombres: String(f.nombres),
-      apellidos: String(f.apellidos),
-      telefono: (f.telefono as string | null) ?? null,
-      estado: String(f.estado) as EstadoEmpleado,
-      empresaId: String(f.empresa_id),
-      empresaNombre: String(f.empresa_nombre),
-      creadoPorNombre:
-        f.creado_por_nombre === null ? null : String(f.creado_por_nombre),
-      createdAt: String(f.created_at),
-      comprasUltimos30d: Number(f.compras_30d ?? 0),
-      montoUltimos30d: Number(f.monto_30d ?? 0),
-    })),
-    cursor: haySiguiente && ultimo ? codificarCursor(ultimo) : null,
+    items: pagina.map(mapearFilaEmpleado),
+    cursor: haySiguiente && ultimo ? codificarCursor(ultimo, orden) : null,
     total,
   };
+}
+
+/**
+ * `exportarEmpleados` (issue #41): la misma consulta de `listarEmpleados`
+ * pero sin paginación — el CSV debe cubrir el universo filtrado completo, no
+ * solo la página visible. `LIMITE_EXPORTACION` es un tope defensivo; si se
+ * alcanza, el resultado se marca `truncado` para que la ruta lo declare.
+ */
+export async function exportarEmpleados(
+  ctx: SessionContext,
+  entrada: {
+    empresaId?: string;
+    estado?: EstadoEmpleado;
+    q?: string;
+    orden?: OrdenEmpleados;
+    actividad?: ActividadEmpleados;
+  },
+): Promise<{ filas: FilaEmpleado[]; total: number; truncado: boolean }> {
+  requireRol(ctx, ["SUPERADMIN", "ADMIN_EMPRESA"]);
+  const hoy = hoyLima();
+  const ventana30d = sumarDias(hoy, -29);
+  const orden = entrada.orden ?? "nombre_asc";
+
+  const condicionesFiltro = condicionesFiltroEmpleados(
+    ctx,
+    entrada,
+    ventana30d,
+  );
+  const whereFiltros = condicionesFiltro.length
+    ? sql`WHERE ${sql.join(condicionesFiltro, sql` AND `)}`
+    : sql``;
+
+  const [filasResultado, conteoResultado] = await Promise.all([
+    db.execute(sql`
+      SELECT ${CAMPOS_EMPLEADO}
+      ${joinsEmpleado(ventana30d)}
+      ${whereFiltros}
+      ORDER BY ${fragmentoOrdenEmpleados(orden)}
+      LIMIT ${LIMITE_EXPORTACION + 1}
+    `),
+    db.execute(
+      sql`SELECT count(*)::int AS n FROM empleados em ${whereFiltros}`,
+    ),
+  ]);
+  const filas = obtenerFilas(filasResultado);
+  const truncado = filas.length > LIMITE_EXPORTACION;
+  const pagina = truncado ? filas.slice(0, LIMITE_EXPORTACION) : filas;
+  const total = Number(obtenerFilas(conteoResultado)[0]?.n ?? 0);
+
+  return { filas: pagina.map(mapearFilaEmpleado), total, truncado };
 }
 
 /**
@@ -484,6 +690,12 @@ export async function resumirEmpleados(
     ctx.rol === "ADMIN_EMPRESA"
       ? sql`WHERE em.empresa_id = ${ctx.empresaId}`
       : sql``;
+  // Antes eran dos subconsultas correlacionadas idénticas salvo el agregado
+  // (count vs sum), cada una escaneando `ventas` completo: un único
+  // `CROSS JOIN LATERAL` calcula ambos agregados en un solo recorrido.
+  // `MAX(...)` es solo la forma de proyectar una columna no agrupada de una
+  // fuente ya reducida a una fila junto a los `count(*) FILTER` de arriba,
+  // sin repetir el `GROUP BY` de todo el SELECT.
   const fila = obtenerFilas(
     await db.execute(sql`
       SELECT
@@ -492,23 +704,18 @@ export async function resumirEmpleados(
         count(*) FILTER (WHERE em.estado = 'PENDIENTE_VERIFICACION')::int AS pendientes,
         count(*) FILTER (WHERE em.estado = 'INACTIVO')::int AS inactivos,
         count(*) FILTER (WHERE em.estado = 'RECHAZADO')::int AS rechazados,
-        COALESCE((
-          SELECT count(*)::int
-          FROM ventas v
-          JOIN empleados comprador ON comprador.id = v.empleado_comprador_id
-          WHERE v.estado = 'REGISTRADA'
-            AND v.fecha_venta >= ${sumarDias(hoy, -29)}
-            ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND comprador.empresa_id = ${ctx.empresaId}` : sql``}
-        ), 0)::int AS ventas_30d,
-        COALESCE((
-          SELECT sum(v.monto_bruto_centimos)::bigint
-          FROM ventas v
-          JOIN empleados comprador ON comprador.id = v.empleado_comprador_id
-          WHERE v.estado = 'REGISTRADA'
-            AND v.fecha_venta >= ${sumarDias(hoy, -29)}
-            ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND comprador.empresa_id = ${ctx.empresaId}` : sql``}
-        ), 0)::bigint AS monto_30d
+        MAX(agregados.ventas_30d)::int AS ventas_30d,
+        MAX(agregados.monto_30d)::bigint AS monto_30d
       FROM empleados em
+      CROSS JOIN LATERAL (
+        SELECT count(*)::int AS ventas_30d,
+          COALESCE(sum(v.monto_bruto_centimos), 0)::bigint AS monto_30d
+        FROM ventas v
+        JOIN empleados comprador ON comprador.id = v.empleado_comprador_id
+        WHERE v.estado = 'REGISTRADA'
+          AND v.fecha_venta >= ${sumarDias(hoy, -29)}
+          ${ctx.rol === "ADMIN_EMPRESA" ? sql`AND comprador.empresa_id = ${ctx.empresaId}` : sql``}
+      ) agregados
       ${condicion}
     `),
   )[0];
@@ -561,39 +768,4 @@ export async function listarEmpresasParaEmpleado(
     id: String(f.id),
     nombreComercial: String(f.nombre_comercial),
   }));
-}
-
-function decodificarCursor(
-  cursor: string | undefined,
-): { apellidos: string; nombres: string; id: string } | null {
-  if (!cursor) {
-    return null;
-  }
-  try {
-    const raw = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-    if (
-      typeof raw.apellidos === "string" &&
-      typeof raw.nombres === "string" &&
-      typeof raw.id === "string" &&
-      raw.apellidos &&
-      raw.nombres &&
-      raw.id
-    ) {
-      return { apellidos: raw.apellidos, nombres: raw.nombres, id: raw.id };
-    }
-  } catch {
-    // cursor inválido: se ignora
-  }
-  return null;
-}
-
-function codificarCursor(fila: Record<string, unknown>): string {
-  return Buffer.from(
-    JSON.stringify({
-      apellidos: String(fila.apellidos),
-      nombres: String(fila.nombres),
-      id: String(fila.id),
-    }),
-    "utf8",
-  ).toString("base64url");
 }

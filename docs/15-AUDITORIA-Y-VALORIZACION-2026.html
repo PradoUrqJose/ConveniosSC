@@ -1,0 +1,1192 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Convenios — Auditoría y valorización 2026</title>
+    <style>
+      :root {
+        --bg: #f4f1ea;
+        --surface: #fffdf8;
+        --surface-2: #ebe7de;
+        --ink: #18201d;
+        --muted: #5f6863;
+        --line: #d8d3c8;
+        --brand: #0d6b57;
+        --brand-2: #d6ece5;
+        --navy: #16324f;
+        --amber: #9a5b00;
+        --red: #a83232;
+        --green: #26734d;
+        --shadow: 0 18px 44px rgb(38 43 40 / 9%);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #111715;
+          --surface: #18201d;
+          --surface-2: #222c28;
+          --ink: #edf2ef;
+          --muted: #b5c0bb;
+          --line: #34413b;
+          --brand: #72d1b6;
+          --brand-2: #183f35;
+          --navy: #9fc7ef;
+          --amber: #f2b85d;
+          --red: #ff9b9b;
+          --green: #84d6a8;
+          --shadow: 0 18px 44px rgb(0 0 0 / 25%);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          radial-gradient(circle at 80% 0%, rgb(13 107 87 / 12%), transparent 34rem),
+          var(--bg);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      a {
+        color: var(--brand);
+        text-underline-offset: 0.18em;
+      }
+
+      .wrap {
+        width: min(1480px, calc(100% - 32px));
+        margin-inline: auto;
+      }
+
+      header {
+        padding: 72px 0 42px;
+      }
+
+      .eyebrow,
+      .tag,
+      .priority,
+      .effort {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 750;
+        letter-spacing: 0.04em;
+        line-height: 1;
+      }
+
+      .eyebrow {
+        padding: 9px 12px;
+        background: var(--brand-2);
+        color: var(--brand);
+        text-transform: uppercase;
+      }
+
+      h1 {
+        max-width: 950px;
+        margin: 18px 0 12px;
+        font-size: clamp(2.4rem, 6vw, 5.4rem);
+        font-weight: 790;
+        letter-spacing: -0.055em;
+        line-height: 0.98;
+      }
+
+      h2 {
+        margin: 0 0 8px;
+        font-size: clamp(1.55rem, 3vw, 2.2rem);
+        letter-spacing: -0.035em;
+        line-height: 1.1;
+      }
+
+      h3 {
+        margin: 0 0 8px;
+        font-size: 1.05rem;
+      }
+
+      .lead {
+        max-width: 900px;
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.12rem;
+      }
+
+      .meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 18px;
+        margin-top: 26px;
+        color: var(--muted);
+        font-size: 0.88rem;
+      }
+
+      nav {
+        position: sticky;
+        z-index: 20;
+        top: 0;
+        border-block: 1px solid var(--line);
+        background: color-mix(in srgb, var(--bg) 90%, transparent);
+        backdrop-filter: blur(14px);
+      }
+
+      nav .wrap {
+        display: flex;
+        gap: 22px;
+        overflow-x: auto;
+        padding-block: 13px;
+        scrollbar-width: none;
+      }
+
+      nav a {
+        flex: 0 0 auto;
+        color: var(--muted);
+        font-size: 0.86rem;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      main {
+        padding: 46px 0 84px;
+      }
+
+      section {
+        scroll-margin-top: 70px;
+        margin-bottom: 58px;
+      }
+
+      .section-head {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 24px;
+        margin-bottom: 20px;
+      }
+
+      .section-head p {
+        max-width: 750px;
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        grid-column: span 3;
+        padding: 22px;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .card.wide {
+        grid-column: span 6;
+      }
+
+      .card strong.value {
+        display: block;
+        margin: 9px 0 4px;
+        color: var(--brand);
+        font-size: clamp(1.7rem, 3vw, 2.5rem);
+        letter-spacing: -0.045em;
+        line-height: 1;
+      }
+
+      .card p,
+      .note p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .kicker {
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .note {
+        padding: 20px 22px;
+        border-left: 5px solid var(--brand);
+        border-radius: 4px 16px 16px 4px;
+        background: var(--brand-2);
+      }
+
+      .note strong {
+        display: block;
+        margin-bottom: 4px;
+      }
+
+      .table-shell {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+
+      .table-scroll {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.86rem;
+      }
+
+      th,
+      td {
+        padding: 14px 13px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        vertical-align: top;
+      }
+
+      th {
+        position: sticky;
+        z-index: 1;
+        top: 0;
+        background: var(--surface-2);
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: 0;
+      }
+
+      tbody tr:hover td {
+        background: color-mix(in srgb, var(--brand-2) 38%, transparent);
+      }
+
+      td strong {
+        display: block;
+        margin-bottom: 3px;
+      }
+
+      td small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.76rem;
+        line-height: 1.45;
+      }
+
+      .tag,
+      .priority,
+      .effort {
+        padding: 6px 8px;
+        white-space: nowrap;
+      }
+
+      .tag {
+        background: var(--surface-2);
+        color: var(--navy);
+      }
+
+      .p0 {
+        background: color-mix(in srgb, var(--red) 16%, transparent);
+        color: var(--red);
+      }
+
+      .p1 {
+        background: color-mix(in srgb, var(--amber) 18%, transparent);
+        color: var(--amber);
+      }
+
+      .p2 {
+        background: color-mix(in srgb, var(--green) 16%, transparent);
+        color: var(--green);
+      }
+
+      .effort {
+        background: var(--surface-2);
+        color: var(--muted);
+      }
+
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .filters input,
+      .filters select {
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        outline: none;
+        background: var(--bg);
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.85rem;
+      }
+
+      .filters input {
+        min-width: min(360px, 100%);
+        flex: 1;
+        padding: 8px 12px;
+      }
+
+      .filters select {
+        padding: 8px 32px 8px 10px;
+      }
+
+      .score-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .score {
+        display: grid;
+        grid-template-columns: 170px 1fr 42px;
+        align-items: center;
+        gap: 12px;
+        font-size: 0.84rem;
+      }
+
+      .bar {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 99px;
+        background: var(--surface-2);
+      }
+
+      .bar i {
+        display: block;
+        width: var(--score);
+        height: 100%;
+        border-radius: inherit;
+        background: var(--brand);
+      }
+
+      .money {
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .price-row.recommended td {
+        background: color-mix(in srgb, var(--brand-2) 42%, transparent);
+      }
+
+      .formula {
+        padding: 22px;
+        border-radius: 16px;
+        background: var(--navy);
+        color: var(--bg);
+        font-size: 1.02rem;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .formula {
+          background: #233c55;
+          color: #f4f1ea;
+        }
+      }
+
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+      }
+
+      .phase {
+        padding: 18px;
+        border-top: 4px solid var(--brand);
+        border-radius: 0 0 14px 14px;
+        background: var(--surface);
+      }
+
+      .phase span {
+        color: var(--brand);
+        font-size: 0.78rem;
+        font-weight: 800;
+      }
+
+      .phase p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+
+      .sources {
+        columns: 2;
+        column-gap: 36px;
+        padding-left: 1.2rem;
+      }
+
+      .sources li {
+        break-inside: avoid;
+        margin-bottom: 12px;
+      }
+
+      footer {
+        padding: 28px 0 54px;
+        border-top: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+
+      @media (max-width: 980px) {
+        .card,
+        .card.wide {
+          grid-column: span 6;
+        }
+
+        .timeline {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .wrap {
+          width: min(100% - 20px, 1480px);
+        }
+
+        header {
+          padding-top: 44px;
+        }
+
+        .card,
+        .card.wide {
+          grid-column: 1 / -1;
+        }
+
+        .section-head {
+          align-items: start;
+          flex-direction: column;
+        }
+
+        .timeline,
+        .sources {
+          grid-template-columns: 1fr;
+          columns: 1;
+        }
+
+        .score {
+          grid-template-columns: 125px 1fr 34px;
+        }
+      }
+
+      @media print {
+        :root {
+          color-scheme: light;
+          --bg: #fff;
+          --surface: #fff;
+          --surface-2: #f1f1f1;
+          --ink: #111;
+          --muted: #444;
+          --line: #bbb;
+          --brand: #075f4d;
+          --brand-2: #e8f2ee;
+          --navy: #16324f;
+        }
+
+        nav,
+        .filters {
+          display: none;
+        }
+
+        header {
+          padding-top: 20px;
+        }
+
+        .wrap {
+          width: 100%;
+        }
+
+        .card,
+        .table-shell {
+          box-shadow: none;
+        }
+
+        section {
+          break-inside: avoid;
+        }
+
+        .table-shell {
+          overflow: visible;
+        }
+
+        table {
+          font-size: 7.5pt;
+        }
+
+        th,
+        td {
+          padding: 6px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="wrap">
+      <span class="eyebrow">Informe estratégico · v1.0</span>
+      <h1>Auditoría y valorización de Convenios</h1>
+      <p class="lead">
+        Recorrido técnico, legal, operativo, de producto y diseño; hoja de ruta
+        práctica para continuar el aprendizaje y estimación comercial acorde al
+        mercado peruano. Pensado para un máximo de 30 empresas y unas 300 ventas
+        mensuales durante el primer año.
+      </p>
+      <div class="meta">
+        <span><strong>Fecha de corte:</strong> 31 de agosto de 2026</span>
+        <span><strong>Repositorio:</strong> PradoUrqJose/ConveniosSC</span>
+        <span><strong>Revisión:</strong> código, esquema, migraciones, pruebas y documentación</span>
+      </div>
+    </header>
+
+    <nav aria-label="Contenido del informe">
+      <div class="wrap">
+        <a href="#dictamen">Dictamen</a>
+        <a href="#inventario">Qué existe</a>
+        <a href="#matriz">Matriz de mejoras</a>
+        <a href="#ruta">Orden recomendado</a>
+        <a href="#valor">Valorización</a>
+        <a href="#fuentes">Fuentes y límites</a>
+      </div>
+    </nav>
+
+    <main class="wrap">
+      <section id="dictamen">
+        <div class="section-head">
+          <div>
+            <h2>Dictamen ejecutivo</h2>
+            <p>
+              Buen producto vertical en fase de piloto avanzado. La ingeniería
+              supera lo habitual para un primer sistema; la siguiente mejora de
+              valor no es agregar más pantallas, sino volverlo operable, demostrable
+              y legalmente defendible.
+            </p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <article class="card">
+            <span class="kicker">Estado sugerido</span>
+            <strong class="value">Piloto avanzado</strong>
+            <p>Apto para pruebas controladas. Antes de producción comercial faltan cierres legales y operativos P0.</p>
+          </article>
+          <article class="card">
+            <span class="kicker">Calidad técnica</span>
+            <strong class="value">8.0 / 10</strong>
+            <p>Arquitectura coherente, controles de servidor, transacciones, pruebas y documentación poco comunes en una v1.</p>
+          </article>
+          <article class="card">
+            <span class="kicker">Escala año 1</span>
+            <strong class="value">Holgada</strong>
+            <p>300 ventas/mes son unas 10 al día. No justifican microservicios, Kubernetes, réplicas ni Redis.</p>
+          </article>
+          <article class="card">
+            <span class="kicker">Valor actual orientativo</span>
+            <strong class="value">S/ 28k–42k</strong>
+            <p>Valor del activo de software hoy, sin cartera de clientes ni ingresos y antes del cierre legal-operativo.</p>
+          </article>
+
+          <article class="card wide">
+            <h3>Lo mejor construido</h3>
+            <p>
+              Aislamiento multiempresa en consultas y acciones, dinero en céntimos,
+              descuentos historizados, idempotencia de ventas, archivos privados
+              verificados por contenido, auditoría encadenada, sesiones opacas,
+              Argon2id, rate limits persistentes, cabeceras de seguridad, CI con
+              PostgreSQL real y una interfaz responsive ya trabajada.
+            </p>
+          </article>
+          <article class="card wide">
+            <h3>Riesgo principal</h3>
+            <p>
+              El sistema almacena DNI/CE, nombres, teléfonos, actividad de compra y
+              documentos de venta. El código protege razonablemente esos datos, pero
+              el cumplimiento no nace solo del código: requiere titular definido,
+              banco inscrito, aviso de privacidad, canal ARCO, contratos con
+              encargados, retención y respuesta a incidentes.
+            </p>
+          </article>
+        </div>
+
+        <div class="note" style="margin-top: 18px">
+          <strong>No es un ERP ni un POS fiscal.</strong>
+          <p>
+            Es una aplicación especializada para convenios y control de ventas con
+            descuento. No cobra, no controla inventario, no lleva contabilidad,
+            compras o planillas y no emite comprobantes SUNAT. Esa precisión protege
+            la venta: prometer “ERP” elevaría expectativas, responsabilidad y costo de
+            soporte sin respaldo funcional.
+          </p>
+        </div>
+      </section>
+
+      <section id="inventario">
+        <div class="section-head">
+          <div>
+            <h2>Inventario verificable</h2>
+            <p>Datos observados en el repositorio al momento de la revisión.</p>
+          </div>
+        </div>
+
+        <div class="grid">
+          <article class="card"><span class="kicker">Código</span><strong class="value">35,800</strong><p>líneas TS, TSX y CSS en <code>src/</code>.</p></article>
+          <article class="card"><span class="kicker">Datos</span><strong class="value">11</strong><p>tablas PostgreSQL, con índices, checks y triggers.</p></article>
+          <article class="card"><span class="kicker">Pruebas locales</span><strong class="value">138</strong><p>aprobadas; 51 de BD omitidas sin entorno habilitado.</p></article>
+          <article class="card"><span class="kicker">Calidad</span><strong class="value">4/4</strong><p>tests, lint, formato y typecheck aprobados.</p></article>
+        </div>
+
+        <div class="grid" style="margin-top: 16px">
+          <article class="card wide">
+            <h3>Madurez por dimensión</h3>
+            <div class="score-list">
+              <div class="score"><span>Reglas de negocio</span><div class="bar"><i style="--score: 88%"></i></div><b>8.8</b></div>
+              <div class="score"><span>Seguridad técnica</span><div class="bar"><i style="--score: 77%"></i></div><b>7.7</b></div>
+              <div class="score"><span>Pruebas y calidad</span><div class="bar"><i style="--score: 80%"></i></div><b>8.0</b></div>
+              <div class="score"><span>UX y diseño</span><div class="bar"><i style="--score: 80%"></i></div><b>8.0</b></div>
+              <div class="score"><span>Operación productiva</span><div class="bar"><i style="--score: 55%"></i></div><b>5.5</b></div>
+              <div class="score"><span>Legal y privacidad</span><div class="bar"><i style="--score: 45%"></i></div><b>4.5</b></div>
+              <div class="score"><span>Preparación comercial</span><div class="bar"><i style="--score: 58%"></i></div><b>5.8</b></div>
+            </div>
+          </article>
+          <article class="card wide">
+            <h3>Dependencias y deuda observada</h3>
+            <p>
+              <code>npm audit</code> reportó 4 vulnerabilidades moderadas, todas en
+              la cadena de desarrollo de <code>drizzle-kit</code>/<code>esbuild</code>;
+              no hubo hallazgos altos o críticos. Existen componentes cliente de
+              1,389 y 1,277 líneas, señales claras para refactorizar por comprensión
+              y testabilidad, no por rendimiento. No se encontró monitoreo de errores
+              productivo ni evidencia automatizada de restauración de respaldos.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section id="matriz">
+        <div class="section-head">
+          <div>
+            <h2>Matriz específica de mejoras</h2>
+            <p>
+              P0 = antes de operación comercial; P1 = primeros 90 días; P2 = cuando
+              exista uso real o una necesidad demostrada. El esfuerzo es orientativo
+              para una persona con revisión senior.
+            </p>
+          </div>
+        </div>
+
+        <div class="table-shell">
+          <div class="filters" aria-label="Filtros de la matriz">
+            <input id="search" type="search" placeholder="Buscar por código, categoría o texto…" aria-label="Buscar mejoras" />
+            <select id="priorityFilter" aria-label="Filtrar por prioridad">
+              <option value="">Todas las prioridades</option>
+              <option value="P0">P0 · Antes de producción</option>
+              <option value="P1">P1 · Primeros 90 días</option>
+              <option value="P2">P2 · Según evidencia</option>
+            </select>
+            <select id="categoryFilter" aria-label="Filtrar por categoría">
+              <option value="">Todas las categorías</option>
+              <option>Legal y privacidad</option>
+              <option>Seguridad</option>
+              <option>Operación</option>
+              <option>Calidad</option>
+              <option>Arquitectura</option>
+              <option>Rendimiento</option>
+              <option>Diseño y UX</option>
+              <option>Producto y negocio</option>
+            </select>
+          </div>
+          <div class="table-scroll">
+            <table id="roadmap">
+              <thead>
+                <tr>
+                  <th style="min-width: 92px">Código</th>
+                  <th style="min-width: 145px">Categoría / label</th>
+                  <th style="min-width: 230px">Hallazgo y por qué importa</th>
+                  <th style="min-width: 300px">Qué mejorar y cómo</th>
+                  <th style="min-width: 250px">Criterio de terminado</th>
+                  <th>Prioridad</th>
+                  <th>Esfuerzo</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr data-priority="P0" data-category="Legal y privacidad">
+                  <td><strong>LGL-01</strong></td>
+                  <td><span class="tag">Legal y privacidad</span><small>gobierno-de-datos</small></td>
+                  <td><strong>Definir responsables y bancos de datos</strong><small>El software no identifica formalmente quién es titular y quién es encargado cuando participan varias empresas.</small></td>
+                  <td>Con asesor peruano, mapear tratamientos: empleados, usuarios, ventas, auditoría y adjuntos. Definir titular(es), encargados y finalidades; inscribir cada banco aplicable en el RNPDP. No asumir que el proveedor de software es automáticamente el titular.</td>
+                  <td>Matriz RACI firmada, inventario de tratamientos, constancias/códigos de inscripción y responsable interno nombrado.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">3–7 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Legal y privacidad">
+                  <td><strong>LGL-02</strong></td>
+                  <td><span class="tag">Legal y privacidad</span><small>aviso-y-consentimiento</small></td>
+                  <td><strong>Consentimiento sin versión legal persistida</strong><small>La auditoría conserva el booleano, pero no garantiza qué texto exacto aceptó la persona ni su vigencia.</small></td>
+                  <td>Crear aviso de privacidad completo y versionado. Guardar versión/hash, fecha, canal, finalidad y actor que recabó la autorización. Separar tratamientos necesarios de opcionales y evitar pedir consentimiento cuando otra base legal corresponda.</td>
+                  <td>Cada alta puede demostrar texto, versión y momento; la UI enlaza el aviso íntegro y una prueba cubre la evidencia.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">3–5 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Legal y privacidad">
+                  <td><strong>LGL-03</strong></td>
+                  <td><span class="tag">Legal y privacidad</span><small>derechos-arco</small></td>
+                  <td><strong>No hay flujo operativo ARCO</strong><small>Acceso, rectificación, cancelación y oposición no se resuelven solo permitiendo editar empleados.</small></td>
+                  <td>Publicar canal y procedimiento; crear solicitud con identidad verificada, estado, plazos, decisiones y evidencia. Diseñar exportación legible y bloqueo/anonimización cuando eliminar choque con la conservación de ventas o auditoría.</td>
+                  <td>Runbook ensayado con casos de acceso, rectificación y cancelación; respuesta exportable y registro de atención.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">4–8 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Legal y privacidad">
+                  <td><strong>LGL-04</strong></td>
+                  <td><span class="tag">Legal y privacidad</span><small>terceros-y-transferencias</small></td>
+                  <td><strong>Neon, Vercel y Blob procesan datos</strong><small>Debe documentarse ubicación, subencargados, transferencia internacional, medidas y destino al terminar el servicio.</small></td>
+                  <td>Revisar DPA, regiones y subprocesadores; firmar cláusulas con clientes/empresas; inscribir o documentar el flujo transfronterizo que corresponda y mantener inventario de proveedores.</td>
+                  <td>Contratos y anexos disponibles, región verificada, inventario anual y procedimiento de alta/baja de proveedor.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">3–6 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Legal y privacidad">
+                  <td><strong>LGL-05</strong></td>
+                  <td><span class="tag">Legal y privacidad</span><small>retencion-y-purga</small></td>
+                  <td><strong>Auditoría y adjuntos crecen indefinidamente</strong><small>“Nunca borrar” no equivale a cumplir minimización y plazo necesario; además quedan fotos históricas inaccesibles.</small></td>
+                  <td>Aprobar calendario por clase de dato y obligación: empleado, teléfono, venta, documento, evidencia, logs y fotos heredadas. Implementar anonimización/purga con doble aprobación, reporte previo y trazabilidad sin destruir evidencia legal requerida.</td>
+                  <td>Política firmada, job en modo simulación, prueba de restauración y primera purga histórica aprobada.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">5–10 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Legal y privacidad">
+                  <td><strong>LGL-06</strong></td>
+                  <td><span class="tag">Legal y privacidad</span><small>incidentes-48h</small></td>
+                  <td><strong>No hay respuesta formal a incidentes</strong><small>El reglamento peruano contempla notificaciones de incidentes relevantes dentro de 48 horas.</small></td>
+                  <td>Crear matriz de severidad, contactos, preservación de evidencia, contención, evaluación del impacto y plantillas para ANPD/titulares. Definir reloj de 48 h, suplentes y simulacro semestral.</td>
+                  <td>Runbook aprobado, contactos probados y simulacro de fuga de adjunto completado con tiempos medidos.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">2–4 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Legal y privacidad">
+                  <td><strong>LGL-07</strong></td>
+                  <td><span class="tag">Legal y privacidad</span><small>contrato-y-alcance</small></td>
+                  <td><strong>Riesgo de venderlo como ERP o facturador</strong><small>La aplicación registra operaciones, pero el comprobante fiscal se adjunta desde otro sistema.</small></td>
+                  <td>Contrato, términos y material comercial deben decir qué hace, qué no hace, propiedad de datos, disponibilidad, soporte, respaldo, exportación, límites de responsabilidad y proceso de salida.</td>
+                  <td>Propuesta y contrato usan “gestión de convenios y control de ventas”; no prometen POS, ERP ni emisión SUNAT.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">2–4 d</span></td>
+                </tr>
+
+                <tr data-priority="P0" data-category="Seguridad">
+                  <td><strong>SEC-01</strong></td>
+                  <td><span class="tag">Seguridad</span><small>minimo-privilegio-db</small></td>
+                  <td><strong>Producción usa el dueño de PostgreSQL</strong><small>El propio documento reconoce que <code>neondb_owner</code> puede evadir la protección prevista para <code>app_user</code>.</small></td>
+                  <td>Usar un rol de runtime sin DDL ni update/delete de auditoría; reservar owner para migraciones en un secreto separado. Probar permisos en CI y documentar rotación.</td>
+                  <td>Runtime falla al intentar alterar auditoría o esquema; migraciones siguen funcionando con credencial exclusiva.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">2–4 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Seguridad">
+                  <td><strong>SEC-02</strong></td>
+                  <td><span class="tag">Seguridad</span><small>mfa-administradores</small></td>
+                  <td><strong>SUPERADMIN depende solo de contraseña</strong><small>Ese rol accede a todas las empresas, datos y acciones sensibles.</small></td>
+                  <td>Agregar TOTP o WebAuthn para SUPERADMIN y, de ser posible, ADMIN_EMPRESA; códigos de recuperación de un solo uso, reautenticación para reset y gestión de factores auditada.</td>
+                  <td>Un admin sin segundo factor no entra; alta, recuperación y revocación tienen pruebas y auditoría.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">6–12 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Seguridad">
+                  <td><strong>SEC-03</strong></td>
+                  <td><span class="tag">Seguridad</span><small>auditoria-externa</small></td>
+                  <td><strong>La cadena detecta cambios, pero vive junto a los datos</strong><small>Un dueño de infraestructura podría modificar filas y recalcular hashes.</small></td>
+                  <td>Verificar diariamente la cadena y publicar el hash final en un destino independiente e inmutable (storage con retención, servicio de logs o cuenta separada). Alertar cualquier ruptura.</td>
+                  <td>Job diario, alerta comprobada y evidencia externa de 30 días sin intervención manual.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">3–6 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Seguridad">
+                  <td><strong>SEC-04</strong></td>
+                  <td><span class="tag">Seguridad</span><small>csp-sin-unsafe-inline</small></td>
+                  <td><strong>CSP permite scripts inline</strong><small>Las demás cabeceras son buenas, pero <code>'unsafe-inline'</code> reduce la defensa frente a XSS.</small></td>
+                  <td>Seguir la guía de la versión instalada de Next.js para nonce/hash CSP, desplegar primero en modo report-only, revisar Serwist y retirar el permiso cuando no haya violaciones legítimas.</td>
+                  <td>CSP productiva sin <code>unsafe-inline</code> para scripts y cero reportes válidos bloqueados durante una semana.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">3–6 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Seguridad">
+                  <td><strong>SEC-05</strong></td>
+                  <td><span class="tag">Seguridad</span><small>documentos-activos</small></td>
+                  <td><strong>Magic bytes no detectan malware</strong><small>Un PDF válido puede incluir contenido activo o malicioso; hoy se redirige al archivo privado para abrirlo.</small></td>
+                  <td>Para el bajo volumen, elegir una medida simple: servir como descarga, sanitizar PDF o escanear con antivirus en cola. Bloquear hasta completar el análisis y registrar resultado.</td>
+                  <td>Archivo de prueba malicioso queda en cuarentena y nunca se entrega a otro usuario.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">4–8 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Seguridad">
+                  <td><strong>SEC-06</strong></td>
+                  <td><span class="tag">Seguridad</span><small>dependencias</small></td>
+                  <td><strong>4 alertas moderadas de desarrollo</strong><small>Provienen de una copia antigua de esbuild en la cadena de drizzle-kit; no se debe aplicar el downgrade sugerido a ciegas.</small></td>
+                  <td>Crear issue de riesgo aceptado, revisar release compatible, ejecutar audit en CI con umbral high/critical y Dependabot/Renovate semanal. Mantener herramientas de desarrollo fuera de producción.</td>
+                  <td>Sin altas/críticas en CI; moderadas documentadas con dueño, alcance y fecha de revisión.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">1–2 d</span></td>
+                </tr>
+                <tr data-priority="P2" data-category="Seguridad">
+                  <td><strong>SEC-07</strong></td>
+                  <td><span class="tag">Seguridad</span><small>rls-fase-2</small></td>
+                  <td><strong>Aislamiento depende de la aplicación</strong><small>Hoy existen filtros y tests; para 30 empresas es válido, pero un error futuro de consulta podría omitir el alcance.</small></td>
+                  <td>Evaluar RLS solo cuando haya capacidad para implementarlo completo: contexto transaccional, políticas para todas las tablas y suite negativa. No mezclar una migración parcial con el modelo actual.</td>
+                  <td>Prueba demuestra que una consulta sin filtro tampoco puede cruzar tenant. Si no hay recursos, conservar el diseño actual y sus tests.</td>
+                  <td><span class="priority p2">P2</span></td><td><span class="effort">10–20 d</span></td>
+                </tr>
+
+                <tr data-priority="P0" data-category="Operación">
+                  <td><strong>OPS-01</strong></td>
+                  <td><span class="tag">Operación</span><small>backup-y-restore</small></td>
+                  <td><strong>Tener backup no prueba que se pueda volver</strong><small>No se encontró evidencia versionada de restauración completa de PostgreSQL y Blob.</small></td>
+                  <td>Definir RPO/RTO realistas (sugerencia inicial: RPO 24 h, RTO 8 h), exportar inventario de blobs, restaurar trimestralmente en entorno aislado y comparar conteos/hashes.</td>
+                  <td>Acta de restore con duración, ventas/adjuntos verificadas y credenciales de contingencia probadas.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">2–5 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Operación">
+                  <td><strong>OPS-02</strong></td>
+                  <td><span class="tag">Operación</span><small>errores-y-alertas</small></td>
+                  <td><strong>La medición actual solo se activa en baseline</strong><small>Los <code>console.error</code> no constituyen monitoreo ni avisan a una persona.</small></td>
+                  <td>Integrar captura de errores con requestId, versión y entorno, sin PII; alertas por login anómalo, fallos de venta/upload/cron, latencia p95 y ruptura de auditoría. Definir quién responde.</td>
+                  <td>Un error sintético crea alerta, enlaza requestId y llega al responsable dentro del objetivo acordado.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">2–4 d</span></td>
+                </tr>
+                <tr data-priority="P0" data-category="Operación">
+                  <td><strong>OPS-03</strong></td>
+                  <td><span class="tag">Operación</span><small>entorno-preview</small></td>
+                  <td><strong>Preview no está configurado</strong><small>La guía indica que las variables Preview no existían en la última revisión.</small></td>
+                  <td>Crear base y Blob no productivos para previews; impedir migraciones/seed/E2E contra producción mediante verificación de branch y host. Agregar checklist de promoción.</td>
+                  <td>Un PR despliega y prueba sin leer o modificar recursos productivos.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">1–3 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Operación">
+                  <td><strong>OPS-04</strong></td>
+                  <td><span class="tag">Operación</span><small>configuracion-tipada</small></td>
+                  <td><strong>Variables fallan al usarse, no al arrancar</strong><small>Una omisión de secreto puede aparecer recién en login, upload o cron.</small></td>
+                  <td>Validar entorno con Zod en servidor, diferenciar build/runtime y marcar secreto. Añadir una comprobación de salud autenticada para DB, Blob y versión de migración.</td>
+                  <td>Build o arranque falla con mensaje seguro ante configuración incompleta; health check no expone secretos.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">2–3 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Operación">
+                  <td><strong>OPS-05</strong></td>
+                  <td><span class="tag">Operación</span><small>soporte-y-runbooks</small></td>
+                  <td><strong>No hay promesa operativa medible</strong><small>Al vender, “soporte” debe convertirse en horarios, severidades y tiempos.</small></td>
+                  <td>Definir SLO inicial (p. ej. 99.5% mensual), canal, P1/P2/P3, mantenimiento, escalamiento y comunicación. Crear runbooks para BD, Blob, login, cron y rollback.</td>
+                  <td>Contrato y tablero muestran SLO; cada alerta crítica tiene un runbook de una página.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">2–4 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Operación">
+                  <td><strong>OPS-06</strong></td>
+                  <td><span class="tag">Operación</span><small>blobs-huerfanos</small></td>
+                  <td><strong>Una subida abandonada no crea fila</strong><small>El cron limpia sesiones y rate limits, pero no objetos Blob que nunca se asociaron.</small></td>
+                  <td>Job diario lista objetos antiguos, contrasta rutas con adjuntos y elimina tras ventana segura (p. ej. 48 h), primero en modo reporte. Excluir explícitamente objetos bajo investigación.</td>
+                  <td>Reporte de candidatos revisado y costo/volumen de huérfanos medido; job idempotente con auditoría.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">2–4 d</span></td>
+                </tr>
+
+                <tr data-priority="P0" data-category="Calidad">
+                  <td><strong>QA-01</strong></td>
+                  <td><span class="tag">Calidad</span><small>e2e-permisos</small></td>
+                  <td><strong>Los E2E se concentran en ventas y baseline</strong><small>El mayor riesgo de negocio es que un rol vea o cambie datos de otra empresa.</small></td>
+                  <td>Agregar matriz E2E negativa por rol: URLs directas, actions manipuladas, adjuntos, exportación, auditoría y empresa desactivada. Ejecutarla con fixtures aislados en CI.</td>
+                  <td>Cada permiso de la guía tiene al menos un caso permitido y uno denegado; CI lo ejecuta contra PostgreSQL.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">5–9 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Calidad">
+                  <td><strong>QA-02</strong></td>
+                  <td><span class="tag">Calidad</span><small>accesibilidad-regresion</small></td>
+                  <td><strong>Axe existe, pero debe convertirse en puerta</strong><small>El diseño visual puede degradar foco, nombres accesibles o contraste con cambios futuros.</small></td>
+                  <td>Ejecutar axe en login, tablas, formularios y diálogos para tema claro/oscuro y móvil; probar teclado y reduced motion. Fijar cero violaciones critical/serious.</td>
+                  <td>Suite automática y checklist manual de teclado pasan en flujos críticos.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">3–6 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Calidad">
+                  <td><strong>QA-03</strong></td>
+                  <td><span class="tag">Calidad</span><small>release-repetible</small></td>
+                  <td><strong>CI es buena, pero falta evidencia de release</strong><small>Un build verde no registra migración, smoke test y reversión del despliegue real.</small></td>
+                  <td>Checklist versionado: backup, migración expand/contract, deploy, smoke por rol, verificación de cron/auditoría, rollback y nota de versión. Etiquetar releases.</td>
+                  <td>Un tercero puede desplegar siguiendo el documento y producir el mismo resultado.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">1–3 d</span></td>
+                </tr>
+
+                <tr data-priority="P1" data-category="Arquitectura">
+                  <td><strong>ARC-01</strong></td>
+                  <td><span class="tag">Arquitectura</span><small>componentes-grandes</small></td>
+                  <td><strong>Ventas tiene archivos de 1,389 y 1,277 líneas</strong><small>El costo es cognitivo: más riesgo de efectos cruzados y revisiones difíciles.</small></td>
+                  <td>Extraer hooks de URL/filtros, estado de borrador, búsqueda de empleado, subida, confirmación y secciones visuales. Mantener Server Components como frontera de datos y probar hooks puros.</td>
+                  <td>Ningún componente de dominio crítico supera ~400–500 líneas sin justificación; comportamiento y snapshots visuales no cambian.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">6–12 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Arquitectura">
+                  <td><strong>ARC-02</strong></td>
+                  <td><span class="tag">Arquitectura</span><small>migracion-identidad</small></td>
+                  <td><strong>La fase de DNI/CE quedó expandida</strong><small>La columna física aún se llama <code>dni</code> y persisten adaptadores obsoletos y enum de foto histórica.</small></td>
+                  <td>Confirmar que no quedan despliegues antiguos; ejecutar la fase de contracción documentada: renombre, retiro de adaptadores y tratamiento legal de fotos heredadas.</td>
+                  <td>Esquema, tipos, consultas y documentación usan <code>numero_documento</code>; migración ensayada con rollback.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">3–6 d</span></td>
+                </tr>
+                <tr data-priority="P2" data-category="Arquitectura">
+                  <td><strong>ARC-03</strong></td>
+                  <td><span class="tag">Arquitectura</span><small>api-integracion</small></td>
+                  <td><strong>La lógica está acoplada a la UI interna</strong><small>Si luego una empresa quiere integrar su POS, automatizar mediante Server Actions no es un contrato público adecuado.</small></td>
+                  <td>Solo con cliente confirmado, crear API versionada, claves por empresa, idempotencia, scopes, rate limit, webhooks firmados y sandbox. No adelantarla “por si acaso”.</td>
+                  <td>Primer consumidor integra sin credenciales humanas y con documentación/OpenAPI.</td>
+                  <td><span class="priority p2">P2</span></td><td><span class="effort">12–25 d</span></td>
+                </tr>
+
+                <tr data-priority="P1" data-category="Rendimiento">
+                  <td><strong>PERF-01</strong></td>
+                  <td><span class="tag">Rendimiento</span><small>presupuesto-real</small></td>
+                  <td><strong>Optimizar sin presupuesto puede empeorar el código</strong><small>La escala objetivo es baja y ya existe instrumentación de baseline.</small></td>
+                  <td>Fijar objetivos medibles: LCP móvil, INP, tamaño JS por ruta, p95 servidor y cantidad de queries. Medir producción anonimizada y optimizar solo rutas que excedan el presupuesto.</td>
+                  <td>Dashboard mensual con p50/p95 y presupuesto; cada cambio de rendimiento muestra antes/después.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">2–4 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Rendimiento">
+                  <td><strong>PERF-02</strong></td>
+                  <td><span class="tag">Rendimiento</span><small>carga-diferida</small></td>
+                  <td><strong>PDF y gráficos son dependencias pesadas</strong><small>No todas las rutas necesitan <code>pdfjs-dist</code> o Recharts en el primer render.</small></td>
+                  <td>Revisar bundle analyzer y confirmar lazy loading de visor PDF, gráficos y formularios complejos; preservar skeletons y evitar cargar código administrativo al vendedor.</td>
+                  <td>Reducción demostrada del JS inicial en rutas afectadas, sin regresión visual o de accesibilidad.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">2–5 d</span></td>
+                </tr>
+                <tr data-priority="P2" data-category="Rendimiento">
+                  <td><strong>PERF-03</strong></td>
+                  <td><span class="tag">Rendimiento</span><small>no-sobredisenar</small></td>
+                  <td><strong>300 ventas/mes no son un problema de escala</strong><small>La complejidad distribuida costaría más que la infraestructura.</small></td>
+                  <td>Mantener monolito Next.js + PostgreSQL + Blob. Revisar índices con EXPLAIN al superar 100k ventas o p95 objetivo; archivar auditoría solo si crecimiento/costo real lo exige.</td>
+                  <td>No se agrega infraestructura sin métrica, umbral y problema reproducible.</td>
+                  <td><span class="priority p2">P2</span></td><td><span class="effort">Política</span></td>
+                </tr>
+
+                <tr data-priority="P1" data-category="Diseño y UX">
+                  <td><strong>UX-01</strong></td>
+                  <td><span class="tag">Diseño y UX</span><small>onboarding-por-rol</small></td>
+                  <td><strong>Una UI pulida aún puede ser difícil al primer uso</strong><small>Convenios, direcciones de descuento, empleado pendiente y anulación tienen reglas no obvias.</small></td>
+                  <td>Crear recorrido corto por rol con datos demo, checklist de configuración y ayuda contextual de una frase. Medir tiempo hasta primera venta correcta y errores por paso.</td>
+                  <td>Usuario nuevo completa el flujo principal sin asistencia en prueba moderada con 5 personas.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">4–8 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Diseño y UX">
+                  <td><strong>UX-02</strong></td>
+                  <td><span class="tag">Diseño y UX</span><small>lenguaje-de-estados</small></td>
+                  <td><strong>Los estados tienen consecuencias operativas</strong><small>“Pendiente”, “rechazado”, “suspendido” y “anulado” deben explicar acción, dueño y siguiente paso.</small></td>
+                  <td>Crear catálogo de estados: label, color, icono, explicación, acción disponible y mensaje vacío. Usarlo en todas las tablas, detalles, toasts y exportaciones.</td>
+                  <td>El mismo estado nunca cambia de nombre/color; cada estado bloqueante dice cómo resolverlo.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">2–5 d</span></td>
+                </tr>
+                <tr data-priority="P2" data-category="Diseño y UX">
+                  <td><strong>UX-03</strong></td>
+                  <td><span class="tag">Diseño y UX</span><small>pruebas-con-usuarios</small></td>
+                  <td><strong>El diseño hoy se valida sobre todo técnicamente</strong><small>La siguiente mejora debe provenir de vendedores y administradores reales, no de preferencias internas.</small></td>
+                  <td>Cada trimestre observar 5 sesiones por rol; registrar tarea, tiempo, tropiezo y severidad. Priorizar problemas repetidos por encima de cambios estéticos aislados.</td>
+                  <td>Backlog UX enlaza evidencia y métrica; se comparan tasas antes/después.</td>
+                  <td><span class="priority p2">P2</span></td><td><span class="effort">1 d/ciclo</span></td>
+                </tr>
+
+                <tr data-priority="P0" data-category="Producto y negocio">
+                  <td><strong>PRD-01</strong></td>
+                  <td><span class="tag">Producto y negocio</span><small>posicionamiento</small></td>
+                  <td><strong>El valor no se comunica por cantidad de tablas</strong><small>El cliente compra menos fraude, menos conciliación manual y mejor control del convenio.</small></td>
+                  <td>Definir una frase comercial, comprador y tres resultados medibles. Ejemplo: “controla descuentos entre empresas y deja cada venta sustentada y auditable”.</td>
+                  <td>Demo de 10 minutos muestra problema, flujo, evidencia y reporte; no enumera tecnología como propuesta principal.</td>
+                  <td><span class="priority p0">P0</span></td><td><span class="effort">1–2 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Producto y negocio">
+                  <td><strong>PRD-02</strong></td>
+                  <td><span class="tag">Producto y negocio</span><small>onboarding-empresa</small></td>
+                  <td><strong>30 empresas requieren operación repetible</strong><small>Alta manual improvisada consume margen y produce configuraciones distintas.</small></td>
+                  <td>Checklist de alta: contrato/privacidad, RUC, sedes, admins, tope, evidencia, convenio, términos, capacitación y aceptación. Preparar importación CSV validada para empleados/usuarios si hay demanda.</td>
+                  <td>Una empresa queda lista en menos de 60 minutos con evidencia de aceptación.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">3–6 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Producto y negocio">
+                  <td><strong>PRD-03</strong></td>
+                  <td><span class="tag">Producto y negocio</span><small>reportes-de-valor</small></td>
+                  <td><strong>Las métricas deben justificar la renovación</strong><small>Ventas totales por sí solas no demuestran beneficio.</small></td>
+                  <td>Priorizar ahorro otorgado, adopción por empresa/sede, empleados activos, ventas anuladas, pendientes y uso del convenio. Exportación mensual para gerencia con definiciones claras.</td>
+                  <td>Cliente puede responder cuánto beneficio entregó/recibió y dónde existen incidencias sin pedir una consulta manual.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">4–8 d</span></td>
+                </tr>
+                <tr data-priority="P1" data-category="Producto y negocio">
+                  <td><strong>PRD-04</strong></td>
+                  <td><span class="tag">Producto y negocio</span><small>precio-y-soporte</small></td>
+                  <td><strong>Precio único mezcla implementación y servicio</strong><small>Cloud, soporte, cumplimiento y mejoras continúan después de vender el código.</small></td>
+                  <td>Separar alta/implementación, licencia o suscripción, soporte y desarrollos fuera de alcance. Limitar usuarios/empresas solo si simplifica la oferta, no por capacidad técnica.</td>
+                  <td>Cotización muestra entregables, supuestos, impuestos, vigencia, mantenimiento y tarifa de cambio.</td>
+                  <td><span class="priority p1">P1</span></td><td><span class="effort">1–2 d</span></td>
+                </tr>
+                <tr data-priority="P2" data-category="Producto y negocio">
+                  <td><strong>PRD-05</strong></td>
+                  <td><span class="tag">Producto y negocio</span><small>facturacion-sunat</small></td>
+                  <td><strong>Facturación electrónica sería otro producto</strong><small>Implica series, XML, firma/certificado o PSE, envío, CDR, notas, bajas, contingencia, conservación y cambios normativos.</small></td>
+                  <td>Solo con caso comercial: integrar un PSE/API en vez de construir primero un emisor directo. Separar “venta de convenio” de “comprobante fiscal” y sincronizar estados con idempotencia.</td>
+                  <td>Spike con proveedor, costos por empresa/documento, contrato, sandbox y matriz de errores SUNAT antes de cotizar.</td>
+                  <td><span class="priority p2">P2</span></td><td><span class="effort">15–35 d</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="ruta">
+        <div class="section-head">
+          <div>
+            <h2>Orden recomendado</h2>
+            <p>Una secuencia deliberadamente pequeña para aprender sin abrir diez frentes.</p>
+          </div>
+        </div>
+        <div class="timeline">
+          <article class="phase"><span>Fase 1 · 1–2 semanas</span><h3>Cerrar riesgo</h3><p>LGL-01 a 07, SEC-01, OPS-01/02/03 y PRD-01. Decisiones legales con asesor; tú conviertes esas decisiones en evidencia y producto.</p></article>
+          <article class="phase"><span>Fase 2 · 2–4 semanas</span><h3>Demostrar operación</h3><p>MFA, pruebas E2E de permisos, monitoreo, restore, runbooks y primer piloto con datos controlados.</p></article>
+          <article class="phase"><span>Fase 3 · 30–90 días</span><h3>Aprender del uso</h3><p>Onboarding, reportes de valor, accesibilidad, blobs huérfanos y refactor de componentes grandes sin cambiar funciones.</p></article>
+          <article class="phase"><span>Fase 4 · con evidencia</span><h3>Expandir</h3><p>API, RLS o facturación solo cuando un cliente pague o una métrica lo exija. La escala del año 1 no necesita más infraestructura.</p></article>
+        </div>
+      </section>
+
+      <section id="valor">
+        <div class="section-head">
+          <div>
+            <h2>Valorización para el mercado peruano</h2>
+            <p>
+              Estimación orientativa, no tasación contable. Asume código y documentación
+              entregables, sin deuda laboral, sin cartera de clientes, sin marca consolidada
+              y sin ingresos recurrentes demostrados.
+            </p>
+          </div>
+        </div>
+
+        <div class="note" style="margin-bottom: 18px">
+          <strong>Conclusión comercial</strong>
+          <p>
+            Hoy defendería <b>S/ 28,000–42,000</b> como valor del activo de software.
+            Para una implementación privada no exclusiva, cotizaría
+            <b>S/ 18,000–28,000</b> de alta más soporte. Si el comprador exige
+            exclusividad y cesión total del código, el rango razonable sube a
+            <b>S/ 45,000–65,000</b>. Después de cerrar P0 y demostrar tres meses de
+            operación, el activo exclusivo puede defender aproximadamente
+            <b>S/ 55,000–80,000</b>.
+          </p>
+        </div>
+
+        <div class="table-shell">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Escenario</th><th>Qué se entrega</th><th>Rango sugerido</th><th>Comentario</th></tr></thead>
+              <tbody>
+                <tr class="price-row"><td><strong>Costo de reconstrucción</strong></td><td>Volver a producir alcance, calidad, pruebas y documentación actuales.</td><td class="money"><strong>S/ 55,000–110,000</strong></td><td>No es precio de venta: mide esfuerzo reemplazable y riesgo asumido.</td></tr>
+                <tr class="price-row recommended"><td><strong>Activo actual</strong><small>referencia principal</small></td><td>Repositorio, modelo, migraciones, documentación y conocimiento transferido; sin clientes.</td><td class="money"><strong>S/ 28,000–42,000</strong></td><td>Descuento frente a reconstrucción por brechas legales/operativas y ausencia de ingresos.</td></tr>
+                <tr class="price-row"><td><strong>Implementación no exclusiva</strong></td><td>Configuración para una red, despliegue, capacitación y garantía inicial; conservas propiedad.</td><td class="money"><strong>S/ 18,000–28,000</strong></td><td>Más S/ 600–1,500/mes según soporte, cloud, SLA y mejoras incluidas.</td></tr>
+                <tr class="price-row"><td><strong>Cesión exclusiva hoy</strong></td><td>Código y derechos patrimoniales exclusivos, transición y obligación de no reutilizar.</td><td class="money"><strong>S/ 45,000–65,000</strong></td><td>La exclusividad vende también tus oportunidades futuras; nunca debe costar igual que una licencia.</td></tr>
+                <tr class="price-row"><td><strong>Cesión tras P0 + piloto</strong></td><td>Operación, legal, seguridad y evidencia de uso cerradas; tres meses estables.</td><td class="money"><strong>S/ 55,000–80,000</strong></td><td>Sube por reducción de riesgo, no por añadir tablas.</td></tr>
+                <tr class="price-row"><td><strong>SaaS por empresa</strong></td><td>Uso compartido, soporte estándar y actualizaciones; alta separada.</td><td class="money"><strong>S/ 120–250/mes</strong></td><td>A 30 empresas: MRR teórico S/ 3,600–7,500 antes de cloud, impuestos, ventas y soporte.</td></tr>
+                <tr class="price-row"><td><strong>Red centralizada</strong></td><td>Una asociación/operador paga por hasta 30 empresas.</td><td class="money"><strong>S/ 1,800–3,500/mes</strong></td><td>Más alta de S/ 8,000–15,000; suele simplificar cobranza y gobierno de datos.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="grid" style="margin-top: 18px">
+          <article class="card wide">
+            <h3>Cómo se obtuvo el costo de reconstrucción</h3>
+            <p>
+              Estimación de 770–1,130 horas entre descubrimiento, UX, full-stack,
+              base de datos, seguridad, QA, despliegue y documentación. Un estudio
+              2025 de INESDI ubica al desarrollador de software en Perú entre
+              S/ 7,330 y S/ 11,375 mensuales, con media de S/ 9,340. Al sumar costo
+              empresarial, especialidades y riesgo de proyecto, un rango mezclado de
+              S/ 70–100/h produce aproximadamente S/ 54 mil–113 mil.
+            </p>
+          </article>
+          <article class="card wide">
+            <h3>Por qué un ERP de S/ 20–25 mil no invalida esta cifra</h3>
+            <p>
+              Un producto repetible amortiza desarrollo entre clientes y cobra
+              licencia, implementación o mensualidad. Incluso soluciones peruanas
+              de facturación se ofrecen desde decenas o cientos de soles al mes.
+              Eso no significa que reconstruirlas cueste esa suma. A la inversa,
+              Convenios tiene menos amplitud funcional que un ERP, pero mayor ajuste
+              al flujo específico. Se compara por resultados, exclusividad, riesgo y
+              costo de reemplazo; no por cantidad de tablas.
+            </p>
+          </article>
+        </div>
+
+        <div class="formula" style="margin-top: 18px">
+          <strong>Precio recomendado de salida:</strong> S/ 36,000 por el activo actual,
+          con piso de negociación de S/ 28,000 si no existe exclusividad. Para cesión
+          exclusiva, abrir en S/ 60,000 y no mezclar soporte indefinido dentro de ese
+          precio. IGV, impuestos, cloud, migración de datos y desarrollos nuevos deben
+          figurar por separado.
+        </div>
+      </section>
+
+      <section id="fuentes">
+        <div class="section-head">
+          <div>
+            <h2>Fuentes, supuestos y límites</h2>
+            <p>Las referencias externas se consultaron el 31 de agosto de 2026.</p>
+          </div>
+        </div>
+        <ol class="sources">
+          <li><a href="https://www.gob.pe/institucion/anpd/normas-legales/6554453-n-016-2024-jus">D.S. N.° 016-2024-JUS</a>, nuevo Reglamento de la Ley N.° 29733.</li>
+          <li><a href="https://cdn.www.gob.pe/uploads/document/file/7568330/6426760-decreto-supremo-n-016-2024-jus-reglamento-de-la-ley-n-29733-ley-de-proteccion-de-datos-personales-publicado-nov-2024.pdf">Texto oficial del Reglamento</a>, incluidos incidentes de seguridad y plazo de 48 horas.</li>
+          <li><a href="https://www.gob.pe/institucion/anpd/pages/8060-inscribir-banco-de-datos-en-el-registro-nacional-de-proteccion-de-datos-personales">Inscripción de bancos de datos ante el RNPDP</a>; trámite gratuito y automático vigente desde marzo de 2025.</li>
+          <li><a href="https://www.gob.pe/institucion/anpd/informes-publicaciones/4231380-derechos-arco">Guía oficial de derechos ARCO</a>.</li>
+          <li><a href="https://www.gob.pe/institucion/anpd/normas-legales/7574631-100-2025-jus-dgtaipd">Directiva del Oficial de Datos Personales</a>. Su aplicabilidad concreta debe revisarla asesoría legal.</li>
+          <li><a href="https://cpe.sunat.gob.pe/sistema_emision/see_contribuyente">SUNAT: Sistema de Emisión del Contribuyente</a>, plazos, CDR, conservación y requisitos.</li>
+          <li><a href="https://www.inesdi.com/sites/default/files/2025-04/INESDI-OBS_Top%20Perfiles%20Digitales%202025_.pdf">INESDI, Top Perfiles Digitales 2025</a>, estudio de remuneraciones Perú.</li>
+          <li><a href="https://alegra.com.pe/peru/factura-electronica/precios/">Alegra Perú: precios de facturación electrónica</a>, referencia de SaaS masivo, no de desarrollo a medida.</li>
+          <li><strong>Referencia aportada por el propietario:</strong> ERP local amplio y con facturación electrónica alrededor de S/ 20,000–25,000. Se usa como contraste, no como equivalente funcional.</li>
+          <li><strong>Evidencia interna:</strong> <code>README.md</code>, <code>package.json</code>, <code>src/</code>, <code>drizzle/</code>, <code>e2e/</code>, <code>.github/workflows/ci.yml</code> y documentación <code>docs/</code>.</li>
+        </ol>
+
+        <div class="note">
+          <strong>Alcance de esta auditoría</strong>
+          <p>
+            Revisión estática y ejecución local de tests, lint, formato y tipos. No
+            incluyó pentest, prueba de carga contra producción, revisión de cuentas
+            Vercel/Neon, restauración real, verificación de contratos ni dictamen
+            jurídico/tributario. La valorización es una herramienta de negociación,
+            no una pericia financiera ni garantía de precio de cierre.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        Convenios · Auditoría estratégica 2026 · Documento autónomo imprimible y sin dependencias externas.
+      </div>
+    </footer>
+
+    <script>
+      const search = document.querySelector("#search");
+      const priority = document.querySelector("#priorityFilter");
+      const category = document.querySelector("#categoryFilter");
+      const rows = [...document.querySelectorAll("#roadmap tbody tr")];
+
+      function filterRows() {
+        const term = search.value.trim().toLocaleLowerCase("es");
+        for (const row of rows) {
+          const matchesText = !term || row.textContent.toLocaleLowerCase("es").includes(term);
+          const matchesPriority = !priority.value || row.dataset.priority === priority.value;
+          const matchesCategory = !category.value || row.dataset.category === category.value;
+          row.hidden = !(matchesText && matchesPriority && matchesCategory);
+        }
+      }
+
+      search.addEventListener("input", filterRows);
+      priority.addEventListener("change", filterRows);
+      category.addEventListener("change", filterRows);
+    </script>
+  </body>
+</html>

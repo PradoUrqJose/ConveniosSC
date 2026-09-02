@@ -572,7 +572,6 @@ function Empleados() {
           <div className="bg-muted/45 h-12" />
           {Array.from({ length: 7 }, (_, index) => (
             <div key={index} className="flex h-[76px] items-center gap-5 px-5">
-              <Skeleton className="size-4" />
               <Skeleton className="size-10 rounded-xl" />
               <Skeleton className="h-4 flex-1" />
               <Skeleton className="h-4 w-28" />

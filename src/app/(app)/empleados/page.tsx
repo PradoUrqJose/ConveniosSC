@@ -6,6 +6,7 @@ import {
   listarEmpresasParaEmpleado,
   listarEmpleados,
   resumirEmpleados,
+  POR_PAGINA_EMPLEADOS,
 } from "@/modules/empleados/query";
 import { EmpleadosClient } from "./empleados-client";
 import {
@@ -56,10 +57,11 @@ export default async function EmpleadosPage({
     const query = serializarParametrosEmpleados(sp);
     redirect(query.size ? `/empleados?${query}` : "/empleados");
   }
-  const { tab, estado, q, cursor } = normalizarParametrosEmpleados(sp);
+  const { tab, estado, q, orden, actividad, cursor } =
+    normalizarParametrosEmpleados(sp);
 
   const [pagina, empresas, resumen] = await Promise.all([
-    listarEmpleados(sesion, { estado, q, cursor }),
+    listarEmpleados(sesion, { estado, q, orden, actividad, cursor }),
     listarEmpresasParaEmpleado(sesion),
     resumirEmpleados(sesion),
   ]);
@@ -69,6 +71,9 @@ export default async function EmpleadosPage({
       pagina={pagina}
       tab={tab}
       q={q}
+      orden={orden}
+      actividad={actividad}
+      porPagina={POR_PAGINA_EMPLEADOS}
       empresas={empresas}
       resumen={resumen}
       esSuperadmin={sesion.rol === "SUPERADMIN"}

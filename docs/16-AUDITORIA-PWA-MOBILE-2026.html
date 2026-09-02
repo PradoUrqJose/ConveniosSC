@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Convenios — Auditoría PWA móvil 2026</title>
+    <style>
+      :root {
+        --bg: #eef1f8;
+        --surface: #ffffff;
+        --surface-2: #e4e8f2;
+        --ink: #151c30;
+        --muted: #5d667a;
+        --line: #cfd5e2;
+        --brand: #3157d5;
+        --brand-soft: #e4eaff;
+        --navy: #10182d;
+        --green: #16724b;
+        --amber: #9a5b00;
+        --red: #b22f3e;
+        --shadow: 0 20px 55px rgb(16 24 45 / 10%);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0e1528;
+          --surface: #18223a;
+          --surface-2: #222d48;
+          --ink: #f4f6fb;
+          --muted: #b6bed0;
+          --line: #34415f;
+          --brand: #8da7ff;
+          --brand-soft: #243461;
+          --navy: #080d1b;
+          --green: #76d6aa;
+          --amber: #f4bd67;
+          --red: #ff9aa6;
+          --shadow: 0 20px 55px rgb(0 0 0 / 28%);
+        }
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 80% -5%, rgb(49 87 213 / 15%), transparent 34rem),
+          var(--bg);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+      a { color: var(--brand); text-underline-offset: 0.18em; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.92em; }
+      .wrap { width: min(1480px, calc(100% - 32px)); margin-inline: auto; }
+      header.hero { padding: 64px 0 38px; }
+      .eyebrow, .tag, .priority, .status {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 800;
+        line-height: 1;
+      }
+      .eyebrow { padding: 9px 12px; color: var(--brand); background: var(--brand-soft); text-transform: uppercase; letter-spacing: 0.06em; }
+      h1 { max-width: 980px; margin: 18px 0 14px; font-size: clamp(2.35rem, 6vw, 5rem); line-height: 0.98; letter-spacing: -0.055em; }
+      h2 { margin: 0 0 8px; font-size: clamp(1.55rem, 3vw, 2.25rem); line-height: 1.1; letter-spacing: -0.035em; }
+      h3 { margin: 0 0 8px; font-size: 1.05rem; }
+      p { margin: 0; }
+      .lead { max-width: 940px; color: var(--muted); font-size: 1.08rem; }
+      .meta { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 24px; color: var(--muted); font-size: 0.88rem; }
+      nav { position: sticky; z-index: 20; top: 0; border-block: 1px solid var(--line); background: color-mix(in srgb, var(--bg) 90%, transparent); backdrop-filter: blur(14px); }
+      nav .wrap { display: flex; gap: 22px; overflow-x: auto; padding-block: 13px; scrollbar-width: none; }
+      nav a { flex: 0 0 auto; color: var(--muted); font-size: 0.84rem; font-weight: 750; text-decoration: none; }
+      main { padding: 44px 0 84px; }
+      section { margin-bottom: 58px; scroll-margin-top: 68px; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 20px; }
+      .section-head p { max-width: 820px; color: var(--muted); }
+      .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; }
+      .card { grid-column: span 3; padding: 22px; border: 1px solid var(--line); border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); }
+      .card.wide { grid-column: span 6; }
+      .card.full { grid-column: 1 / -1; }
+      .card p, .note p { color: var(--muted); }
+      .value { display: block; margin: 9px 0 5px; color: var(--brand); font-size: clamp(1.55rem, 3vw, 2.35rem); line-height: 1; letter-spacing: -0.04em; }
+      .kicker { color: var(--muted); font-size: 0.72rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+      .note { padding: 20px 22px; border-left: 5px solid var(--brand); border-radius: 5px 17px 17px 5px; background: var(--brand-soft); }
+      .note strong { display: block; margin-bottom: 4px; }
+      .note.warning { border-color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, var(--surface)); }
+      .table-shell { overflow: hidden; border: 1px solid var(--line); border-radius: 19px; background: var(--surface); box-shadow: var(--shadow); }
+      .table-scroll { overflow-x: auto; }
+      table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+      th, td { padding: 13px 12px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
+      tr:last-child td { border-bottom: 0; }
+      td small { display: block; margin-top: 4px; color: var(--muted); line-height: 1.4; }
+      .tag { padding: 6px 8px; color: var(--brand); background: var(--brand-soft); }
+      .priority { padding: 6px 8px; }
+      .p0 { color: var(--red); background: color-mix(in srgb, var(--red) 13%, transparent); }
+      .p1 { color: var(--amber); background: color-mix(in srgb, var(--amber) 14%, transparent); }
+      .p2 { color: var(--green); background: color-mix(in srgb, var(--green) 13%, transparent); }
+      .status { padding: 6px 8px; color: var(--muted); background: var(--surface-2); }
+      .good { color: var(--green); }
+      .risk { color: var(--red); }
+      .phase { grid-column: span 3; padding: 20px; border-radius: 20px; background: var(--navy); color: #f7f8fc; }
+      .phase span { color: #aebbe2; font-size: 0.76rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+      .phase p { color: #cbd2e5; font-size: 0.9rem; }
+      .checklist { margin: 12px 0 0; padding-left: 1.2rem; }
+      .checklist li { margin: 6px 0; color: var(--muted); }
+      .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+      footer { padding: 30px 0 70px; color: var(--muted); font-size: 0.84rem; }
+      @media (max-width: 900px) { .card, .card.wide, .phase { grid-column: span 6; } }
+      @media (max-width: 620px) {
+        .wrap { width: min(100% - 24px, 1480px); }
+        header.hero { padding-top: 44px; }
+        .card, .card.wide, .phase { grid-column: 1 / -1; }
+        .section-head { display: block; }
+        th, td { padding: 11px 10px; }
+      }
+      @media print {
+        nav { display: none; }
+        body { background: white; color: #111; }
+        .card, .table-shell { box-shadow: none; break-inside: avoid; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="hero wrap">
+      <span class="eyebrow">Auditoría de producto · PWA móvil · v1.1</span>
+      <h1>Convenios: rediseño móvil e inmediatez</h1>
+      <p class="lead">
+        Auditoría completa de la experiencia PWA para teléfonos, contrastada con
+        <code>docs/sistema-diseno-mobile (1).md</code>, el código actual, la PWA ejecutada en
+        Chrome y la documentación de Next.js 16.3 instalada. Define el trabajo de UI,
+        navegación, rendimiento, accesibilidad, instalación, conectividad y pruebas sin
+        modificar la interfaz desktop.
+      </p>
+      <div class="meta">
+        <span><strong>Fecha:</strong> 2 de septiembre de 2026</span>
+        <span><strong>Viewports objetivo:</strong> 320, 390 y 430 px</span>
+        <span><strong>Desktop congelado:</strong> ≥1024 px</span>
+        <span><strong>Repositorio:</strong> PradoUrqJose/ConveniosSC</span>
+      </div>
+    </header>
+
+    <nav aria-label="Contenido">
+      <div class="wrap">
+        <a href="#dictamen">Dictamen</a>
+        <a href="#metodo">Alcance</a>
+        <a href="#sistema">Sistema móvil</a>
+        <a href="#rendimiento">Rendimiento</a>
+        <a href="#pantallas">Pantallas</a>
+        <a href="#issues">Issues</a>
+        <a href="#ruta">Ejecución</a>
+      </div>
+    </nav>
+
+    <main class="wrap">
+      <section id="dictamen">
+        <div class="section-head">
+          <div>
+            <h2>Dictamen ejecutivo</h2>
+            <p>La base PWA es válida; la capa móvil todavía no cumple la experiencia definida y debe tratarse como un rediseño propio, aislado del escritorio.</p>
+          </div>
+        </div>
+        <div class="grid">
+          <article class="card"><span class="kicker">Infraestructura PWA</span><strong class="value">Buena base</strong><p>Manifest, iconos, standalone, Serwist, página offline, borrador de venta y safe areas parciales ya existen.</p></article>
+          <article class="card"><span class="kicker">UI contra especificación</span><strong class="value">Brecha alta</strong><p>Header fijo, barra inferior pegada, cards con bordes/sombras, controles pequeños y modales heredados contradicen la línea móvil.</p></article>
+          <article class="card"><span class="kicker">Sensación instantánea</span><strong class="value">Incompleta</strong><p>Hay loading boundaries y prefetch, pero no existe baseline móvil, prueba de navegación instantánea, RUM ni presupuesto de JS.</p></article>
+          <article class="card"><span class="kicker">Verificación móvil</span><strong class="value">Parcial real</strong><p>Se recorrieron en Chrome las rutas permitidas al rol en 390×844 px y el baseline desktop en 1440×900 px. Aún faltan dispositivo físico, instalación y teclado real.</p></article>
+          <article class="card wide"><h3 class="good">Fortalezas que se conservan</h3><p>Server Components en páginas, loading.tsx para casi todas las rutas, dashboard con Suspense, prefetch en navegación, borrador local de venta, archivos privados, inputs de 16 px en la base, <code>100dvh</code>, <code>viewport-fit=cover</code>, icono maskable y soporte explícito para reduced motion en varias piezas.</p></article>
+          <article class="card wide"><h3 class="risk">Riesgo dominante</h3><p>Modificar primitivas compartidas para conseguir el móvil deseado puede alterar silenciosamente el desktop ya aprobado. El rediseño debe introducir variantes móviles o reglas bajo <code>lg</code>, y cada issue debe pasar una comparación desktop antes/después.</p></article>
+        </div>
+        <div class="note" style="margin-top: 18px">
+          <strong>Decisión senior</strong>
+          <p>No reescribir pantallas una por una desde el inicio. Primero construir el shell, tokens, navegación, sheets, estados y pruebas móviles; después migrar las pantallas por flujo de negocio.</p>
+        </div>
+      </section>
+
+      <section id="metodo">
+        <div class="section-head">
+          <div>
+            <h2>Alcance, evidencia y límites</h2>
+            <p>El análisis cubre las 15 rutas visibles, componentes compartidos, estilos, PWA, manifest, service worker, navegación, formularios, archivos y pruebas.</p>
+          </div>
+        </div>
+        <div class="grid">
+          <article class="card wide"><h3>Evidencia inspeccionada</h3><p><code>src/app/globals.css</code>, layouts, manifest, service worker, Serwist, shell, 70 módulos cliente, 11 loading boundaries específicas, 15 páginas, componentes de UI, pruebas E2E, baseline desktop, guía móvil y documentación local de Next.js 16.3 sobre PWA, offline y prefetch.</p></article>
+          <article class="card wide"><h3>Comprobaciones ejecutadas</h3><p><code>npm run check</code> aprobó tipos, lint, formato y 138 pruebas; 51 pruebas con BD quedaron omitidas por su configuración. El build no pudo cerrarse en este entorno porque Turbopack intentó abrir un puerto interno; antes también reveló una dependencia de red en Google Fonts.</p></article>
+          <article class="card wide"><h3>Inspección dinámica</h3><p>Chrome conectado, sesión autenticada y servidor Next.js 16.3 en desarrollo. Se verificaron dashboard, ventas, detalle, empleados, sedes, empresas, convenios, usuarios, auditoría, perfil, contraseña y fallback offline a 390×844 px; además se fijó el baseline del dashboard a 1440×900 px. No hubo overflow horizontal del documento, pero sí contenido recortado dentro de cabeceras, filtros y acciones.</p></article>
+          <article class="card wide"><h3>Límites pendientes</h3><p>El rol actual redirige <code>/ventas/nueva</code> al dashboard y la sesión autenticada impide observar <code>/login</code>. Quedan como verificación de QA la instalación real, standalone, safe areas de iPhone, teclado virtual, gestos, pérdida de red, actualización del service worker, Lighthouse y métricas de una compilación de producción en dispositivo físico.</p></article>
+        </div>
+      </section>
+
+      <section id="sistema">
+        <div class="section-head">
+          <div>
+            <h2>Sistema móvil objetivo</h2>
+            <p>Personalización concreta de la guía aportada, usando la identidad azul existente sin arrastrar la composición desktop.</p>
+          </div>
+        </div>
+        <div class="grid">
+          <article class="card"><span class="kicker">Fondo móvil</span><strong class="value">Azul noche</strong><p><span class="mono">#10182D</span>, matizado con la familia de marca. Las pantallas raíz pueden usar un degradado ambiental azul de hasta 12%.</p></article>
+          <article class="card"><span class="kicker">Superficies</span><strong class="value">Blanco frío</strong><p><span class="mono">#F6F7FB</span> y tenue <span class="mono">#E8ECF4</span>. Separación por superficie y aire; sin borde ni sombra dura.</p></article>
+          <article class="card"><span class="kicker">Acento</span><strong class="value">Azul vivo</strong><p><span class="mono">#3D64FF</span>, reservado para acción primaria, navegación activa y ambiente. Semánticos solo en estados.</p></article>
+          <article class="card"><span class="kicker">Tipografía</span><strong class="value">Sistema</strong><p>SF Pro/Roboto/Segoe UI mediante stack local y monoespaciada del sistema para importes. Evita bloquear builds y reduce descargas.</p></article>
+        </div>
+
+        <div class="table-shell" style="margin-top: 18px">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Área</th><th>Estado actual verificable</th><th>Objetivo</th><th>Prioridad</th></tr></thead>
+              <tbody>
+                <tr><td><strong>Shell</strong></td><td>Header sticky global en móvil.</td><td>Sin chrome superior fijo; safe area y título dentro del contenido.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><strong>Bottom bar</strong></td><td>Pegada al borde, con borde/sombra; safe area como padding; acción central sin etiqueta.</td><td>Píldora flotante, etiquetas siempre visibles, inset como margin, indicador deslizante y ocultamiento por scroll.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><strong>Capas</strong></td><td>Dialog mobile, Sheet y Dropdown coexisten; overlays atenúan; sheet muestra agarradera.</td><td>Bottom sheet como mecanismo único salvo visor de imágenes; tres alturas y formularios protegidos contra cierre accidental.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><strong>Geometría</strong></td><td>Márgenes de 16 px, radios y paddings variables; tarjetas con ring, borde y shadow.</td><td>Margen 20, padding 18, radios 24/16/12 y nesting por superficie.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><strong>Toque</strong></td><td>Hay controles interactivos de 28–40 px y filas con acciones pequeñas.</td><td>44×44 mínimo propio del sistema, feedback pressed en el mismo frame y sin dependencia de hover.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><strong>Búsqueda/filtros</strong></td><td>Buscadores permanentes y selects inline en varias rutas.</td><td>Lupa reemplaza el título; filtros viven en sheet, se aplican al confirmar y muestran solo un punto activo.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><strong>Estados</strong></td><td>Buenos skeletons por ruta, pero algunos usan shimmer/pulse/spinner y no hay error boundaries.</td><td>Skeleton geométrico con umbral 200 ms, vacíos distintos, error parcial, retry y contenido anterior atenuado.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><strong>Movimiento</strong></td><td>Animaciones dispersas de 100–500 ms; varias no tienen reducción explícita.</td><td>150–250 ms, easing común, pressed consistente, reduced motion global y view transitions solo con continuidad.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><strong>Desktop</strong></td><td>UI ya auditada y aprobada.</td><td>Cero cambios visuales ≥1024 px; defaults de primitivas desktop intactos.</td><td><span class="priority p0">P0</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="rendimiento">
+        <div class="section-head">
+          <div>
+            <h2>Auditoría de inmediatez y PWA</h2>
+            <p>“Instantánea” se define con feedback, shell navegable y datos que llegan sin bloquear la transición; no solo con un spinner rápido.</p>
+          </div>
+        </div>
+        <div class="grid">
+          <article class="card wide"><h3>Navegación</h3><p>Las rutas dinámicas tienen <code>loading.tsx</code> y los destinos principales usan <code>Link</code> con prefetch, lo que permite precargar shells. Sin embargo, no existe una prueba <code>instant()</code>, el cache dinámico cliente está apagado por defecto y ventas desactiva prefetch en una transición de dirección. Debe medirse antes de activar Cache Components o Partial Prefetching; la adopción será incremental, no un flag global sin pruebas.</p></article>
+          <article class="card wide"><h3>JavaScript y dependencias</h3><p>Hay 70 módulos cliente. <code>recharts</code> ya se carga como isla dinámica, pero PDF, formularios grandes y clientes de 1,389/1,277 líneas requieren análisis de chunks. La pantalla de nueva venta depende de Google Fonts durante build; se debe usar stack del sistema o fuentes autohospedadas.</p></article>
+          <article class="card wide"><h3>Service worker y datos privados</h3><p>La política NetworkOnly para páginas, Actions y API evita persistir DNI, ventas o documentos en caché; es una decisión segura y debe conservarse. La PWA offline ofrece solo fallback y borrador local. Hay que validar headers específicos del SW, actualizaciones, rollback y mensajes de reconexión; no cachear respuestas autenticadas para “sentir” velocidad.</p></article>
+          <article class="card wide"><h3>Instalación</h3><p>Manifest, standalone, orientación, iconos 192/512, Apple touch y maskable están presentes. Falta probar el safe zone del maskable, instalación real, actualización, lanzamiento por shortcuts y prompt después de una acción de valor; iOS hoy puede mostrar la guía en la primera visita, contradiciendo la especificación.</p></article>
+          <article class="card wide"><h3>Medición dinámica diagnóstica</h3><p>En desarrollo, la navegación interna dashboard → ventas tardó 3.08–3.17 s hasta mostrar el título, incluso con caché caliente. Los logs del servidor atribuyeron normalmente 0.50–1.21 s al código de aplicación por ruta; empresas llegó a 0.99 s, usuarios a 0.86 s y ventas a 1.20 s. El dashboard recargado registró First Meaningful Paint aproximado de 1.10 s y DOMContentLoaded de 1.51 s. No son cifras de producción, pero demuestran que el cuello no es solo animación.</p></article>
+          <article class="card wide"><h3>Red, archivos y consola</h3><p>La miniatura del comprobante tardó 2.9 s: 2.4 s fueron código de aplicación antes del redirect, por lo que necesita URL firmada/metadata y miniatura optimizada sin bloquear. La consola repitió errores de Base UI por renderizar como no-button en <code>CabeceraPuntoVenta</code>, <code>EmpleadosClient</code> y <code>AccionCambiarPassword</code>; debe corregirse la semántica nativa antes del rediseño.</p></article>
+        </div>
+
+        <div class="note" style="margin-top: 18px">
+          <strong>Presupuesto de aceptación inicial</strong>
+          <p>En el percentil 75 móvil: LCP ≤2.5 s, INP ≤200 ms y CLS ≤0.1. En navegación caliente, feedback visual en el mismo frame y shell de destino visible en ≤200 ms p95. Medir JS comprimido por ruta y fijar el límite después del baseline; como guardrail inicial, compartido ≤180 KB gzip y adicional normal ≤80 KB gzip, con excepción documentada para dashboard.</p>
+        </div>
+      </section>
+
+      <section id="pantallas">
+        <div class="section-head">
+          <div>
+            <h2>Auditoría por ruta</h2>
+            <p>La migración conserva las reglas de negocio y reemplaza solo la presentación/interacción móvil.</p>
+          </div>
+        </div>
+        <div class="table-shell">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Ruta</th><th>Hallazgo móvil</th><th>Rediseño requerido</th><th>Prioridad</th></tr></thead>
+              <tbody>
+                <tr><td><code>/login</code></td><td>Buena jerarquía e inputs de 16 px; composición aún usa card/bordes y el prompt de instalación global puede competir.</td><td>Entrada full-bleed, superficie anidada, teclado/auto-fill probado, estados offline/error y sin prompt antes de valor.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/</code></td><td>Hero desktop comprimido y cuatro métricas iguales; “Ver todas” es texto sin contenedor.</td><td>Título de contenido, una métrica ancla invertida, dos secundarias, actividad reciente en filas y CTA delegado a bottom bar.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/dashboard</code></td><td>Verificado a 390 px: hero, fechas y botón compiten; “Aplicar” queda recortado fuera de la superficie visible y los inputs de fecha tienen solo 20 px de alto. El gráfico domina el primer scroll.</td><td>Resumen ancla, filtros en sheet, métricas sin scroll horizontal, chart lazy y rankings en filas.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/ventas/nueva</code></td><td>Es el mejor flujo móvil actual, pero muestra tres pasos en una página larga, header sticky, bordes abundantes, spinner y CTA pegado al borde.</td><td>Formulario por pasos real, 2–3 campos por paso, progreso segmentado, borrador persistente, CTA flotante y confirmación en sheet.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><code>/ventas</code></td><td>La lista es legible, pero el placeholder del buscador queda cortado a 390 px; cuatro métricas ocupan dos filas antes del contenido y la página entrega 25 tarjetas en un documento muy largo.</td><td>Búsqueda en título, sheet multipágina de filtros, una métrica protagonista, filas agrupadas, precarga, scroll restaurado y error inline.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><code>/ventas/[id]</code></td><td>Verificado: la jerarquía y el total son claros, pero hay múltiples paneles, back con texto y adjunto sin visor gestual. La miniatura tardó 2.9 s en desarrollo, 2.4 s dentro del código de aplicación.</td><td>Back icon 44 px, transición lateral, datos densos, preview 3:4/4:5 y visor de imagen full-screen con zoom/swipe; desacoplar y optimizar miniatura.</td><td><span class="priority p0">P0</span></td></tr>
+                <tr><td><code>/empleados</code></td><td>Verificado: el título se trunca por las dos acciones de cabecera; Exportar/Nuevo miden 32 px de alto, filtros 40 px y Ver detalle/Editar 28 px. El documento llegó a 4,741 px.</td><td>Acción principal fija, filtros en sheet, filas 56–64 px, pulsación larga para selección si se recupera, detalle/edición en sheets.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/sedes</code></td><td>Verificado: no desborda horizontalmente, pero cada sede consume cerca de un tercio de pantalla con mucho vacío y los tres filtros permanecen en línea de lectura.</td><td>Lista compacta, estado en pill, filtros en sheet, edición bottom sheet y siguiente página como precarga/infinito.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/admin/empresas</code></td><td>Verificado: buscador recortado, cards con tres métricas y Editar/paginación de 28 px. La jerarquía es clara, pero el escaneo es lento por la altura de las tarjetas.</td><td>Fila navegable, subcard de datos, acciones en sheet, targets 44 px y carga incremental.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/admin/convenios</code></td><td>Verificado: las direcciones del beneficio se eliden y Editar/Cambiar descuentos/paginación miden 28 px; tres selects ocupan un bloque completo antes del contenido.</td><td>Fila resumen, detalle en sheet multipágina, filtros en sheet y descuento como dato principal legible.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/usuarios</code></td><td>Verificado: cuatro filtros preceden a cards muy altas; Editar y más acciones miden 28 px. La página alcanzó 4,586 px con la muestra actual.</td><td>Fila de identidad/rol/estado, detalle en sheet, acciones sensibles como decisiones, filtros separados.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/auditoria</code></td><td>Verificado: filtros consumen todo el primer viewport; presets miden 30 px, Filtrar 32 px y “Ver cambios” solo 16 px de alto. El documento llegó a 7,768 px.</td><td>Filtros multipágina, copy para IDs, error parcial, carga anticipada y timeline sin círculos decorativos fuera de persona/estado.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/perfil</code></td><td>Verificado: ficha clara, pero Cambiar contraseña mide 32 px y tema/instalación/cierre siguen en un dropdown global superpuesto, no en la pantalla de cuenta.</td><td>Lista completa de cuenta/empresa, instalación, tema, contraseña y cierre de sesión; context pill en cabeceras raíz.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/perfil/password</code></td><td>Verificado: inputs a 16 px evitan zoom, pero el control interno y el botón mostrar contraseña miden 32 px; falta prueba con teclado y standalone.</td><td>Formulario mobile con labels persistentes, reglas, errores sin salto y CTA accesible con teclado abierto.</td><td><span class="priority p1">P1</span></td></tr>
+                <tr><td><code>/~offline</code></td><td>Verificado: fallback claro, centrado y honesto sobre datos privados; solo permite reintentar y no distingue pérdida de red de servidor caído.</td><td>Alinear visualmente, distinguir sin red de servidor caído y volver automáticamente al recuperar conexión.</td><td><span class="priority p0">P0</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="issues">
+        <div class="section-head">
+          <div>
+            <h2>Backlog de issues publicado</h2>
+            <p>Veinte unidades implementables, publicadas como <a href="https://github.com/PradoUrqJose/ConveniosSC/issues?q=is%3Aissue%20state%3Aopen%20author%3APradoUrqJose">issues #51–#70</a>. Cada una contiene problema, objetivo, implementación, criterios de aceptación, pruebas, dependencias, prioridad y categorías mediante labels existentes del repositorio.</p>
+          </div>
+        </div>
+        <div class="table-shell">
+          <div class="table-scroll">
+            <table>
+              <thead><tr><th>Código</th><th>Título</th><th>Categoría / labels</th><th>Resultado verificable</th><th>Prioridad</th><th>Depende de</th></tr></thead>
+              <tbody>
+                <tr><td><strong>PWA-MOB-01</strong></td><td>Sistema de tokens y geometría móvil aislado del desktop</td><td><span class="tag">design-system</span><small>pwa · mobile · ui/ux</small></td><td>Tokens mobile, 20/18 px, radios 24/16/12, superficies y tipografía local; baseline desktop sin diferencias.</td><td><span class="priority p0">P0</span></td><td>—</td></tr>
+                <tr><td><strong>PWA-MOB-02</strong></td><td>Shell móvil sin header fijo y cabeceras por pantalla</td><td><span class="tag">foundation</span><small>mobile · navigation · accessibility</small></td><td>Safe area superior, título scrolleable, acciones 44 px, contexto compacto y back propio en secundarias.</td><td><span class="priority p0">P0</span></td><td>01</td></tr>
+                <tr><td><strong>PWA-MOB-03</strong></td><td>Bottom bar flotante con safe area y ocultamiento por scroll</td><td><span class="tag">navigation</span><small>pwa · mobile · motion</small></td><td>3–5 destinos con label, indicador, margin-bottom correcto, hide/show 80/30 px y CTA coordinado.</td><td><span class="priority p0">P0</span></td><td>01–02</td></tr>
+                <tr><td><strong>PWA-MOB-04</strong></td><td>Unificar capas móviles en bottom sheets</td><td><span class="tag">foundation</span><small>mobile · ui/ux · accessibility</small></td><td>Sheet accesible con alturas, stack multipágina, cierre seguro, acción fija y variante destructiva.</td><td><span class="priority p0">P0</span></td><td>01</td></tr>
+                <tr><td><strong>PWA-MOB-05</strong></td><td>Primitivas táctiles, inputs y movimiento reducido</td><td><span class="tag">accessibility</span><small>mobile · design-system</small></td><td>Todos los controles ≥44 px, inputs ≥16 px, pressed/focus/disabled coherentes, reduced motion global y cero errores Base UI de semántica button.</td><td><span class="priority p0">P0</span></td><td>01</td></tr>
+                <tr><td><strong>PWA-MOB-06</strong></td><td>Estados móviles de carga, vacío, error, toast y offline</td><td><span class="tag">foundation</span><small>mobile · accessibility · pwa</small></td><td>Primitivas geométricas, umbral 200 ms, error boundaries, retry parcial y avisos coordinados con bottom bar.</td><td><span class="priority p0">P0</span></td><td>01–05</td></tr>
+                <tr><td><strong>PWA-PERF-01</strong></td><td>Baseline móvil, RUM y presupuestos de rendimiento</td><td><span class="tag">performance</span><small>quality · mobile · testing</small></td><td>Repetir en build de producción el baseline diagnóstico de 3.08–3.17 s; medir por ruta/red/dispositivo, CWV p75, JS/RSC y navegación caliente.</td><td><span class="priority p0">P0</span></td><td>—</td></tr>
+                <tr><td><strong>PWA-PERF-02</strong></td><td>Navegación instantánea con Next.js 16.3</td><td><span class="tag">performance</span><small>nextjs · pwa · testing</small></td><td>Pruebas <code>instant()</code>, Suspense cercano, prefetch medido y adopción incremental de App Shell/Partial Prefetching.</td><td><span class="priority p0">P0</span></td><td>07</td></tr>
+                <tr><td><strong>PWA-PERF-03</strong></td><td>Reducir JS, fuentes y dependencias pesadas por ruta</td><td><span class="tag">performance</span><small>pwa · refactor</small></td><td>Bundle analyzer, fuentes locales/sistema, PDF/chart/forms lazy y presupuesto CI sin regresión.</td><td><span class="priority p1">P1</span></td><td>07</td></tr>
+                <tr><td><strong>PWA-CORE-01</strong></td><td>Endurecer ciclo de vida, actualización y offline del service worker</td><td><span class="tag">pwa</span><small>offline · reliability · security</small></td><td>Headers SW, update UX, fallback/reconexión, estrategia privada NetworkOnly probada y rollback.</td><td><span class="priority p0">P0</span></td><td>06–07</td></tr>
+                <tr><td><strong>PWA-CORE-02</strong></td><td>Completar experiencia de instalación y manifest</td><td><span class="tag">pwa</span><small>installability · mobile</small></td><td>Prompt después de valor, iOS/Android, icono maskable validado, shortcuts y standalone comprobados.</td><td><span class="priority p1">P1</span></td><td>02–03, 10</td></tr>
+                <tr><td><strong>PWA-QA-01</strong></td><td>Suite móvil y contrato de no regresión desktop</td><td><span class="tag">testing</span><small>accessibility · pwa · quality</small></td><td>320/390/430, claro/oscuro, reduced motion, teclado, axe, standalone/offline y baseline desktop antes/después.</td><td><span class="priority p0">P0</span></td><td>01</td></tr>
+                <tr><td><strong>PWA-UI-01</strong></td><td>Rediseñar login, perfil y contraseña para móvil</td><td><span class="tag">screen</span><small>mobile · ui/ux · auth</small></td><td>Flujos completos con autofill, teclado, instalación contextual, empresa/cuenta y errores accesibles.</td><td><span class="priority p1">P1</span></td><td>01–06, 12</td></tr>
+                <tr><td><strong>PWA-UI-02</strong></td><td>Rediseñar inicio vendedor y dashboard móvil</td><td><span class="tag">screen</span><small>mobile · ui/ux · performance</small></td><td>Métrica ancla, secundarias, actividad/rankings en filas, filtros en sheet y gráfico lazy.</td><td><span class="priority p1">P1</span></td><td>01–09, 12</td></tr>
+                <tr><td><strong>PWA-UI-03</strong></td><td>Convertir Nueva venta en formulario móvil por pasos</td><td><span class="tag">screen</span><small>mobile · sales · pwa</small></td><td>Un objetivo por paso, borrador seguro, archivos, validación, progreso, CTA fijo y confirmación sin doble envío.</td><td><span class="priority p0">P0</span></td><td>01–06, 10, 12</td></tr>
+                <tr><td><strong>PWA-UI-04</strong></td><td>Rediseñar listado y detalle de ventas móvil</td><td><span class="tag">screen</span><small>mobile · sales · performance</small></td><td>Búsqueda/título, filtros multipágina, carga anticipada, scroll restaurado, detalle, miniatura optimizada y visor de adjuntos gestual.</td><td><span class="priority p0">P0</span></td><td>01–08, 12</td></tr>
+                <tr><td><strong>PWA-UI-05</strong></td><td>Rediseñar empleados móvil</td><td><span class="tag">screen</span><small>mobile · employees · ui/ux</small></td><td>Lista compacta, filtros, estados, detalle, creación/edición/verificación en sheets y exportación contextual.</td><td><span class="priority p1">P1</span></td><td>01–08, 12</td></tr>
+                <tr><td><strong>PWA-UI-06</strong></td><td>Rediseñar catálogos administrativos móvil</td><td><span class="tag">screen</span><small>mobile · admin · ui/ux</small></td><td>Sedes, empresas, convenios y usuarios con patrón común de filas, datos y acciones sensibles.</td><td><span class="priority p1">P1</span></td><td>01–08, 12</td></tr>
+                <tr><td><strong>PWA-UI-07</strong></td><td>Rediseñar auditoría móvil</td><td><span class="tag">screen</span><small>mobile · audit · performance</small></td><td>Timeline, filtros en sheet, copy de IDs, detalles inline, carga anticipada y errores parciales.</td><td><span class="priority p1">P1</span></td><td>01–08, 12</td></tr>
+                <tr><td><strong>PWA-MOTION-01</strong></td><td>Transiciones de navegación y continuidad visual</td><td><span class="tag">motion</span><small>mobile · ui/ux · accessibility</small></td><td>Deslizamiento de detalle, view transitions solo con identidad compartida, fallback y retorno exacto al scroll.</td><td><span class="priority p2">P2</span></td><td>03, 12, 14–19</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="ruta">
+        <div class="section-head">
+          <div>
+            <h2>Orden recomendado de ejecución</h2>
+            <p>El orden reduce retrabajo y convierte la protección del desktop en una condición continua, no en una revisión final.</p>
+          </div>
+        </div>
+        <div class="grid">
+          <article class="phase"><span>Fase 0 · medir</span><h3>Contrato verificable</h3><p>PERF-01 y QA-01. Baseline móvil, presupuestos y capturas desktop antes de modificar primitivas.</p></article>
+          <article class="phase"><span>Fase 1 · cimentar</span><h3>Sistema móvil</h3><p>MOB-01 a 06 y CORE-01. Shell, barra, sheets, interacción, estados y conectividad.</p></article>
+          <article class="phase"><span>Fase 2 · acelerar</span><h3>App Shell y bundle</h3><p>PERF-02/03. Navegación instantánea comprobada y carga diferida basada en medición.</p></article>
+          <article class="phase"><span>Fase 3 · migrar</span><h3>Flujos reales</h3><p>UI-03/04 primero; luego UI-01/02/05/06/07. Un flujo completo y probado antes del siguiente.</p></article>
+          <article class="phase"><span>Fase 4 · pulir</span><h3>Instalación y motion</h3><p>CORE-02 y MOTION-01. Dispositivos físicos, transición coherente y rollout controlado.</p></article>
+          <article class="card wide"><h3>Definition of Done común</h3><ul class="checklist"><li>320 px sin scroll horizontal y 390/430 px sin solapes.</li><li>Todos los targets táctiles propios ≥44×44 px; texto/inputs con contraste y zoom iOS controlado.</li><li>Claro, oscuro, reduced motion, teclado visible y safe areas probados.</li><li>Carga, vacío, error, offline y pendiente definidos.</li><li>Sin datos autenticados nuevos en caché del service worker.</li><li>Baseline desktop ≥1024 px sin diferencias no aprobadas.</li><li>Tests unitarios/E2E y criterios específicos del issue aprobados.</li></ul></article>
+        </div>
+        <div class="note warning" style="margin-top: 18px">
+          <strong>No hacer</strong>
+          <p>No habilitar Cache Components globalmente, cachear RSC autenticado, reemplazar todas las primitivas desktop, añadir animaciones decorativas o implementar veinte pantallas en un único PR. Cada cambio necesita métrica, fallback y rollback.</p>
+        </div>
+      </section>
+
+      <section id="fuentes">
+        <div class="section-head"><div><h2>Fuentes y trazabilidad</h2><p>Referencias utilizadas para que las decisiones puedan revisarse durante la implementación.</p></div></div>
+        <div class="grid">
+          <article class="card wide"><h3>Repositorio</h3><p><code>docs/sistema-diseno-mobile (1).md</code>; <code>src/app/layout.tsx</code>; <code>src/app/manifest.ts</code>; <code>src/app/sw.ts</code>; <code>src/app/(app)/layout.tsx</code>; shell, UI, páginas, loaders, Playwright y baseline desktop.</p></article>
+          <article class="card wide"><h3>Next.js instalado</h3><p><code>node_modules/next/dist/docs/01-app/02-guides/progressive-web-apps.md</code>, <code>offline-support.md</code>, <code>prefetching.md</code> e <code>instant-navigation.md</code>. Se usa la documentación de la versión 16.3 del proyecto, no supuestos de versiones anteriores.</p></article>
+          <article class="card wide"><h3>Estándares</h3><p><a href="https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html">WCAG 2.2</a> para target mínimo y <a href="https://www.w3.org/WAI/WCAG22/Understanding/target-size-enhanced.html">target mejorado</a>; <a href="https://web.dev/articles/defining-core-web-vitals-thresholds">Core Web Vitals</a> para LCP, INP y CLS. La guía propia eleva voluntariamente el target móvil a 44×44 px.</p></article>
+          <article class="card wide"><h3>Interpretación</h3><p>Esta auditoría propone arquitectura y backlog. Los valores de campo deben confirmarse con usuarios reales, red móvil, producción y dispositivos físicos antes de declarar la PWA terminada.</p></article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="wrap">
+      Convenios · Auditoría PWA móvil 2026 · Único documento de auditoría generado para este rediseño.
+    </footer>
+  </body>
+</html>

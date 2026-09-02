@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { serializarParametrosEmpleados } from "@/modules/empleados/filtros";
@@ -51,8 +51,10 @@ import { fechaRelativa } from "@/lib/fechas";
 import type { Pagina, Resultado } from "@/lib/tipos";
 import { verificarEmpleado } from "@/modules/empleados/actions";
 import type {
+  ActividadEmpleados,
   EmpresaOpcion,
   FilaEmpleado,
+  OrdenEmpleados,
   ResumenEmpleados,
 } from "@/modules/empleados/query";
 import { FormEmpleado } from "./form-empleado";
@@ -65,6 +67,10 @@ const TABS = [
   { id: "inactivos", label: "Inactivos", resumen: "inactivos" },
   { id: "rechazados", label: "Rechazados", resumen: "rechazados" },
 ] as const;
+
+// Igual que en Ventas (`ventas/ventas-client.tsx`): marca "primera página"
+// dentro de `antes`, porque "" se interpreta como "sin parámetro".
+const CENTINELA_PRIMERA_PAGINA = "-";
 
 type Dialogo =
   | { tipo: "crear" }
@@ -99,6 +105,9 @@ export function EmpleadosClient({
   pagina,
   tab,
   q,
+  orden,
+  actividad,
+  porPagina,
   empresas,
   resumen,
   esSuperadmin,
@@ -107,6 +116,9 @@ export function EmpleadosClient({
   pagina: Pagina<FilaEmpleado>;
   tab: string;
   q?: string;
+  orden: OrdenEmpleados;
+  actividad?: ActividadEmpleados;
+  porPagina: number;
   empresas: EmpresaOpcion[];
   resumen: ResumenEmpleados;
   esSuperadmin: boolean;
@@ -116,15 +128,13 @@ export function EmpleadosClient({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [texto, setTexto] = useState(q ?? "");
-  const [actividad, setActividad] = useState("all");
-  const [orden, setOrden] = useState("name-asc");
-  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
   const [dialogo, setDialogo] = useState<Dialogo>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       const entrada = Object.fromEntries(searchParams.entries());
       delete entrada.cursor;
+      delete entrada.antes;
       if (texto) entrada.q = texto;
       else delete entrada.q;
       const query = serializarParametrosEmpleados(entrada);
@@ -138,9 +148,13 @@ export function EmpleadosClient({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [texto]);
 
+  // Cualquier cambio de filtro reinicia la paginación: descarta `cursor` y la
+  // pila `antes` (ver más abajo). Las propias funciones de paginación vuelven
+  // a añadirlos explícitamente en `cambios`.
   const urlDe = (cambios: Record<string, string | null>) => {
     const entrada = Object.fromEntries(searchParams.entries());
     delete entrada.cursor;
+    delete entrada.antes;
     for (const [clave, valor] of Object.entries(cambios)) {
       if (valor === null) delete entrada[clave];
       else entrada[clave] = valor;
@@ -149,70 +163,57 @@ export function EmpleadosClient({
     return query.size ? `${pathname}?${query}` : pathname;
   };
 
-  const empleados = useMemo(() => {
-    const filtrados = pagina.items.filter((empleado) =>
-      actividad === "with-sales"
-        ? empleado.comprasUltimos30d > 0
-        : actividad === "without-sales"
-          ? empleado.comprasUltimos30d === 0
-          : true,
-    );
-    return [...filtrados].sort((a, b) => {
-      const nombreA = `${a.apellidos} ${a.nombres}`;
-      const nombreB = `${b.apellidos} ${b.nombres}`;
-      if (orden === "name-desc") return nombreB.localeCompare(nombreA, "es");
-      if (orden === "sales-desc") return b.montoUltimos30d - a.montoUltimos30d;
-      if (orden === "recent")
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-      return nombreA.localeCompare(nombreB, "es");
-    });
-  }, [actividad, orden, pagina.items]);
-
-  const todosSeleccionados =
-    empleados.length > 0 &&
-    empleados.every((empleado) => seleccionados.has(empleado.id));
-  const algunSeleccionado = empleados.some((empleado) =>
-    seleccionados.has(empleado.id),
+  // --- Paginación por cursor con historial (issue #41) --------------------
+  // `listarEmpleados` usa keyset pagination: solo sabe avanzar. Para permitir
+  // "anterior" con rangos reales se guarda en la URL (`antes`) la pila de
+  // cursores usados para llegar a cada página anterior — mismo patrón que
+  // Ventas (`ventas/ventas-client.tsx`). "primera página" se representa con
+  // el centinela `-`; ir atrás es desapilar y reusar ese cursor.
+  const historial = (searchParams.get("antes") ?? "")
+    .split(",")
+    .filter(Boolean);
+  const paginaActual = historial.length + 1;
+  const totalPaginas = Math.max(
+    1,
+    Math.ceil((pagina.total ?? pagina.items.length) / porPagina),
   );
+  const cursorActual = searchParams.get("cursor");
 
-  const alternarSeleccion = (id: string) => {
-    setSeleccionados((actuales) => {
-      const siguiente = new Set(actuales);
-      if (siguiente.has(id)) siguiente.delete(id);
-      else siguiente.add(id);
-      return siguiente;
-    });
-  };
+  const hrefSiguiente = pagina.cursor
+    ? urlDe({
+        cursor: pagina.cursor,
+        antes: [...historial, cursorActual ?? CENTINELA_PRIMERA_PAGINA].join(
+          ",",
+        ),
+      })
+    : null;
 
-  const exportar = () => {
-    const filas = [
-      ["Nombre", "Documento", "Teléfono", "Compras", "Monto", "Estado"],
-      ...empleados.map((empleado) => [
-        `${empleado.nombres} ${empleado.apellidos}`,
-        `${empleado.tipoDocumento === "DNI" ? "DNI" : "CE"} ${empleado.numeroDocumento}`,
-        empleado.telefono ?? "",
-        empleado.comprasUltimos30d,
-        (empleado.montoUltimos30d / 100).toFixed(2),
-        TEXTO_ESTADO[empleado.estado],
-      ]),
-    ];
-    const csv = filas
-      .map((fila) =>
-        fila
-          .map((celda) => `"${String(celda).replaceAll('"', '""')}"`)
-          .join(","),
-      )
-      .join("\n");
-    const enlace = document.createElement("a");
-    enlace.href = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    );
-    enlace.download = "empleados.csv";
-    enlace.click();
-    URL.revokeObjectURL(enlace.href);
-  };
+  const hrefAnterior =
+    historial.length > 0
+      ? (() => {
+          const cursorPrevio = historial[historial.length - 1];
+          return urlDe({
+            cursor:
+              !cursorPrevio || cursorPrevio === CENTINELA_PRIMERA_PAGINA
+                ? null
+                : cursorPrevio,
+            antes: historial.slice(0, -1).join(",") || null,
+          });
+        })()
+      : null;
+
+  const desde = pagina.items.length ? (paginaActual - 1) * porPagina + 1 : 0;
+  const hasta = desde ? desde + pagina.items.length - 1 : 0;
+
+  // El export cubre el universo filtrado completo (server, issue #41), no
+  // solo la página visible: los mismos filtros salvo cursor/antes.
+  const hrefExportar = (() => {
+    const entrada = Object.fromEntries(searchParams.entries());
+    delete entrada.cursor;
+    delete entrada.antes;
+    const query = serializarParametrosEmpleados(entrada);
+    return `/api/empleados/exportar${query.size ? `?${query}` : ""}`;
+  })();
 
   return (
     <section className="page-shell">
@@ -223,7 +224,11 @@ export function EmpleadosClient({
         descripcion="Administra los empleados afiliados, revisa su actividad y controla el estado de cada registro."
         acciones={
           <>
-            <Button variant="outline" onClick={exportar}>
+            <Button
+              variant="outline"
+              render={<a href={hrefExportar} />}
+              title={`Exporta ${pagina.total ?? 0} empleados según el tab, la búsqueda, el orden y la actividad aplicados en esta vista`}
+            >
               <Download className="size-4" /> Exportar
             </Button>
             <Button onClick={() => setDialogo({ tipo: "crear" })}>
@@ -286,28 +291,36 @@ export function EmpleadosClient({
               ) : null}
             </div>
             <select
-              value={actividad}
-              onChange={(e) => setActividad(e.target.value)}
+              value={actividad ?? "all"}
+              onChange={(e) =>
+                router.push(
+                  urlDe({
+                    actividad: e.target.value === "all" ? null : e.target.value,
+                  }),
+                )
+              }
               className="border-input bg-background focus:ring-primary/15 h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4"
             >
               <option value="all">Toda la actividad</option>
-              <option value="with-sales">Con compras</option>
-              <option value="without-sales">Sin compras</option>
+              <option value="con_compras">Con compras</option>
+              <option value="sin_compras">Sin compras</option>
             </select>
             <select
               value={orden}
-              onChange={(e) => setOrden(e.target.value)}
+              onChange={(e) => router.push(urlDe({ orden: e.target.value }))}
               className="border-input bg-background focus:ring-primary/15 h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4"
             >
-              <option value="name-asc">Nombre A–Z</option>
-              <option value="name-desc">Nombre Z–A</option>
-              <option value="sales-desc">Mayor compra</option>
-              <option value="recent">Más recientes</option>
+              <option value="nombre_asc">Nombre A–Z</option>
+              <option value="nombre_desc">Nombre Z–A</option>
+              <option value="monto_desc">Mayor compra</option>
+              <option value="reciente">Más recientes</option>
             </select>
           </div>
           <div className="text-muted-foreground flex items-center gap-3 text-xs">
             <span>
-              <strong className="text-foreground">{empleados.length}</strong>{" "}
+              <strong className="text-foreground">
+                {pagina.total ?? pagina.items.length}
+              </strong>{" "}
               resultados
             </span>
             <Button
@@ -341,26 +354,7 @@ export function EmpleadosClient({
           ))}
         </nav>
 
-        {seleccionados.size ? (
-          <div className="bg-primary/5 border-primary/15 flex min-h-13 items-center justify-between gap-3 border-b px-5 py-2 text-sm">
-            <span className="flex items-center gap-2 font-medium">
-              <span className="bg-primary/10 text-primary grid size-7 place-items-center rounded-md">
-                <Check className="size-4" />
-              </span>
-              {seleccionados.size} empleado{seleccionados.size === 1 ? "" : "s"}{" "}
-              seleccionado{seleccionados.size === 1 ? "" : "s"}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSeleccionados(new Set())}
-            >
-              Limpiar selección
-            </Button>
-          </div>
-        ) : null}
-
-        {empleados.length === 0 ? (
+        {pagina.items.length === 0 ? (
           <div className="grid min-h-80 place-items-center px-5 text-center">
             <div>
               <span className="bg-primary/10 text-primary mx-auto grid size-14 place-items-center rounded-2xl">
@@ -375,7 +369,7 @@ export function EmpleadosClient({
         ) : (
           <>
             <div className="divide-y lg:hidden">
-              {empleados.map((empleado) => (
+              {pagina.items.map((empleado) => (
                 <TarjetaEmpleado
                   key={empleado.id}
                   empleado={empleado}
@@ -386,47 +380,23 @@ export function EmpleadosClient({
               ))}
             </div>
             <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[1040px] table-fixed text-left">
+              <table className="w-full min-w-[960px] table-fixed text-left">
                 <thead className="bg-muted/45 text-muted-foreground text-xs tracking-[0.035em] uppercase">
                   <tr>
-                    <th className="w-13 px-5 py-4 text-center">
-                      <input
-                        type="checkbox"
-                        aria-label="Seleccionar todos"
-                        checked={todosSeleccionados}
-                        ref={(input) => {
-                          if (input)
-                            input.indeterminate =
-                              algunSeleccionado && !todosSeleccionados;
-                        }}
-                        onChange={() =>
-                          setSeleccionados(
-                            todosSeleccionados
-                              ? new Set()
-                              : new Set(
-                                  empleados.map((empleado) => empleado.id),
-                                ),
-                          )
-                        }
-                        className="accent-primary size-4"
-                      />
-                    </th>
-                    <th className="w-[31%] px-3 py-4">Empleado</th>
-                    <th className="w-[14%] px-3 py-4">Actividad</th>
-                    <th className="w-[15%] px-3 py-4">Consumo</th>
-                    <th className="w-[14%] px-3 py-4">Estado</th>
+                    <th className="w-[34%] px-5 py-4">Empleado</th>
+                    <th className="w-[15%] px-3 py-4">Actividad</th>
+                    <th className="w-[16%] px-3 py-4">Consumo</th>
+                    <th className="w-[15%] px-3 py-4">Estado</th>
                     <th className="w-[16%] px-3 py-4">Registro</th>
                     <th className="w-14 px-4 py-4" />
                   </tr>
                 </thead>
                 <tbody>
-                  {empleados.map((empleado) => (
+                  {pagina.items.map((empleado) => (
                     <FilaEmpleadoTabla
                       key={empleado.id}
                       empleado={empleado}
-                      seleccionado={seleccionados.has(empleado.id)}
                       esSuperadmin={esSuperadmin}
-                      alSeleccionar={() => alternarSeleccion(empleado.id)}
                       alVer={() => setDialogo({ tipo: "detalle", empleado })}
                       alEditar={() => setDialogo({ tipo: "editar", empleado })}
                     />
@@ -437,49 +407,56 @@ export function EmpleadosClient({
           </>
         )}
 
-        <footer className="flex min-h-16 items-center justify-between gap-3 border-t px-5 py-3 text-xs">
+        <footer className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs">
           <span className="text-muted-foreground">
-            Mostrando{" "}
-            <strong className="text-foreground">
-              {empleados.length ? 1 : 0}
-            </strong>{" "}
-            a <strong className="text-foreground">{empleados.length}</strong>
-            {pagina.total !== undefined ? (
-              <>
-                {" "}
-                de <strong className="text-foreground">
-                  {pagina.total}
-                </strong>{" "}
-                empleados
-              </>
-            ) : null}
+            Mostrando <strong className="text-foreground">{desde}</strong> a{" "}
+            <strong className="text-foreground">{hasta}</strong> de{" "}
+            <strong className="text-foreground">{pagina.total ?? 0}</strong>{" "}
+            empleados
           </span>
-          <div className="flex gap-1">
-            <Button
-              variant="outline"
-              size="icon-sm"
-              disabled
-              aria-label="Página anterior"
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            {pagina.cursor ? (
-              <Link
-                href={urlDe({ cursor: pagina.cursor })}
-                className="border-input hover:bg-muted grid h-8 items-center rounded-md border px-3 font-semibold"
-              >
-                Cargar más <ChevronRight className="ml-1 size-4" />
-              </Link>
-            ) : (
-              <Button
-                variant="outline"
-                size="icon-sm"
-                disabled
-                aria-label="Página siguiente"
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-            )}
+          <div className="flex items-center gap-3">
+            <span className="text-muted-foreground hidden items-center gap-1.5 sm:flex">
+              Página <strong className="text-foreground">{paginaActual}</strong>{" "}
+              de <strong className="text-foreground">{totalPaginas}</strong>
+            </span>
+            <div className="flex gap-1">
+              {hrefAnterior ? (
+                <Link
+                  href={hrefAnterior}
+                  aria-label="Página anterior"
+                  className="border-input hover:bg-muted grid size-8 place-items-center rounded-md border"
+                >
+                  <ChevronLeft className="size-4" />
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  disabled
+                  aria-label="Página anterior"
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+              )}
+              {hrefSiguiente ? (
+                <Link
+                  href={hrefSiguiente}
+                  aria-label="Página siguiente"
+                  className="border-input hover:bg-muted grid size-8 place-items-center rounded-md border"
+                >
+                  <ChevronRight className="size-4" />
+                </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  disabled
+                  aria-label="Página siguiente"
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              )}
+            </div>
           </div>
         </footer>
       </div>
@@ -530,35 +507,20 @@ export function EmpleadosClient({
 
 function FilaEmpleadoTabla({
   empleado,
-  seleccionado,
   esSuperadmin,
-  alSeleccionar,
   alVer,
   alEditar,
 }: {
   empleado: FilaEmpleado;
-  seleccionado: boolean;
   esSuperadmin: boolean;
-  alSeleccionar: () => void;
   alVer: () => void;
   alEditar: () => void;
 }) {
   const nombre = `${empleado.nombres} ${empleado.apellidos}`;
   const iniciales = `${empleado.nombres[0] ?? ""}${empleado.apellidos[0] ?? ""}`;
   return (
-    <tr
-      className={`hover:bg-primary/[0.025] border-b last:border-0 ${seleccionado ? "bg-primary/[0.045]" : ""}`}
-    >
-      <td className="px-5 py-3 text-center">
-        <input
-          type="checkbox"
-          checked={seleccionado}
-          onChange={alSeleccionar}
-          aria-label={`Seleccionar ${nombre}`}
-          className="accent-primary size-4"
-        />
-      </td>
-      <td className="px-3 py-3">
+    <tr className="hover:bg-primary/[0.025] border-b last:border-0">
+      <td className="px-5 py-3">
         <div className="flex items-center gap-3">
           <span className="bg-muted grid size-10 shrink-0 place-items-center rounded-xl text-xs font-bold">
             {iniciales}
