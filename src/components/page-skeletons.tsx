@@ -299,7 +299,7 @@ function NuevaVenta() {
       {/* ── Barra inferior móvil: solo por debajo de lg, como en el real. ── */}
       <div
         aria-hidden="true"
-        className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-30 border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+        className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-[var(--z-cta-movil)] border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
       >
         <Skeleton className="h-14 w-full rounded-full" />
       </div>

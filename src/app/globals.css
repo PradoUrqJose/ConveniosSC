@@ -151,6 +151,13 @@
      Un único lugar para coordinar overlay, popover y toast y evitar que el
      aviso PWA u otro elemento fijo quede sobre un modal real. */
   --z-pwa: 30;
+  /* Barra inferior móvil (issue #53): por encima del contenido y del CTA
+     fijo de pantalla, por debajo de overlay/modal/popover/toast — un sheet
+     abierto tapa la navegación, nunca al revés. */
+  --z-nav-movil: 40;
+  /* CTA fijo de pantalla (punto de venta): por debajo de la barra
+     inferior, con la que comparte margen y separación. */
+  --z-cta-movil: 35;
   --z-overlay: 50;
   --z-modal: 51;
   --z-popover: 52;
@@ -297,7 +304,18 @@
        `TabBarMovil` (`h-(--mob-bottom-bar)`), así que barra y hueco no
        pueden desincronizarse; `--mob-cta-flotante` hace lo mismo con el
        CTA fijo del punto de venta. */
-    --mob-bottom-bar: 3.6rem;
+    --mob-bottom-bar: 3.9rem;
+    /* Separación de la píldora respecto del borde — doc §3 "regla
+       crítica": se aplica como `margin-bottom` del contenedor flotante,
+       nunca como padding interno, para no duplicar el hueco entre
+       plataformas. */
+    --mob-bottom-bar-margen: max(0.75rem, var(--mob-safe-bottom));
+    /* Alto total que la barra le quita a la pantalla. Único origen para
+       el hueco del contenido, el offset de los toasts y el del aviso de
+       instalación: nadie vuelve a escribir "4.2rem" a mano. */
+    --mob-bottom-bar-hueco: calc(
+      var(--mob-bottom-bar) + var(--mob-bottom-bar-margen)
+    );
     --mob-cta-flotante: 4.5rem;
   }
 
@@ -591,18 +609,166 @@
       font-size: 1.1875rem;
     }
 
-    /* Espacio inferior del contenido — doc §3. Un único lugar coordina
-       barra inferior, CTA flotante y safe area: si la barra cambia de
-       alto, se cambia `--mob-bottom-bar` y no cada pantalla. */
-    /* Alto de la barra inferior. Lo consume `TabBarMovil`; el hueco del
-       contenido sale del mismo token. */
+    /* =================================================================
+       Barra inferior flotante — issue #53 (PWA-MOB-03), doc §3.
+
+       Píldora separada del borde (no barra pegada), etiqueta siempre
+       visible junto al ícono, indicador activo deslizante e
+       ocultamiento por scroll. El alto (`--mob-bottom-bar`) y la
+       separación (`--mob-bottom-bar-margen`) son los mismos tokens que
+       reservan el hueco del contenido, así que barra y hueco no pueden
+       desincronizarse.
+       ================================================================= */
     .mob-barra-inferior {
-      height: var(--mob-bottom-bar);
+      position: fixed;
+      inset-inline: 0;
+      bottom: 0;
+      z-index: var(--z-nav-movil);
+      display: flex;
+      justify-content: center;
+      /* Doc §3 regla crítica: el inset inferior es margin del contenedor
+         flotante, nunca padding interno. Los laterales suman el inset del
+         landscape con notch al margen de pantalla. */
+      margin-bottom: var(--mob-bottom-bar-margen);
+      padding-left: calc(
+        var(--mob-margen-pantalla) + env(safe-area-inset-left, 0px)
+      );
+      padding-right: calc(
+        var(--mob-margen-pantalla) + env(safe-area-inset-right, 0px)
+      );
+      /* Solo la píldora recibe toques: el hueco a los lados deja pasar el
+         scroll y los toques al contenido de abajo. */
+      pointer-events: none;
+      transition:
+        transform var(--mob-duration) var(--mob-ease),
+        opacity var(--mob-duration) var(--mob-ease);
     }
 
+    /* Oculta tras scroll descendente: sale deslizando hacia abajo con
+       fade. Sigue en el DOM y accesible al foco — el componente la vuelve
+       a mostrar en `focusin`. */
+    .mob-barra-inferior[data-oculta="true"] {
+      transform: translateY(calc(100% + var(--mob-bottom-bar-margen)));
+      opacity: 0;
+    }
+
+    .mob-barra-inferior-pastilla {
+      position: relative;
+      pointer-events: auto;
+      display: flex;
+      width: 100%;
+      max-width: 28rem;
+      height: var(--mob-bottom-bar);
+      align-items: stretch;
+      /* Radio ≈ mitad del alto y recorte: el indicador nunca se sale de
+         la píldora en los destinos de los extremos. */
+      overflow: hidden;
+      border-radius: var(--mob-radius-pill);
+      background: var(--mob-superficie);
+      color: var(--mob-superficie-tenue-foreground);
+      box-shadow: var(--mob-shadow-flotante);
+    }
+
+    .mob-barra-inferior-tab {
+      position: relative;
+      display: flex;
+      min-width: var(--mob-toque-min);
+      min-height: var(--mob-toque-min);
+      flex: 1 1 0;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.2rem;
+      font-size: 0.625rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: inherit;
+      /* `transform` queda fuera de la transición a propósito: el feedback
+         pressed tiene que pintarse en el mismo frame del toque. */
+      transition: color var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-barra-inferior-tab:active {
+      transform: scale(0.94);
+    }
+
+    .mob-barra-inferior-tab[data-activo="true"] {
+      color: var(--mob-acento);
+    }
+
+    .mob-barra-inferior-icono {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 1.5rem;
+    }
+
+    /* Destino destacado (registrar venta): mismo alto, misma etiqueta,
+       solo el ícono sube de contraste. Nada sobresale de la píldora. */
+    .mob-barra-inferior-tab[data-destacado="true"] .mob-barra-inferior-icono {
+      background: var(--mob-acento);
+      color: var(--mob-acento-foreground);
+      border-radius: var(--mob-radius-pill);
+      padding-inline: 0.65rem;
+    }
+
+    .mob-barra-inferior-etiqueta {
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* A 320px con cinco destinos cada pestaña mide 56px: la etiqueta baja
+       un punto para entrar entera. La alternativa —recortarla con
+       ellipsis— deja "Emplea…" y "Dashbo…", que es justo lo que la
+       etiqueta existe para evitar. */
+    @media (max-width: 359.98px) {
+      .mob-barra-inferior-etiqueta {
+        font-size: 0.5625rem;
+        letter-spacing: -0.02em;
+      }
+    }
+
+    /* Indicador deslizante — doc §3: barra corta anclada al borde
+       inferior de la píldora, del ancho del ícono. Se posiciona por
+       índice (las pestañas son de ancho igual), así no hace falta medir
+       el DOM ni esperar a la hidratación. */
+    .mob-barra-inferior-indicador {
+      position: absolute;
+      /* Pegado al borde inferior, pero lo justo para que en los destinos
+         de los extremos no lo coma la curva de la píldora. */
+      bottom: 0.22rem;
+      left: 0;
+      display: flex;
+      height: 0.1875rem;
+      width: calc(100% / var(--destinos));
+      justify-content: center;
+      pointer-events: none;
+      transform: translateX(calc(var(--indice) * 100%));
+      transition: transform var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-barra-inferior-indicador[data-visible="false"] {
+      opacity: 0;
+    }
+
+    .mob-barra-inferior-indicador::after {
+      content: "";
+      width: 1.1rem;
+      height: 100%;
+      border-radius: var(--mob-radius-pill);
+      background: var(--mob-acento);
+      box-shadow: 0 -6px 16px -2px var(--mob-acento);
+    }
+
+    /* Espacio inferior del contenido — doc §3. Un único lugar coordina
+       barra inferior, CTA flotante y safe area: si la barra cambia de
+       alto o de separación, se cambian los tokens y no cada pantalla. */
     .mob-espacio-inferior {
       padding-bottom: calc(
-        var(--mob-bottom-bar) + var(--mob-safe-bottom) + var(--mob-gap-tarjeta)
+        var(--mob-bottom-bar-hueco) + var(--mob-gap-tarjeta)
       );
     }
 
@@ -620,6 +786,23 @@
     }
 
     .mob-boton:active {
+      transform: none;
+    }
+
+    /* Sin desplazamientos no esenciales: la barra no se oculta (lo
+       garantiza también el componente) y el indicador salta en vez de
+       deslizarse. */
+    .mob-barra-inferior,
+    .mob-barra-inferior-indicador {
+      transition-duration: 1ms;
+    }
+
+    .mob-barra-inferior[data-oculta="true"] {
+      transform: none;
+      opacity: 1;
+    }
+
+    .mob-barra-inferior-tab:active {
       transform: none;
     }
   }

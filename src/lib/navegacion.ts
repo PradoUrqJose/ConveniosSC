@@ -3,6 +3,13 @@ import type { RolUsuario } from "@/lib/auth/sesion";
 export type DestinoNav = {
   href: string;
   etiqueta: string;
+  /**
+   * Etiqueta para la barra inferior móvil (issue #53). Una pestaña de un
+   * rol con 5 destinos mide ~52px a 320px: cuando la etiqueta larga no
+   * entra completa, acá va la corta. Sigue siendo una palabra del
+   * dominio, no una abreviatura: el `aria-label` conserva la larga.
+   */
+  etiquetaCorta?: string;
   descripcion: string;
   destacado?: boolean;
   /** Solo en el menú "Más". */
@@ -36,6 +43,7 @@ const ENTRADA_DASHBOARD: DestinoNav = {
 const ENTRADA_NUEVA_VENTA: DestinoNav = {
   href: "/ventas/nueva",
   etiqueta: "Nueva venta",
+  etiquetaCorta: "Vender",
   descripcion: "Registrar una venta con convenio",
   destacado: true,
 };

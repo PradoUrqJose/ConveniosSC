@@ -17,9 +17,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      // En móvil los toasts deben quedar por encima de la barra inferior.
+      // En móvil los toasts se apilan sobre la barra inferior flotante y
+      // con su misma separación (issue #53): el hueco sale del token de la
+      // barra, no de un número repetido acá.
       mobileOffset={{
-        bottom: "calc(4.4rem + env(safe-area-inset-bottom))",
+        bottom: "calc(var(--mob-bottom-bar-hueco, 4.2rem) + 0.5rem)",
         left: "0.75rem",
         right: "0.75rem",
       }}
