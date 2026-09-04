@@ -11,7 +11,7 @@ import {
   Search,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -446,8 +446,11 @@ export function FormVenta({
   return (
     <section className={`venta-shell flex flex-col gap-6 pb-6 ${claseFuentes}`}>
       {/* ── Barra superior ── */}
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
+      {/* En móvil el título de la pantalla lo pone la cabecera de ruta
+          (`CabeceraPuntoVenta`, issue #52); acá solo queda el indicador de
+          estado del borrador, que sí es información del formulario. */}
+      <header className="flex flex-wrap items-center justify-end gap-4 lg:justify-between">
+        <div className="hidden lg:block">
           <p className="font-mono text-[12px] font-bold tracking-[0.16em] text-[var(--venta-azul)] uppercase">
             Registro de operación
           </p>
@@ -1262,15 +1265,17 @@ function ConfirmacionVenta({
         <Button onClick={onRegistrarOtra} size="lg">
           Registrar otra venta
         </Button>
-        <Button
-          variant="outline"
-          render={<Link href={`/ventas/${venta.ventaId}`} />}
+        {/* Enlaces reales: Base UI espera un `<button>` nativo en `render`
+            y avisa por consola al recibir un `<a>` (issue #52). */}
+        <Link
+          href={`/ventas/${venta.ventaId}`}
+          className={buttonVariants({ variant: "outline" })}
         >
           Ver detalle
-        </Button>
-        <Button variant="ghost" render={<Link href="/" />}>
+        </Link>
+        <Link href="/" className={buttonVariants({ variant: "ghost" })}>
           Ir al inicio
-        </Button>
+        </Link>
       </div>
     </section>
   );

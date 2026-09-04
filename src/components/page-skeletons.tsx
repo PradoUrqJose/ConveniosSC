@@ -341,14 +341,30 @@ function Login() {
 
 function CabeceraPaginaSkeleton({ accion = true }: { accion?: boolean }) {
   return (
-    <header className="flex flex-wrap items-start justify-between gap-4">
-      <div className="space-y-2">
-        <Skeleton className="h-3 w-28" />
-        <Skeleton className="h-8 w-44" />
-        <Skeleton className="h-4 w-72 max-w-[75vw]" />
-      </div>
-      {accion ? <Skeleton className="h-10 w-36 rounded-xl" /> : null}
-    </header>
+    <>
+      {/* Móvil: la geometría de `CabeceraMovil` (issue #52) — pill de
+          contexto, título que envuelve y controles de 44px. Si el esqueleto
+          conservara la cabecera de escritorio, la pantalla saltaría al
+          hidratar. */}
+      <header className="mob-cabecera lg:hidden">
+        <div className="mob-cabecera-texto">
+          <Skeleton className="h-4 w-32 rounded-full" />
+          <Skeleton className="h-7 w-44" />
+        </div>
+        <div className="mob-cabecera-acciones">
+          {accion ? <Skeleton className="size-11 rounded-xl" /> : null}
+          <Skeleton className="size-11 rounded-full" />
+        </div>
+      </header>
+      <header className="hidden flex-wrap items-start justify-between gap-4 lg:flex">
+        <div className="space-y-2">
+          <Skeleton className="h-3 w-28" />
+          <Skeleton className="h-8 w-44" />
+          <Skeleton className="h-4 w-72 max-w-[75vw]" />
+        </div>
+        {accion ? <Skeleton className="h-10 w-36 rounded-xl" /> : null}
+      </header>
+    </>
   );
 }
 

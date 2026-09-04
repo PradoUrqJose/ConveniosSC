@@ -7,6 +7,7 @@ import { AccionCambiarPassword } from "@/components/auth/accion-cambiar-password
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CabeceraPagina } from "@/components/shell/pagina-ui";
+import { AccionesCuentaMovil } from "@/components/shell/acciones-cuenta-movil";
 import { ErrorAuth, requireSession } from "@/lib/auth/guardas";
 import { cargarPerfilCompleto } from "@/lib/auth/perfil";
 import { formatearFechaHoraLima } from "@/lib/fechas";
@@ -49,11 +50,16 @@ export default async function PerfilPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Pantalla secundaria en móvil (issue #52): se llega desde el avatar
+          de las cabeceras raíz, así que lleva back. El context pill se apaga:
+          la empresa ya está más abajo, como dato de la cuenta. */}
       <CabeceraPagina
         kicker="Tu cuenta"
         titulo="Perfil"
         icono={<UserCog className="size-5" />}
         descripcion="Datos de tu cuenta y acceso. Para cambiar tu nombre o tu sede, pide a un administrador que los actualice."
+        atras={{ href: "/", etiqueta: "Volver" }}
+        contextoMovil={false}
       />
 
       <Card className="p-5">
@@ -105,8 +111,13 @@ export default async function PerfilPage() {
           {perfil.email ? <Dato etiqueta="Correo">{perfil.email}</Dato> : null}
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-2 border-t pt-5">
-          <AccionCambiarPassword />
+        <div className="mt-5 flex flex-col gap-3 border-t pt-5 lg:flex-row lg:flex-wrap">
+          <div className="flex flex-wrap gap-2">
+            <AccionCambiarPassword />
+          </div>
+          {/* Tema, instalación y cierre de sesión vivían en el menú del
+              header móvil, que ya no existe (issue #52). */}
+          <AccionesCuentaMovil />
         </div>
       </Card>
     </div>

@@ -11,6 +11,11 @@ import { ultimasVentas } from "@/modules/ventas/query";
 import { db } from "@/db";
 import { medirConsultasServidor, medirServidor } from "@/lib/observabilidad";
 import { Suspense } from "react";
+import {
+  AccionCuentaMovil,
+  CabeceraMovil,
+  ContextoMovil,
+} from "@/components/shell/cabecera-movil";
 import { DashboardControls } from "./dashboard-client";
 import {
   DashboardDataRegion,
@@ -59,6 +64,13 @@ export default async function DashboardPage({
   );
   return (
     <section className="page-shell animate-in fade-in-0 duration-500 motion-reduce:animate-none">
+      {/* Cabecera raíz móvil (issue #52): el h1 lo pone el banner, acá van
+          el contexto de empresa y la entrada a la cuenta. */}
+      <CabeceraMovil
+        className="lg:hidden"
+        contexto={<ContextoMovil />}
+        acciones={<AccionCuentaMovil />}
+      />
       <DashboardTransition>
         <DashboardBanner
           nombre={sesion.nombres}

@@ -31,6 +31,10 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
+  // El teclado virtual reduce el viewport en vez de taparlo: con el shell
+  // móvil sin chrome fijo (issue #52), el campo enfocado y el CTA del pie
+  // quedan visibles sin que la pantalla haga scroll por su cuenta.
+  interactiveWidget: "resizes-content",
   themeColor: "#283c73",
 };
 

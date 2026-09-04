@@ -19,6 +19,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { CabeceraMovil } from "@/components/shell/cabecera-movil";
 import { bpsAPorcentaje } from "@/app/(app)/admin/convenios/dialogo-cambiar-termino";
 import { formatearSoles } from "@/lib/dinero";
 import { formatearFechaHoraLima, formatearFechaUI } from "@/lib/fechas";
@@ -29,9 +30,38 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
   const [anularAbierto, setAnularAbierto] = useState(false);
   const anulada = venta.estado === "ANULADA";
 
+  const menuAnular = venta.puedeAnular ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<Button variant="ghost" size="icon-sm" />}
+        aria-label="Acciones de la venta"
+      >
+        <MoreVertical className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => setAnularAbierto(true)}
+        >
+          <Ban />
+          Anular
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null;
+
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-col gap-5 pb-10">
-      <div className="flex items-center justify-between gap-3">
+      {/* Pantalla secundaria del shell móvil (issue #52): back iconográfico
+          + título propio. Esta ruta no tenía h1; ahora lo pone la cabecera. */}
+      <CabeceraMovil
+        className="lg:hidden"
+        variante="secundaria"
+        titulo="Detalle de venta"
+        atras={{ href: "/ventas", etiqueta: "Volver a ventas" }}
+        acciones={menuAnular}
+      />
+      <div className="hidden items-center justify-between gap-3 lg:flex">
         <Link
           href="/ventas"
           className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm font-semibold"
@@ -41,24 +71,7 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
           </span>
           Volver a ventas
         </Link>
-        {venta.puedeAnular ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={<Button variant="ghost" size="icon-sm" />}
-            >
-              <MoreVertical className="size-4" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                variant="destructive"
-                onClick={() => setAnularAbierto(true)}
-              >
-                <Ban />
-                Anular
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
+        {menuAnular}
       </div>
 
       {anulada ? (

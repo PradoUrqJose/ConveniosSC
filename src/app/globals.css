@@ -291,6 +291,14 @@
        `padding`, para no duplicar el hueco en algunas plataformas. */
     --mob-safe-top: env(safe-area-inset-top, 0px);
     --mob-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+    /* Alto real de las barras que el contenido tiene que esquivar —
+       issue #52. `--mob-bottom-bar` lo consume la propia
+       `TabBarMovil` (`h-(--mob-bottom-bar)`), así que barra y hueco no
+       pueden desincronizarse; `--mob-cta-flotante` hace lo mismo con el
+       CTA fijo del punto de venta. */
+    --mob-bottom-bar: 3.6rem;
+    --mob-cta-flotante: 4.5rem;
   }
 
   /* Misma rampa, modo oscuro. Solo se redefine el color: geometría,
@@ -453,6 +461,156 @@
 
     .mob-safe-top {
       padding-top: max(0.75rem, var(--mob-safe-top));
+    }
+
+    /* =================================================================
+       Cabeceras móviles — issue #52 (PWA-MOB-02).
+
+       El shell móvil no tiene chrome fijo: cada ruta trae su cabecera
+       dentro del contenido y ésta se va con el scroll. Tres variantes,
+       una sola geometría:
+
+       - `raiz`        pantallas de la barra inferior: contexto + título
+                       + acciones (la cuenta entra acá, porque ya no hay
+                       header global donde vivía).
+       - `secundaria`  pantallas a las que se llega desde otra: back
+                       iconográfico + título.
+       - `formulario`  flujos concentrados (punto de venta, contraseña):
+                       back + título, sin acciones que compitan con el
+                       CTA del formulario.
+
+       El safe area superior lo paga la cabecera (`padding-top`), no el
+       `<main>`: así el título nunca queda bajo el notch y no se duplica
+       el hueco cuando una pantalla no tiene cabecera.
+       ================================================================= */
+    .mob-cabecera {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding-top: max(0.75rem, var(--mob-safe-top));
+      padding-bottom: 0.75rem;
+    }
+
+    .mob-cabecera-texto {
+      display: flex;
+      min-width: 0;
+      flex: 1 1 auto;
+      flex-direction: column;
+      gap: 0.25rem;
+      /* Centra el texto contra los controles de 44px cuando el título
+         ocupa una sola línea, sin desalinearse cuando ocupa dos. */
+      min-height: var(--mob-toque-min);
+      justify-content: center;
+    }
+
+    /* Título — doc §1. Nunca se trunca: si no cabe, envuelve. A 320px un
+       `text-overflow: ellipsis` se come el dato que identifica la
+       pantalla, que es justo lo que la cabecera existe para dar. */
+    .mob-cabecera-titulo {
+      font-size: 1.375rem;
+      line-height: 1.15;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      text-wrap: balance;
+      overflow-wrap: anywhere;
+    }
+
+    /* Context pill — doc §4. Solo cuando el alcance cambia la lectura de
+       los datos (empresa del espacio de trabajo, alcance global). */
+    .mob-cabecera-contexto {
+      display: inline-flex;
+      max-width: 100%;
+      align-items: center;
+      gap: 0.375rem;
+      align-self: flex-start;
+      border-radius: var(--mob-radius-pill);
+      background: color-mix(in oklab, var(--foreground) 7%, transparent);
+      padding: 0.125rem 0.5rem;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      opacity: 0.85;
+    }
+
+    .mob-cabecera-contexto > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Controles de la cabecera. El fondo es una mezcla translúcida sobre
+       `--foreground` a propósito: la migración de pantallas a
+       `.mob-shell` es de otros issues, así que la cabecera tiene que
+       leerse igual sobre el fondo actual de la app y sobre el fondo
+       profundo móvil, en claro y en oscuro. */
+    .mob-cabecera-atras,
+    .mob-cabecera-acciones > * {
+      min-height: var(--mob-toque-min);
+      min-width: var(--mob-toque-min);
+    }
+
+    .mob-cabecera-atras {
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--mob-radius-control);
+      background: color-mix(in oklab, var(--foreground) 7%, transparent);
+      color: inherit;
+      transition: background-color var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-cabecera-atras:active {
+      background: color-mix(in oklab, var(--foreground) 12%, transparent);
+    }
+
+    .mob-cabecera-acciones {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .mob-cabecera-cuenta {
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--mob-radius-pill);
+      background: color-mix(in oklab, var(--foreground) 7%, transparent);
+      font-size: 0.8125rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+
+    /* Formulario: el título manda y no hay acciones compitiendo con el
+       CTA; el back queda alineado con la primera línea del título. */
+    .mob-cabecera[data-variante="formulario"] .mob-cabecera-titulo,
+    .mob-cabecera[data-variante="secundaria"] .mob-cabecera-titulo {
+      font-size: 1.1875rem;
+    }
+
+    /* Espacio inferior del contenido — doc §3. Un único lugar coordina
+       barra inferior, CTA flotante y safe area: si la barra cambia de
+       alto, se cambia `--mob-bottom-bar` y no cada pantalla. */
+    /* Alto de la barra inferior. Lo consume `TabBarMovil`; el hueco del
+       contenido sale del mismo token. */
+    .mob-barra-inferior {
+      height: var(--mob-bottom-bar);
+    }
+
+    .mob-espacio-inferior {
+      padding-bottom: calc(
+        var(--mob-bottom-bar) + var(--mob-safe-bottom) + var(--mob-gap-tarjeta)
+      );
+    }
+
+    .mob-espacio-inferior-cta {
+      padding-bottom: calc(
+        var(--mob-cta-flotante) + var(--mob-safe-bottom) +
+          var(--mob-gap-tarjeta)
+      );
     }
   }
 

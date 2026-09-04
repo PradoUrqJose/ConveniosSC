@@ -16,6 +16,11 @@ import { formatearSoles } from "@/lib/dinero";
 import { formatearFechaUI, hoyLima } from "@/lib/fechas";
 import { resumirVentas, ultimasVentas } from "@/modules/ventas/query";
 import { HeroPagina, Metrica } from "@/components/shell/pagina-ui";
+import {
+  AccionCuentaMovil,
+  CabeceraMovil,
+  ContextoMovil,
+} from "@/components/shell/cabecera-movil";
 import { medirServidor } from "@/lib/observabilidad";
 
 export default async function InicioPage() {
@@ -52,6 +57,15 @@ export default async function InicioPage() {
 
   return (
     <section className="page-shell">
+      {/* Cabecera raíz móvil (issue #52): el h1 de la pantalla es el saludo
+          del hero, así que acá solo van contexto y cuenta — el acceso a
+          tema, contraseña, instalación y cierre de sesión que antes vivía
+          en el header global. */}
+      <CabeceraMovil
+        className="lg:hidden"
+        contexto={<ContextoMovil />}
+        acciones={<AccionCuentaMovil />}
+      />
       <HeroPagina
         kicker={
           <>

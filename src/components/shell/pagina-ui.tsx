@@ -2,14 +2,38 @@ import type { ReactNode } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  AccionCuentaMovil,
+  CabeceraMovil,
+  ContextoMovil,
+  type AtrasMovil,
+} from "@/components/shell/cabecera-movil";
 import { cn } from "@/lib/utils";
 
+/**
+ * Cabecera de página. Desde el issue #52 son dos cabeceras distintas, no
+ * una responsive:
+ *
+ * - **Escritorio (≥1024px):** exactamente el mismo marcado aprobado —
+ *   kicker, icono, título, descripción y acciones. No se tocó una clase.
+ * - **Móvil (<1024px):** `CabeceraMovil`, la cabecera de ruta del shell
+ *   móvil. Ahí el título envuelve en vez de truncarse, las acciones miden
+ *   44x44 y —al no existir ya el header global— el avatar de cuenta y el
+ *   context pill de empresa entran en las pantallas raíz.
+ *
+ * `atras` convierte la pantalla en secundaria (back iconográfico con
+ * fallback); `accionesMovil` permite dejar en móvil solo la acción
+ * primaria y bajar las secundarias al contenido.
+ */
 export function CabeceraPagina({
   titulo,
   descripcion,
   kicker,
   icono,
   acciones,
+  accionesMovil,
+  atras,
+  contextoMovil = true,
   className,
 }: {
   titulo: string;
@@ -17,43 +41,66 @@ export function CabeceraPagina({
   kicker?: string;
   icono?: ReactNode;
   acciones?: ReactNode;
+  /** Acciones de la cabecera móvil. Por defecto, las mismas de escritorio. */
+  accionesMovil?: ReactNode;
+  /** Presente = pantalla secundaria: la cabecera móvil dibuja el back. */
+  atras?: AtrasMovil;
+  /** Context pill de empresa/alcance. Se apaga donde no decide nada. */
+  contextoMovil?: boolean;
   className?: string;
 }) {
+  const esRaiz = !atras;
   return (
-    <header
-      className={cn(
-        // En móvil (PWA) la cabecera se reduce a una línea: título + acciones.
-        // El kicker, el icono y la descripción son solo de escritorio.
-        "flex flex-row items-center justify-between gap-3 md:items-end md:gap-5",
-        className,
-      )}
-    >
-      <div className="flex min-w-0 items-start gap-3.5">
-        {icono ? (
-          <span className="bg-primary/10 text-primary ring-primary/10 mt-0.5 hidden size-11 shrink-0 place-items-center rounded-2xl ring-1 md:grid">
-            {icono}
-          </span>
-        ) : null}
-        <div className="min-w-0">
-          {kicker ? (
-            <p className="page-kicker hidden md:block">{kicker}</p>
-          ) : null}
-          <h1 className="truncate text-xl leading-[1.15] font-bold tracking-[-0.03em] md:text-[2rem] md:tracking-[-0.04em] md:whitespace-normal">
-            {titulo}
-          </h1>
-          {descripcion ? (
-            <div className="text-muted-foreground mt-2 hidden max-w-2xl text-sm leading-6 md:block">
-              {descripcion}
-            </div>
-          ) : null}
-        </div>
+    <>
+      <div className="lg:hidden">
+        <CabeceraMovil
+          titulo={titulo}
+          variante={esRaiz ? "raiz" : "secundaria"}
+          atras={atras}
+          contexto={esRaiz && contextoMovil ? <ContextoMovil /> : undefined}
+          acciones={
+            <>
+              {accionesMovil ?? acciones}
+              {esRaiz ? <AccionCuentaMovil /> : null}
+            </>
+          }
+        />
       </div>
-      {acciones ? (
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          {acciones}
+      <header
+        className={cn(
+          // En móvil (PWA) la cabecera se reduce a una línea: título + acciones.
+          // El kicker, el icono y la descripción son solo de escritorio.
+          "hidden flex-row items-center justify-between gap-3 md:items-end md:gap-5 lg:flex",
+          className,
+        )}
+      >
+        <div className="flex min-w-0 items-start gap-3.5">
+          {icono ? (
+            <span className="bg-primary/10 text-primary ring-primary/10 mt-0.5 hidden size-11 shrink-0 place-items-center rounded-2xl ring-1 md:grid">
+              {icono}
+            </span>
+          ) : null}
+          <div className="min-w-0">
+            {kicker ? (
+              <p className="page-kicker hidden md:block">{kicker}</p>
+            ) : null}
+            <h1 className="truncate text-xl leading-[1.15] font-bold tracking-[-0.03em] md:text-[2rem] md:tracking-[-0.04em] md:whitespace-normal">
+              {titulo}
+            </h1>
+            {descripcion ? (
+              <div className="text-muted-foreground mt-2 hidden max-w-2xl text-sm leading-6 md:block">
+                {descripcion}
+              </div>
+            ) : null}
+          </div>
         </div>
-      ) : null}
-    </header>
+        {acciones ? (
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {acciones}
+          </div>
+        ) : null}
+      </header>
+    </>
   );
 }
 

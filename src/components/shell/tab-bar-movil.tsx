@@ -76,7 +76,11 @@ export function TabBarMovil({
       className="border-border/70 bg-background/92 fixed inset-x-0 bottom-0 z-40 border-t shadow-[0_-10px_35px_rgba(15,23,42,.08)] backdrop-blur-2xl lg:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="flex h-[3.6rem] items-stretch">
+      {/* El alto sale del token que también reserva el hueco inferior del
+          contenido (`.mob-espacio-inferior`, issue #52): barra y hueco no
+          pueden desincronizarse. El inset lateral cubre el landscape con
+          notch. */}
+      <div className="mob-barra-inferior flex items-stretch pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)]">
         {nav.tabs.map((destino) => (
           <Pestaña
             key={destino.href}

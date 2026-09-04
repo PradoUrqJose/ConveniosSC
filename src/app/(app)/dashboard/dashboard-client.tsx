@@ -40,7 +40,10 @@ export function DashboardControls({
           onNavegar={navegar}
         />
       ) : null}
-      <form className="flex items-stretch gap-1.5 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20 backdrop-blur-sm ring-inset">
+      {/* A 390px las dos fechas y "Aplicar" no caben en una fila: el botón
+          se comía el ancho de los inputs y el bloque quedaba recortado
+          (issue #52). En móvil el botón baja a su propia línea. */}
+      <form className="flex flex-wrap items-stretch gap-1.5 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20 backdrop-blur-sm ring-inset sm:flex-nowrap">
         <input type="hidden" name="dir" value={direccion} />
         <label className="flex min-w-0 flex-1 cursor-pointer flex-col rounded-xl px-3 py-1.5 transition focus-within:bg-white/10 hover:bg-white/10">
           <span className="flex items-center gap-1.5 text-xs font-medium text-white/60">
@@ -69,7 +72,7 @@ export function DashboardControls({
             className="w-full min-w-0 cursor-pointer bg-transparent text-sm font-semibold text-white outline-none"
           />
         </label>
-        <button className="shrink-0 rounded-xl bg-white px-4 text-sm font-semibold text-blue-950 shadow-sm transition hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:outline-none motion-reduce:transition-none">
+        <button className="min-h-11 w-full shrink-0 rounded-xl bg-white px-4 text-sm font-semibold text-blue-950 shadow-sm transition hover:bg-blue-50 focus-visible:ring-2 focus-visible:ring-white/80 focus-visible:outline-none motion-reduce:transition-none sm:min-h-0 sm:w-auto">
           Aplicar
         </button>
       </form>

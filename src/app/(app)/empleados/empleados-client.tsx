@@ -25,7 +25,8 @@ import {
   X,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   CabeceraPagina,
   EstadoBadge,
@@ -224,17 +225,30 @@ export function EmpleadosClient({
         descripcion="Administra los empleados afiliados, revisa su actividad y controla el estado de cada registro."
         acciones={
           <>
-            <Button
-              variant="outline"
-              render={<a href={hrefExportar} />}
+            <a
+              href={hrefExportar}
+              className={buttonVariants({ variant: "outline" })}
               title={`Exporta ${pagina.total ?? 0} empleados según el tab, la búsqueda, el orden y la actividad aplicados en esta vista`}
             >
               <Download className="size-4" /> Exportar
-            </Button>
+            </a>
             <Button onClick={() => setDialogo({ tipo: "crear" })}>
               <Plus className="size-4" /> Nuevo empleado
             </Button>
           </>
+        }
+        // En 390px el título competía con dos acciones de texto y terminaba
+        // truncado (issue #52). En móvil la cabecera se queda solo con la
+        // acción primaria, en 44x44; exportar baja a la barra de filtros,
+        // que es donde se decide *qué* se exporta.
+        accionesMovil={
+          <Button
+            size="icon-lg"
+            aria-label="Nuevo empleado"
+            onClick={() => setDialogo({ tipo: "crear" })}
+          >
+            <Plus className="size-5" />
+          </Button>
         }
       />
 
@@ -323,6 +337,17 @@ export function EmpleadosClient({
               </strong>{" "}
               resultados
             </span>
+            <a
+              href={hrefExportar}
+              aria-label={`Exportar ${pagina.total ?? 0} empleados`}
+              title={`Exporta ${pagina.total ?? 0} empleados según el tab, la búsqueda, el orden y la actividad aplicados en esta vista`}
+              className={cn(
+                buttonVariants({ variant: "outline", size: "icon-lg" }),
+                "size-11 lg:hidden",
+              )}
+            >
+              <Download className="size-4" />
+            </a>
             <Button
               variant="outline"
               size="icon-sm"

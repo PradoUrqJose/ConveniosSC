@@ -1,28 +1,31 @@
-"use client";
+import { CabeceraMovil } from "@/components/shell/cabecera-movil";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
-
-import { ThemeToggle } from "@/components/theme-toggle";
-import { Button } from "@/components/ui/button";
-
-/** Cabecera mínima para el flujo concentrado de registro de ventas en PWA. */
+/**
+ * Cabecera del flujo concentrado de registro de ventas (PWA).
+ *
+ * Issue #52. Dos cambios respecto de la versión anterior:
+ *
+ * 1. Ya no es `sticky`: en móvil no hay chrome fijo, la cabecera vive
+ *    dentro del contenido y se va con el scroll, dejando la altura útil
+ *    para el formulario (el CTA fijo del pie es el único elemento fijo).
+ * 2. Semántica correcta de Base UI. El back era un `<Button>` de Base UI
+ *    con `render={<Link/>}`: con `nativeButton` en su valor por defecto
+ *    (`true`) el componente espera un `<button>` nativo y avisa por
+ *    consola al recibir un `<a>`; poniendo `nativeButton={false}` habría
+ *    dejado de avisar, pero añadiendo `role="button"` a un enlace, que es
+ *    peor para el lector de pantalla. Un back *es* navegación: ahora es un
+ *    `<a>` puro (`BotonAtrasMovil`), sin primitiva de botón encima.
+ *
+ * El toggle de tema salió de acá: durante un registro de venta no es una
+ * decisión relevante y las acciones secundarias viven en `/perfil`.
+ */
 export function CabeceraPuntoVenta() {
   return (
-    <header className="border-border/70 bg-background/94 sticky top-0 z-40 flex items-center gap-1 border-b px-3 pt-[calc(0.375rem+env(safe-area-inset-top))] pb-1.5 backdrop-blur-xl supports-backdrop-filter:backdrop-blur-sm">
-      <Button
-        variant="ghost"
-        size="icon-lg"
-        aria-label="Volver a ventas"
-        className="rounded-full"
-        render={<Link href="/ventas" />}
-      >
-        <ArrowLeft className="size-5" />
-      </Button>
-      <h1 className="text-foreground min-w-0 flex-1 truncate text-[17px] font-bold tracking-tight">
-        Registrar venta
-      </h1>
-      <ThemeToggle />
-    </header>
+    <CabeceraMovil
+      className="lg:hidden"
+      variante="formulario"
+      titulo="Nueva venta con convenio"
+      atras={{ href: "/ventas", etiqueta: "Volver a ventas" }}
+    />
   );
 }

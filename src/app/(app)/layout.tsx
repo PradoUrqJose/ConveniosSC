@@ -10,8 +10,8 @@ import {
 } from "@/lib/auth/perfil";
 import { navegacionPorRol } from "@/lib/navegacion";
 import { Sidebar } from "@/components/shell/sidebar";
-import { Header } from "@/components/shell/header";
 import { CabeceraPuntoVenta } from "@/components/shell/cabecera-punto-venta";
+import { ProveedorCuentaMovil } from "@/components/shell/contexto-cuenta-movil";
 import { TabBarMovil } from "@/components/shell/tab-bar-movil";
 import { BannerOffline } from "@/components/shell/banner-offline";
 import { BadgePendientes } from "@/components/shell/badge-pendientes";
@@ -41,7 +41,12 @@ export default async function AppLayout({
   if (sesion.debeCambiarPassword) {
     return (
       <div className="flex min-h-dvh flex-col">
-        <main className="flex flex-1 flex-col">{children}</main>
+        {/* Sin cabecera de ruta: es una pantalla de bloqueo. El safe area
+            superior se paga acá para que el formulario no quede bajo el
+            notch (issue #52). */}
+        <main className="flex flex-1 flex-col pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] lg:p-0">
+          {children}
+        </main>
       </div>
     );
   }
@@ -57,53 +62,51 @@ export default async function AppLayout({
   const esPuntoVenta = pathname === "/ventas/nueva";
 
   return (
-    <div className="flex min-h-dvh flex-col lg:flex-row">
-      <Sidebar
-        nav={nav}
-        perfil={perfil}
-        pendientesEmpleados={
-          <Suspense fallback={null}>
-            <BadgePendientes
-              pendientes={pendientesEmpleados}
-              variante="sidebar"
-            />
-          </Suspense>
-        }
-      />
-      <div className="flex min-w-0 flex-1 flex-col">
-        {esPuntoVenta ? (
-          <div className="lg:hidden">
-            <CabeceraPuntoVenta />
-          </div>
-        ) : (
-          <div className="lg:hidden">
-            <Header perfil={perfil} rol={sesion.rol} />
-          </div>
-        )}
-        <BannerOffline />
-        <main
-          className={
-            esPuntoVenta
-              ? "mx-auto w-full max-w-xl flex-1 px-4 pt-3 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:max-w-[1500px] lg:px-9 lg:pt-[30px] lg:pb-[52px]"
-              : "mx-auto w-full max-w-[1600px] flex-1 px-4 pt-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] sm:px-6 sm:pt-6 lg:px-8 lg:pt-8 lg:pb-12 xl:px-10"
-          }
-        >
-          {children}
-        </main>
-      </div>
-      {!esPuntoVenta ? (
-        <TabBarMovil
-          rol={sesion.rol}
+    <ProveedorCuentaMovil perfil={perfil} rol={sesion.rol}>
+      <div className="flex min-h-dvh flex-col lg:flex-row">
+        <Sidebar
+          nav={nav}
+          perfil={perfil}
           pendientesEmpleados={
             <Suspense fallback={null}>
               <BadgePendientes
                 pendientes={pendientesEmpleados}
-                variante="movil"
+                variante="sidebar"
               />
             </Suspense>
           }
         />
-      ) : null}
-    </div>
+        {/* Sin chrome superior fijo en móvil (issue #52): el header global
+          desapareció y cada ruta trae su cabecera dentro del contenido.
+          El inset lateral vive acá para cubrir el landscape con notch sin
+          pelearse con el padding responsive del <main>. */}
+        <div className="flex min-w-0 flex-1 flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] lg:pr-0 lg:pl-0">
+          <BannerOffline />
+          <main
+            className={
+              esPuntoVenta
+                ? "mob-espacio-inferior-cta mx-auto w-full max-w-xl flex-1 px-4 lg:max-w-[1500px] lg:px-9 lg:pt-[30px] lg:pb-[52px]"
+                : "mob-espacio-inferior mx-auto w-full max-w-[1600px] flex-1 px-4 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12 xl:px-10"
+            }
+          >
+            {esPuntoVenta ? <CabeceraPuntoVenta /> : null}
+            {children}
+          </main>
+        </div>
+        {!esPuntoVenta ? (
+          <TabBarMovil
+            rol={sesion.rol}
+            pendientesEmpleados={
+              <Suspense fallback={null}>
+                <BadgePendientes
+                  pendientes={pendientesEmpleados}
+                  variante="movil"
+                />
+              </Suspense>
+            }
+          />
+        ) : null}
+      </div>
+    </ProveedorCuentaMovil>
   );
 }
