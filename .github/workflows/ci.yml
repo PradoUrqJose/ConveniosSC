@@ -53,3 +53,6 @@ jobs:
 
       - name: Build de producción
         run: npm run build
+
+      - name: Presupuesto de JavaScript gzip
+        run: npm run perf:budget

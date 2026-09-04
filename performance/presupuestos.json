@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "webVitalsP75": { "LCP": 2500, "INP": 200, "CLS": 0.1 },
+  "shellCalienteP95Ms": 200,
+  "jsGzipCompartidoBytes": 184320,
+  "jsGzipAdicionalRutaBytes": 81920
+}

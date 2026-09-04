@@ -16,6 +16,7 @@ import { TabBarMovil } from "@/components/shell/tab-bar-movil";
 import { BannerOffline } from "@/components/shell/banner-offline";
 import { BadgePendientes } from "@/components/shell/badge-pendientes";
 import { medirServidor } from "@/lib/observabilidad";
+import { RendimientoReal } from "@/components/rendimiento-real";
 
 export default async function AppLayout({
   children,
@@ -63,6 +64,7 @@ export default async function AppLayout({
 
   return (
     <ProveedorCuentaMovil perfil={perfil} rol={sesion.rol}>
+      <RendimientoReal rol={sesion.rol} />
       <div className="flex min-h-dvh flex-col lg:flex-row">
         <Sidebar
           nav={nav}
@@ -83,6 +85,7 @@ export default async function AppLayout({
         <div className="flex min-w-0 flex-1 flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] lg:pr-0 lg:pl-0">
           <BannerOffline />
           <main
+            data-perf-shell
             className={
               esPuntoVenta
                 ? "mob-espacio-inferior-cta mx-auto w-full max-w-xl flex-1 px-4 lg:max-w-[1500px] lg:px-9 lg:pt-[30px] lg:pb-[52px]"
