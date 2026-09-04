@@ -210,6 +210,263 @@
     0 40px 90px -30px rgb(0 0 0 / 72%), 0 2px 8px rgb(0 0 0 / 30%);
 }
 
+/* =====================================================================
+   Sistema de tokens y primitivas móviles — issue #51 (PWA-MOB-01).
+   Especificación completa: docs/sistema-diseno-mobile (1).md
+
+   Aislamiento: todo el bloque vive dentro de un único
+   `@media (max-width: 1023.98px)`. A 1024px o más ninguna de estas
+   declaraciones existe — no hay forma de que se filtren al desktop
+   aprobado, ni por accidente en un componente compartido. MOB-02..06 y
+   toda migración de pantalla consumen estos tokens en vez de repetir
+   valores sueltos (20px, 24/16/12px, etc.).
+   ===================================================================== */
+@media (max-width: 1023.98px) {
+  :root {
+    /* Color — doc §2. Dos superficies POR MODO: fondo "profundo" y
+       contenedor "claro", separados por luminosidad (§2 principio 3: sin
+       bordes). La regla que rige este bloque: fondo y superficie tienen
+       que salir SIEMPRE de la misma rampa del mismo modo. Aliasarlos a
+       tokens de escritorio que no cambian igual con el tema (`--sidebar`
+       es azul noche en claro *y* en oscuro, `--card` es blanco en claro)
+       daba justo la mezcla prohibida: página oscura con tarjetas
+       blancas. Por eso acá se declaran valores propios en `:root` y en
+       `.dark`, no alias: el móvil tiene su propia rampa de superficies y
+       es coherente en los dos modos.
+
+       Modo claro: fondo gris azulado (más oscuro que la tarjeta blanca).
+       Modo oscuro: fondo azul noche (más oscuro que la tarjeta). En los
+       dos casos la tarjeta se lee como objeto sobre el fondo sin una
+       sola línea de borde. El acento sigue siendo `--primary` y los
+       semánticos `--success/--warning/--destructive`, que ya tienen su
+       variante por tema. */
+    --mob-bg: oklch(0.932 0.016 250);
+    --mob-bg-foreground: var(--foreground);
+    --mob-superficie: oklch(1 0 0);
+    --mob-superficie-foreground: oklch(0.215 0.035 252);
+    --mob-superficie-tenue: oklch(0.963 0.011 250);
+    --mob-superficie-tenue-foreground: oklch(0.44 0.035 252);
+    --mob-acento: var(--primary);
+    --mob-acento-foreground: var(--primary-foreground);
+    --mob-divisor: oklch(0.905 0.016 250);
+
+    /* Texto de los pills semánticos — doc §2: el color semántico vive
+       solo acá dentro. El fondo es el mismo mix translúcido en los dos
+       modos; el texto no puede serlo, porque en claro tiene que
+       oscurecerse para contrastar contra la superficie clara y en oscuro
+       tiene que quedar en su versión luminosa. */
+    --mob-pill-ok-fg: color-mix(in oklab, var(--success) 82%, black);
+    --mob-pill-atencion-fg: color-mix(in oklab, var(--warning) 62%, black);
+    --mob-pill-error-fg: color-mix(in oklab, var(--destructive) 88%, black);
+
+    /* Tipografía — el doc deja la fuente "por proyecto"; acá va el stack
+       de sistema del propio desktop (`--font-sans`), cero descarga de
+       red. Alias explícito para que ninguna migración futura reintroduzca
+       una fuente de Google Fonts "para este flujo". */
+    --mob-font-sans: var(--font-sans);
+
+    /* Geometría — doc §1. */
+    --mob-margen-pantalla: 1.25rem; /* 20px */
+    --mob-padding-tarjeta: 1.125rem; /* 18px, menor que el margen de pantalla */
+    --mob-padding-bloque: 0.875rem; /* 14px, menor que el padding de tarjeta */
+    --mob-gap-tarjeta: 1.25rem; /* 20px, mayor que el padding de bloque */
+    --mob-radius-tarjeta: 1.5rem; /* 24px — contenedor exterior */
+    --mob-radius-bloque: 1rem; /* 16px — bloque interior / subtarjeta */
+    --mob-radius-control: 0.75rem; /* 12px — elementos menores */
+    --mob-radius-pill: 999px;
+    --mob-squircle: 32%; /* curvatura continua aprox. para íconos */
+    --mob-toque-min: 2.75rem; /* 44px, área táctil mínima */
+
+    /* Elevación — doc §5: solo el sheet y la barra flotante usan sombra;
+       el resto de la profundidad se hace con superficie, no con sombra. */
+    --mob-shadow-flotante: 0 18px 40px -10px oklch(0.16 0.04 258 / 55%);
+    --mob-shadow-sheet: 0 -24px 60px -20px oklch(0.16 0.04 258 / 45%);
+
+    /* Movimiento — doc §11: 150-250ms con un easing propio, distinto del
+       `--ease-standard` de desktop. */
+    --mob-duration: 200ms;
+    --mob-ease: cubic-bezier(0.2, 0, 0, 1);
+
+    /* Safe areas — doc §3 y §12: la barra flotante usa `margin`, nunca
+       `padding`, para no duplicar el hueco en algunas plataformas. */
+    --mob-safe-top: env(safe-area-inset-top, 0px);
+    --mob-safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  /* Misma rampa, modo oscuro. Solo se redefine el color: geometría,
+     movimiento y safe areas son idénticas en los dos modos. */
+  .dark {
+    --mob-bg: oklch(0.145 0.032 255);
+    --mob-bg-foreground: oklch(0.985 0 0);
+    --mob-superficie: oklch(0.215 0.032 254);
+    --mob-superficie-foreground: oklch(0.985 0 0);
+    --mob-superficie-tenue: oklch(0.275 0.03 252);
+    --mob-superficie-tenue-foreground: oklch(0.78 0.012 250);
+    --mob-divisor: oklch(1 0 0 / 12%);
+
+    --mob-pill-ok-fg: var(--success);
+    --mob-pill-atencion-fg: var(--warning);
+    --mob-pill-error-fg: color-mix(in oklab, var(--destructive) 92%, white);
+  }
+
+  @layer components {
+    /* Pantalla base — doc §1 principio 1: sin chrome fijo, fondo profundo. */
+    .mob-shell {
+      min-height: 100dvh;
+      background: var(--mob-bg);
+      color: var(--mob-bg-foreground);
+      font-family: var(--mob-font-sans);
+    }
+
+    /* Tarjeta — doc §4. Estructura en dos niveles: fila de encabezado
+       (navegación) por fuera del bloque de datos anidado (radio menor). */
+    .mob-tarjeta {
+      overflow: hidden;
+      border-radius: var(--mob-radius-tarjeta);
+      background: var(--mob-superficie);
+      color: var(--mob-superficie-foreground);
+    }
+
+    .mob-tarjeta-encabezado {
+      display: flex;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      gap: 0.75rem;
+      padding: var(--mob-padding-tarjeta);
+    }
+
+    .mob-bloque {
+      border-radius: var(--mob-radius-bloque);
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+      padding: var(--mob-padding-bloque);
+      margin: 0 var(--mob-padding-tarjeta) var(--mob-padding-tarjeta);
+    }
+
+    /* Fila de lista — doc §4. Vive dentro de una tarjeta; el divisor es
+       inset respecto al padding de la tarjeta y nunca precede a la
+       primera fila ni sigue a la última (`:not(:first-child)`). */
+    .mob-fila {
+      display: flex;
+      min-height: 3.5rem; /* 56px, dentro del rango 56–64px del doc */
+      align-items: center;
+      gap: 0.75rem;
+      padding-inline: var(--mob-padding-tarjeta);
+    }
+
+    .mob-fila:not(:first-child) {
+      border-top: 1px solid var(--mob-divisor);
+    }
+
+    /* Pill — doc §4 y §8. Estado sin navegación; los colores semánticos
+       viven *solo* acá dentro, nunca tiñen un ícono o un título suelto. */
+    .mob-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      border-radius: var(--mob-radius-pill);
+      padding: 0.25rem 0.625rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .mob-pill-ok {
+      background: color-mix(in oklab, var(--success) 16%, transparent);
+      color: var(--mob-pill-ok-fg);
+    }
+
+    .mob-pill-atencion {
+      background: color-mix(in oklab, var(--warning) 20%, transparent);
+      color: var(--mob-pill-atencion-fg);
+    }
+
+    .mob-pill-error {
+      background: color-mix(in oklab, var(--destructive) 16%, transparent);
+      color: var(--mob-pill-error-fg);
+    }
+
+    /* Ícono en contenedor squircle — doc §6. */
+    .mob-icono {
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      width: var(--mob-toque-min);
+      height: var(--mob-toque-min);
+      border-radius: var(--mob-squircle);
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    .mob-icono-acento {
+      background: var(--mob-acento);
+      color: var(--mob-acento-foreground);
+    }
+
+    /* Botones — doc §6. Primario y secundario comparten geometría; el
+       secundario nunca lleva outline, solo baja de superficie. */
+    .mob-boton {
+      display: inline-flex;
+      min-height: var(--mob-toque-min);
+      width: 100%;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--mob-radius-pill);
+      padding-inline: 1.5rem;
+      font-weight: 600;
+      transition:
+        transform var(--mob-duration) var(--mob-ease),
+        background-color var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-boton:active {
+      transform: scale(0.97);
+    }
+
+    .mob-boton-primario {
+      background: var(--mob-acento);
+      color: var(--mob-acento-foreground);
+    }
+
+    .mob-boton-secundario {
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    .mob-boton-terciario {
+      display: inline-flex;
+      min-height: 2.5rem; /* 40px */
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--mob-radius-pill);
+      padding-inline: 1rem;
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    /* Safe areas — doc §3: la barra flotante usa margin, nunca padding. */
+    .mob-safe-bottom {
+      margin-bottom: max(0.75rem, var(--mob-safe-bottom));
+    }
+
+    .mob-safe-top {
+      padding-top: max(0.75rem, var(--mob-safe-top));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .mob-boton {
+      transition-duration: 1ms;
+    }
+
+    .mob-boton:active {
+      transform: none;
+    }
+  }
+}
+
 /* Sonner fija una capa muy alta por defecto; se normaliza con las capas de la UI. */
 [data-sonner-toaster] {
   z-index: var(--z-toast) !important;
