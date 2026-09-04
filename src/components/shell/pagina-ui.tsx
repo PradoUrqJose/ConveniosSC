@@ -141,6 +141,43 @@ export function EstadoVacio({
   );
 }
 
+/**
+ * Los dos vacíos de una lista, que la auditoría veía mezclados — issue #56.
+ *
+ * «Aún no hay ventas» y «no encontramos coincidencias» se parecen en el
+ * dibujo y no se parecen en nada para el usuario: el primero pide crear
+ * algo, el segundo pide soltar un filtro. Este envoltorio obliga a escribir
+ * los dos textos y elige por `hayFiltros`, de modo que una pantalla nueva no
+ * pueda quedarse solo con el genérico.
+ */
+export function EstadoSinResultados({
+  icono,
+  hayFiltros,
+  inicial,
+  filtrado,
+  className,
+}: {
+  icono: ReactNode;
+  /** ¿Hay búsqueda o filtros aplicados? */
+  hayFiltros: boolean;
+  /** Lista genuinamente vacía: todavía no existe el primer registro. */
+  inicial: { titulo: string; descripcion: ReactNode; accion?: ReactNode };
+  /** Hay registros, pero ninguno pasa el filtro actual. */
+  filtrado: { titulo: string; descripcion: ReactNode; accion?: ReactNode };
+  className?: string;
+}) {
+  const estado = hayFiltros ? filtrado : inicial;
+  return (
+    <EstadoVacio
+      icono={icono}
+      titulo={estado.titulo}
+      descripcion={estado.descripcion}
+      accion={estado.accion}
+      className={className}
+    />
+  );
+}
+
 export function Metrica({
   etiqueta,
   valor,

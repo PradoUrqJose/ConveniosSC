@@ -78,12 +78,14 @@ import {
   type SearchParamsVentas,
 } from "@/modules/ventas/filtros";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorParcial } from "@/components/estados";
+import { clasificarFallo, type ClaseFallo } from "@/lib/estados-red";
 import {
   ariaSortDe,
   CabeceraPagina,
   EncabezadoOrdenable,
   EstadoBadge,
-  EstadoVacio,
+  EstadoSinResultados,
   IndicadorPendienteSuperficie,
   Metrica,
   PanelSuperficie,
@@ -153,7 +155,12 @@ export function VentasClient({
   const [popoverAbierto, setPopoverAbierto] = useState(false);
   const [sheetAbierto, setSheetAbierto] = useState(false);
   const [cargando, setCargando] = useState(false);
-  const [errorCarga, setErrorCarga] = useState<string | null>(null);
+  // Clase del fallo, no un texto suelto: así el aviso distingue "sin red"
+  // de "el servidor no responde" y se puede reintentar solo al reconectar
+  // (issue #56). La URL que falló se guarda para poder repetir exactamente
+  // esa consulta sin perder filtros ni página.
+  const [errorCarga, setErrorCarga] = useState<ClaseFallo | null>(null);
+  const urlFallida = useRef<string | null>(null);
   const [catalogosPorDireccion, setCatalogosPorDireccion] = useState<
     Partial<Record<"vendidas" | "compradas", CatalogosVentas>>
   >({});
@@ -202,7 +209,8 @@ export function VentasClient({
         .then((resultado) => {
           if (idSolicitud !== solicitud.current) return;
           if (!resultado.ok) {
-            setErrorCarga(resultado.mensaje);
+            urlFallida.current = url;
+            setErrorCarga(clasificarFallo({ codigo: resultado.codigo }));
             setCargando(false);
             return;
           }
@@ -217,9 +225,16 @@ export function VentasClient({
           });
           setCargando(false);
         })
-        .catch(() => {
+        .catch((error: unknown) => {
           if (idSolicitud !== solicitud.current) return;
-          setErrorCarga("No se pudo actualizar el listado.");
+          urlFallida.current = url;
+          setErrorCarga(
+            clasificarFallo({
+              error,
+              enLinea:
+                typeof navigator === "undefined" ? undefined : navigator.onLine,
+            }),
+          );
           setCargando(false);
         });
     });
@@ -291,7 +306,7 @@ export function VentasClient({
     void cargarCatalogosVentas(direccion)
       .then((resultado) => {
         if (!resultado.ok) {
-          setErrorCarga(resultado.mensaje);
+          setErrorCarga(clasificarFallo({ codigo: resultado.codigo }));
         } else {
           setCatalogosPorDireccion((actuales) => ({
             ...actuales,
@@ -299,7 +314,15 @@ export function VentasClient({
           }));
         }
       })
-      .catch(() => setErrorCarga("No se pudieron cargar los filtros."))
+      .catch((error: unknown) =>
+        setErrorCarga(
+          clasificarFallo({
+            error,
+            enLinea:
+              typeof navigator === "undefined" ? undefined : navigator.onLine,
+          }),
+        ),
+      )
       .finally(() => {
         setDireccionCatalogoCargando((actual) =>
           actual === direccion ? null : actual,
@@ -530,13 +553,19 @@ export function VentasClient({
         </div>
       ) : null}
 
+      {/* El listado que ya estaba sigue en pantalla debajo: el error no
+          borra los resultados ni los filtros, solo avisa y ofrece repetir
+          la misma consulta (issue #56). */}
       {errorCarga ? (
-        <div
-          role="alert"
-          className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border px-4 py-3 text-sm"
-        >
-          {errorCarga}
-        </div>
+        <ErrorParcial
+          clase={errorCarga}
+          descripcion="No pudimos actualizar el listado. Los resultados que ves son los anteriores."
+          reintentando={pendiente}
+          onReintentar={() => {
+            const url = urlFallida.current;
+            if (url) irA(url, true);
+          }}
+        />
       ) : null}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -588,20 +617,19 @@ export function VentasClient({
 
       <div className="relative">
         {paginaVisible.items.length === 0 ? (
-          <EstadoVacio
+          <EstadoSinResultados
             icono={<Receipt className="size-6" />}
-            titulo={
-              filtrosActivos.length > 0 || spVisible.q
-                ? "No encontramos coincidencias"
-                : "Aún no hay ventas registradas"
-            }
-            descripcion={
-              filtrosActivos.length > 0 || spVisible.q
-                ? "Prueba con otros términos o limpia los filtros para ver más resultados."
-                : "Cuando registres una operación, aparecerá aquí con su monto y estado."
-            }
-            accion={
-              filtrosActivos.length > 0 || spVisible.q ? (
+            hayFiltros={filtrosActivos.length > 0 || Boolean(spVisible.q)}
+            inicial={{
+              titulo: "Aún no hay ventas registradas",
+              descripcion:
+                "Cuando registres una operación, aparecerá aquí con su monto y estado.",
+            }}
+            filtrado={{
+              titulo: "No encontramos coincidencias",
+              descripcion:
+                "Prueba con otros términos o limpia los filtros para ver más resultados.",
+              accion: (
                 <button
                   type="button"
                   onClick={() => {
@@ -619,8 +647,8 @@ export function VentasClient({
                 >
                   Limpiar filtros
                 </button>
-              ) : null
-            }
+              ),
+            }}
           />
         ) : (
           <>

@@ -31,7 +31,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { diffAuditoria } from "@/lib/audit/diff";
 import {
@@ -65,7 +65,10 @@ import {
   cargarDetalleAuditoria,
   verificarIntegridad,
 } from "./actions";
-import { CabeceraPagina, EstadoVacio } from "@/components/shell/pagina-ui";
+import {
+  CabeceraPagina,
+  EstadoSinResultados,
+} from "@/components/shell/pagina-ui";
 
 type EstadoVerificacion =
   | { estado: "idle" }
@@ -426,17 +429,29 @@ export function AuditoriaClient({
           ))}
         </div>
       ) : (
-        <EstadoVacio
+        <EstadoSinResultados
           icono={<History className="size-6" />}
-          titulo="No hay registros"
-          descripcion="No encontramos actividad para los filtros seleccionados."
-          accion={
-            filtrosActivos.length > 0 ? (
-              <Link href="/auditoria">
-                <Button variant="outline">Limpiar filtros</Button>
+          hayFiltros={filtrosActivos.length > 0}
+          inicial={{
+            titulo: "Todavía no hay actividad",
+            descripcion:
+              "Cada alta, edición o inicio de sesión quedará registrado aquí en cuanto ocurra.",
+          }}
+          filtrado={{
+            titulo: "No hay registros",
+            descripcion:
+              "No encontramos actividad para los filtros seleccionados.",
+            // Enlace con estilo de botón, no un <button> dentro de un <a>:
+            // ese anidamiento es marcado inválido y rompe el teclado.
+            accion: (
+              <Link
+                href="/auditoria"
+                className={buttonVariants({ variant: "outline" })}
+              >
+                Limpiar filtros
               </Link>
-            ) : undefined
-          }
+            ),
+          }}
         />
       )}
       {cursor && (

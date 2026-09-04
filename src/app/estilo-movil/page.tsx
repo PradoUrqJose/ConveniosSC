@@ -12,6 +12,7 @@ import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DemoSheets } from "./demo-sheets";
 import { DemoControles } from "./demo-controles";
+import { DemoEstados } from "./demo-estados";
 
 /**
  * Referencia viva de los tokens y primitivas móviles definidos para el
@@ -181,6 +182,21 @@ export default async function EstiloMovilPage() {
           solo por color.
         </p>
         <DemoControles />
+      </section>
+
+      <section aria-labelledby="h-estados-red" className="mb-8">
+        <h2
+          id="h-estados-red"
+          className="mb-3 text-sm font-semibold opacity-70"
+        >
+          Carga, vacío, error y offline (issue #56)
+        </h2>
+        <p className="mb-3 text-sm opacity-70">
+          Siete causas de fallo con texto propio, los dos vacíos separados y el
+          esqueleto con la geometría de la fila real. El esqueleto de ruta se
+          retiene 200 ms para no destellar en navegaciones rápidas.
+        </p>
+        <DemoEstados />
       </section>
 
       <section aria-labelledby="h-squircle">

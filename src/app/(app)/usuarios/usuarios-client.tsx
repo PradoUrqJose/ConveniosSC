@@ -38,7 +38,10 @@ import { DialogoResetear } from "./dialogo-resetear";
 import { DialogoDesactivar } from "./dialogo-desactivar";
 import { DialogoPassword } from "./dialogo-password";
 import { BotonDesbloquear } from "./boton-desbloquear";
-import { CabeceraPagina, EstadoVacio } from "@/components/shell/pagina-ui";
+import {
+  CabeceraPagina,
+  EstadoSinResultados,
+} from "@/components/shell/pagina-ui";
 
 type Dialogo =
   | { tipo: "crear" }
@@ -252,16 +255,18 @@ export function UsuariosClient({
       </div>
 
       {pagina.items.length === 0 ? (
-        <EstadoVacio
+        <EstadoSinResultados
           icono={<Users className="size-6" />}
-          titulo={
-            hayFiltros ? "No encontramos usuarios" : "Aún no hay usuarios"
-          }
-          descripcion={
-            hayFiltros
-              ? "Prueba con otra búsqueda o ajusta los filtros."
-              : "Crea una cuenta y asígnale el acceso adecuado para comenzar."
-          }
+          hayFiltros={hayFiltros}
+          inicial={{
+            titulo: "Aún no hay usuarios",
+            descripcion:
+              "Crea una cuenta y asígnale el acceso adecuado para comenzar.",
+          }}
+          filtrado={{
+            titulo: "No encontramos usuarios",
+            descripcion: "Prueba con otra búsqueda o ajusta los filtros.",
+          }}
         />
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">

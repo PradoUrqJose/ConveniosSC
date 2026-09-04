@@ -1,3 +1,4 @@
+import { EsqueletoDiferido } from "@/components/estados";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Variante =
@@ -76,14 +77,11 @@ function Formulario() {
 
 function Dashboard() {
   return (
-    <section
-      aria-busy="true"
-      className="page-shell animate-in fade-in-0 space-y-5 duration-300 motion-reduce:animate-none"
-    >
-      <span className="sr-only" role="status">
-        Cargando dashboard
-      </span>
-      <div aria-hidden="true" className="space-y-5">
+    // `aria-busy`, el aviso sonoro y el `aria-hidden` los pone una sola
+    // vez `LoadingRegion` (issue #56): repetirlos acá hacía que el lector
+    // de pantalla anunciara la carga dos veces.
+    <section className="page-shell animate-in fade-in-0 space-y-5 duration-300 motion-reduce:animate-none">
+      <div className="space-y-5">
         <div className="bg-primary/10 relative grid gap-6 overflow-hidden rounded-[1.25rem] px-4 py-5 shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 md:grid-cols-[1fr_22rem] lg:px-9">
           <div>
             <Skeleton className="h-3 w-48" />
@@ -133,14 +131,8 @@ function Dashboard() {
 
 function InicioVendedor() {
   return (
-    <section
-      aria-busy="true"
-      className="page-shell animate-in fade-in-0 duration-300 motion-reduce:animate-none"
-    >
-      <span className="sr-only" role="status">
-        Cargando inicio
-      </span>
-      <div aria-hidden="true" className="contents">
+    <section className="page-shell animate-in fade-in-0 duration-300 motion-reduce:animate-none">
+      <div className="contents">
         {/* Hero: mismo radio, relleno y alto que src/app/(app)/page.tsx. */}
         <div className="bg-primary/10 relative overflow-hidden rounded-[1.25rem] px-4 py-4 shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
           <div className="relative grid items-center gap-6 md:grid-cols-[1fr_auto]">
@@ -220,14 +212,8 @@ function TarjetaPasoSkeleton({ children }: { children: React.ReactNode }) {
 
 function NuevaVenta() {
   return (
-    <section
-      aria-busy="true"
-      className="venta-shell animate-in fade-in-0 flex flex-col gap-6 pb-6 duration-300"
-    >
-      <span className="sr-only" role="status">
-        Cargando nueva venta
-      </span>
-      <div aria-hidden="true" className="contents">
+    <section className="venta-shell animate-in fade-in-0 flex flex-col gap-6 pb-6 duration-300">
+      <div className="contents">
         {/* ── Barra superior: mismo layout que el <header> real. ── */}
         <header className="flex flex-wrap items-center justify-between gap-4">
           <div className="space-y-2">
@@ -727,14 +713,20 @@ function LoadingRegion({
   children: React.ReactNode;
 }) {
   return (
-    <div aria-busy="true">
-      <span className="sr-only" role="status">
-        Cargando {etiqueta}
-      </span>
-      <div aria-hidden="true" className="contents">
-        {children}
+    // El esqueleto se retiene ~200 ms (issue #56): por debajo de ese umbral
+    // la navegación ya terminó y el gris solo sería un destello. Se oculta
+    // con `visibility`, así que el alto está desde el primer cuadro y el
+    // contenido real no llega empujando la pantalla.
+    <EsqueletoDiferido>
+      <div aria-busy="true">
+        <span className="sr-only" role="status">
+          Cargando {etiqueta}
+        </span>
+        <div aria-hidden="true" className="contents">
+          {children}
+        </div>
       </div>
-    </div>
+    </EsqueletoDiferido>
   );
 }
 

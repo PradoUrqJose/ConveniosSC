@@ -324,6 +324,22 @@
       var(--mob-bottom-bar) + var(--mob-bottom-bar-margen)
     );
     --mob-cta-flotante: 4.5rem;
+
+    /* Hueco que deben esquivar los avisos flotantes (toasts, banner de
+       instalación) — issue #56. Por defecto es el de la barra inferior;
+       en el punto de venta, donde no hay barra sino un CTA fijo, la regla
+       de abajo lo reemplaza por el alto del CTA. Un solo token: el toaster
+       no sabe en qué ruta está y no tiene que saberlo. */
+    --mob-hueco-avisos: var(--mob-bottom-bar-hueco);
+  }
+
+  /* El punto de venta cambia la barra inferior por un CTA fijo más alto
+     (`.mob-espacio-inferior-cta` en el <main>). Sin esto, el toast de
+     "venta registrada" caía justo encima del botón Guardar. */
+  :root:has(.mob-espacio-inferior-cta) {
+    --mob-hueco-avisos: calc(
+      var(--mob-cta-flotante) + var(--mob-bottom-bar-margen)
+    );
   }
 
   /* Misma rampa, modo oscuro. Solo se redefine el color: geometría,

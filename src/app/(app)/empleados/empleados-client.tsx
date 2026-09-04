@@ -133,6 +133,10 @@ export function EmpleadosClient({
   const [texto, setTexto] = useState(q ?? "");
   const [dialogo, setDialogo] = useState<Dialogo>(null);
 
+  /** Búsqueda, tab distinto de "todos" o filtro de actividad aplicados. */
+  const hayFiltros =
+    Boolean(q) || (tab !== "" && tab !== "todos") || Boolean(actividad);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       const entrada = Object.fromEntries(searchParams.entries());
@@ -430,14 +434,28 @@ export function EmpleadosClient({
         </nav>
 
         {pagina.items.length === 0 ? (
+          // Antes decía siempre «No encontramos empleados», incluso en una
+          // empresa que aún no ha dado de alta a nadie: el usuario buscaba
+          // un filtro inexistente en vez de crear el primer registro
+          // (issue #56).
           <div className="grid min-h-80 place-items-center px-5 text-center">
             <div>
               <span className="bg-primary/10 text-primary mx-auto grid size-14 place-items-center rounded-2xl">
-                <Search className="size-6" />
+                {hayFiltros ? (
+                  <Search className="size-6" />
+                ) : (
+                  <UsersRound className="size-6" />
+                )}
               </span>
-              <h2 className="mt-4 font-semibold">No encontramos empleados</h2>
+              <h2 className="mt-4 font-semibold">
+                {hayFiltros
+                  ? "No encontramos empleados"
+                  : "Aún no hay empleados"}
+              </h2>
               <p className="text-muted-foreground mt-1 text-sm">
-                Revisa el texto ingresado o cambia los filtros aplicados.
+                {hayFiltros
+                  ? "Revisa el texto ingresado o cambia los filtros aplicados."
+                  : "Registra al primer empleado para que pueda acceder a los beneficios del convenio."}
               </p>
             </div>
           </div>

@@ -15,6 +15,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DatePicker } from "@/components/ui/date-picker";
 import {
   Select,
@@ -42,6 +43,7 @@ import type { ConfiguracionVenta, SedeOpcion } from "@/modules/ventas/query";
 import type { VentaCreada } from "@/modules/ventas/acciones";
 import { calcularDescuento, formatearSoles, parsearSoles } from "@/lib/dinero";
 import { formatearFechaUI, hoyLima, sumarDias } from "@/lib/fechas";
+import { clasificarFallo, copiaFallo } from "@/lib/estados-red";
 import type { Resultado } from "@/lib/tipos";
 import { zDocumentoIdentidad, type TipoDocumento } from "@/lib/zod";
 import {
@@ -273,10 +275,30 @@ export function FormVenta({
     setEmpleado(null);
     setEmpresaConvenioId("");
 
-    const res = await buscarPorDocumento(
-      documento.data.tipoDocumento,
-      documento.data.numeroDocumento,
-    );
+    // La Server Action **lanza** si la petición no sale del dispositivo
+    // (sin red) o si el servidor no contesta: sin este `try` el fallo subía
+    // hasta la frontera de ruta y se llevaba por delante el formulario a
+    // medio llenar. Se clasifica y se avisa en un toast; el documento
+    // escrito, la sede y el importe se quedan donde estaban (issue #56).
+    let res: Awaited<ReturnType<typeof buscarPorDocumento>>;
+    try {
+      res = await buscarPorDocumento(
+        documento.data.tipoDocumento,
+        documento.data.numeroDocumento,
+      );
+    } catch (error) {
+      if (busquedaIdRef.current !== idActual) return;
+      setBuscando(false);
+      const clase = clasificarFallo({
+        error,
+        enLinea:
+          typeof navigator === "undefined" ? undefined : navigator.onLine,
+      });
+      toast.error(copiaFallo(clase).titulo, {
+        description: copiaFallo(clase).descripcion,
+      });
+      return;
+    }
     if (busquedaIdRef.current !== idActual) return;
     setBuscando(false);
     if (!res.ok) {
@@ -642,7 +664,11 @@ export function FormVenta({
 
             <div className="mt-4 empty:mt-0">
               {buscando ? (
-                <div className="bg-muted h-9 animate-pulse rounded-md" />
+                // Mismo esqueleto que el resto de la app (`skeleton-shimmer`)
+                // y no un `animate-pulse` suelto: mezclar pulse, shimmer y
+                // spinner en la misma pantalla se lee como tres cargas
+                // distintas (issue #56).
+                <Skeleton className="h-9 w-full" />
               ) : resultadoBusqueda && !resultadoBusqueda.encontrado ? (
                 <ResultadoNegativo resultado={resultadoBusqueda} />
               ) : empleado ? (

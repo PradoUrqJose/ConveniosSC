@@ -17,11 +17,13 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
-      // En móvil los toasts se apilan sobre la barra inferior flotante y
-      // con su misma separación (issue #53): el hueco sale del token de la
-      // barra, no de un número repetido acá.
+      // En móvil los toasts se apilan sobre lo que haya fijo abajo y con su
+      // misma separación (issue #53): el hueco sale de un token, no de un
+      // número repetido acá. Desde el #56 ese token es
+      // `--mob-hueco-avisos`, que vale la barra inferior en general y el
+      // alto del CTA en el punto de venta, donde no hay barra.
       mobileOffset={{
-        bottom: "calc(var(--mob-bottom-bar-hueco, 4.2rem) + 0.5rem)",
+        bottom: "calc(var(--mob-hueco-avisos, 4.2rem) + 0.5rem)",
         left: "0.75rem",
         right: "0.75rem",
       }}

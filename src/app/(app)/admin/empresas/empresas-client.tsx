@@ -19,7 +19,10 @@ import { Dialog } from "@/components/ui/dialog";
 import type { Pagina } from "@/lib/tipos";
 import type { FilaEmpresa } from "@/modules/empresas/query";
 import { FormEmpresa } from "./form-empresa";
-import { CabeceraPagina, EstadoVacio } from "@/components/shell/pagina-ui";
+import {
+  CabeceraPagina,
+  EstadoSinResultados,
+} from "@/components/shell/pagina-ui";
 
 type Dialogo = { modo: "crear" } | { modo: "editar"; empresa: FilaEmpresa };
 
@@ -164,14 +167,19 @@ export function EmpresasClient({
       </form>
 
       {pagina.items.length === 0 ? (
-        <EstadoVacio
+        <EstadoSinResultados
           icono={<Building2 className="size-6" />}
-          titulo={q ? "No encontramos empresas" : "Aún no hay empresas"}
-          descripcion={
-            q
-              ? "No encontramos empresas que coincidan con la búsqueda."
-              : "Crea la primera organización para comenzar a construir la red de convenios."
-          }
+          hayFiltros={Boolean(q) || activo !== undefined}
+          inicial={{
+            titulo: "Aún no hay empresas",
+            descripcion:
+              "Crea la primera organización para comenzar a construir la red de convenios.",
+          }}
+          filtrado={{
+            titulo: "No encontramos empresas",
+            descripcion:
+              "Ninguna empresa coincide con la búsqueda o el estado elegido.",
+          }}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">

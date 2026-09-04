@@ -17,7 +17,7 @@ import { SelectorLocal } from "@/components/selector-local";
 import { FormSede } from "./form-sede";
 import {
   CabeceraPagina,
-  EstadoVacio,
+  EstadoSinResultados,
   Metrica,
 } from "@/components/shell/pagina-ui";
 
@@ -228,24 +228,26 @@ export function SedesClient({
       </div>
 
       {sedes.length === 0 ? (
-        <EstadoVacio
+        <EstadoSinResultados
           icono={<Store className="size-6" />}
-          titulo={hayFiltros ? "No encontramos sedes" : "Aún no hay sedes"}
-          descripcion={
-            hayFiltros
-              ? "Prueba con otra búsqueda o ajusta los filtros."
-              : "Crea la primera sede para organizar al equipo y registrar ventas."
-          }
-          accion={
-            puedeGestionar && !hayFiltros ? (
+          hayFiltros={hayFiltros}
+          inicial={{
+            titulo: "Aún no hay sedes",
+            descripcion:
+              "Crea la primera sede para organizar al equipo y registrar ventas.",
+            accion: puedeGestionar ? (
               <Button
                 variant="secondary"
                 onClick={() => setDialogo({ modo: "crear" })}
               >
                 Crear la primera sede
               </Button>
-            ) : null
-          }
+            ) : null,
+          }}
+          filtrado={{
+            titulo: "No encontramos sedes",
+            descripcion: "Prueba con otra búsqueda o ajusta los filtros.",
+          }}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
