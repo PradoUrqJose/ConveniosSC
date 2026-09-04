@@ -6,6 +6,17 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  MobileSheet,
+  MobileSheetAcciones,
+  MobileSheetBoton,
+  MobileSheetCerrar,
+  MobileSheetCuerpo,
+  MobileSheetError,
+  MobileSheetFormulario,
+  MobileSheetPagina,
+} from "@/components/ui/mobile-sheet";
+import { useEsMovil } from "@/components/ui/use-es-movil";
 
 type Props = {
   abierto: boolean;
@@ -30,7 +41,14 @@ type Props = {
   error?: string | null;
 };
 
-/** Confirmación irreversible: siempre `alertdialog` y jamás enfoca la acción. */
+/**
+ * Confirmación irreversible: jamás enfoca la acción destructiva.
+ *
+ * Escritorio: `alertdialog` centrado, sin cambios. Móvil (issue #54):
+ * la misma información en la variante destructiva del bottom sheet — el
+ * mecanismo único de capa —, con `role="alertdialog"` explícito para que
+ * el lector de pantalla la anuncie igual que en escritorio.
+ */
 export function ConfirmarDestructivo({
   abierto,
   alCerrar,
@@ -59,6 +77,73 @@ export function ConfirmarDestructivo({
     );
     return () => window.clearTimeout(id);
   }, [abierto]);
+  const movil = useEsMovil();
+
+  if (movil) {
+    return (
+      <MobileSheet
+        abierto={abierto}
+        alCerrar={alCerrar}
+        altura={motivo ? "media" : "compacta"}
+        pendiente={pendiente}
+        rol="alertdialog"
+      >
+        <MobileSheetPagina id="raiz" titulo={titulo} descripcion={entidad}>
+          <MobileSheetFormulario action={formAction}>
+            {camposOcultos}
+            <MobileSheetCuerpo className="flex flex-col gap-4">
+              <p className="mob-sheet-consecuencia">{consecuencia}</p>
+              {motivo ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <Label htmlFor="motivo">{motivo.etiqueta}</Label>
+                    <span
+                      className="text-muted-foreground text-xs"
+                      aria-hidden="true"
+                    >
+                      {longitud}/{maximo}
+                    </span>
+                  </div>
+                  <Textarea
+                    ref={motivoRef}
+                    id="motivo"
+                    name={motivo.nombre ?? "motivo"}
+                    required
+                    minLength={motivo.minimo ?? 5}
+                    maxLength={maximo}
+                    disabled={pendiente}
+                    placeholder={motivo.placeholder}
+                    rows={4}
+                    aria-describedby="contador-motivo"
+                    onChange={(e) => setLongitud(e.currentTarget.value.length)}
+                  />
+                  <span id="contador-motivo" className="sr-only">
+                    {longitud} de {maximo} caracteres usados.
+                  </span>
+                </div>
+              ) : null}
+              {error ? <MobileSheetError>{error}</MobileSheetError> : null}
+            </MobileSheetCuerpo>
+            {/* `.mob-sheet-acciones` invierte el orden visual: en pantalla
+                el destructivo queda arriba y "Cancelar" debajo (doc §5),
+                pero en el DOM la salida segura va primero. */}
+            <MobileSheetAcciones>
+              <MobileSheetCerrar>Cancelar</MobileSheetCerrar>
+              <MobileSheetBoton
+                type="submit"
+                variante="destructivo"
+                disabled={pendiente}
+                cargando={pendiente}
+              >
+                {pendiente ? accionPendiente : accion}
+              </MobileSheetBoton>
+            </MobileSheetAcciones>
+          </MobileSheetFormulario>
+        </MobileSheetPagina>
+      </MobileSheet>
+    );
+  }
+
   return (
     <AlertDialog.Root
       open={abierto}

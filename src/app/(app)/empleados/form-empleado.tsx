@@ -18,15 +18,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogProgress,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
+import { DialogProgress } from "@/components/ui/dialog";
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { cn } from "@/lib/utils";
 import {
@@ -220,21 +220,21 @@ export function FormEmpleado({
   const formularioCrearValido = completos === requisitos.length;
 
   return (
-    <DialogContent pending={pendiente || guardado} className="sm:max-w-lg">
-      <DialogHeader
+    <CapaContenido pendiente={pendiente || guardado} className="sm:max-w-lg">
+      <CapaEncabezado
         eyebrow={esCrear ? "Afiliación al convenio" : "Gestión de empleados"}
       >
-        <DialogTitle>
+        <CapaTitulo>
           {esCrear ? "Nuevo empleado" : "Editar empleado"}
-        </DialogTitle>
-        <DialogDescription>
+        </CapaTitulo>
+        <CapaDescripcion>
           {esCrear
             ? "Queda habilitado para comprar con descuento apenas lo registres."
             : "El documento de identidad y la empresa no se pueden modificar."}
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
-      <DialogForm ref={formulario} action={formAction}>
+      <CapaFormulario ref={formulario} action={formAction}>
         {!esCrear ? (
           <input type="hidden" name="empleadoId" value={empleado!.id} />
         ) : null}
@@ -507,14 +507,12 @@ export function FormEmpleado({
           </p>
         ) : null}
 
-        <DialogFooter className={cn("mt-2", esCrear && "sm:justify-between")}>
+        <CapaPie className={cn("mt-2", esCrear && "sm:justify-between")}>
           {esCrear ? (
             <DialogProgress current={completos} total={requisitos.length} />
           ) : null}
           <div className="flex items-center justify-end gap-2.5">
-            <DialogClose render={<Button variant="outline" />}>
-              Cancelar
-            </DialogClose>
+            <CapaCerrar>Cancelar</CapaCerrar>
             <Button
               type="submit"
               disabled={
@@ -539,8 +537,8 @@ export function FormEmpleado({
                     : "Guardar cambios"}
             </Button>
           </div>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

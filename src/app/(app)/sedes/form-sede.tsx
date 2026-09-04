@@ -10,14 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { actualizarSede, crearSede } from "@/modules/sedes/actions";
 import type { FilaSede } from "@/modules/sedes/query";
@@ -76,17 +76,17 @@ export function FormSede({
   useDialogFormError(estado, formulario, "error-form-sede");
 
   return (
-    <DialogContent pending={pendiente} className="sm:max-w-md">
-      <DialogHeader icon={<Store />} eyebrow="Gestión de sedes">
-        <DialogTitle>{esEdicion ? "Editar sede" : "Nueva sede"}</DialogTitle>
-        <DialogDescription>
+    <CapaContenido pendiente={pendiente} className="sm:max-w-md">
+      <CapaEncabezado icono={<Store />} eyebrow="Gestión de sedes">
+        <CapaTitulo>{esEdicion ? "Editar sede" : "Nueva sede"}</CapaTitulo>
+        <CapaDescripcion>
           {esEdicion
             ? "Actualiza los datos de la sede."
             : "Agrega una sede a tu empresa."}
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
-      <DialogForm ref={formulario} action={formAction}>
+      <CapaFormulario ref={formulario} action={formAction}>
         {esEdicion ? (
           <input type="hidden" name="sedeId" value={sede!.id} />
         ) : (
@@ -146,10 +146,8 @@ export function FormSede({
           </p>
         ) : null}
 
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
+        <CapaPie className="mt-2">
+          <CapaCerrar>Cancelar</CapaCerrar>
           <Button type="submit" disabled={pendiente}>
             {pendiente
               ? "Guardando…"
@@ -157,8 +155,8 @@ export function FormSede({
                 ? "Guardar cambios"
                 : "Crear sede"}
           </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

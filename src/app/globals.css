@@ -778,6 +778,391 @@
           var(--mob-gap-tarjeta)
       );
     }
+
+    /* =================================================================
+       Bottom sheet móvil — issue #54 (PWA-MOB-04), doc §5.
+
+       Mecanismo único de capa por debajo de 1024px. Todo vive dentro del
+       `@media` del issue #51: a 1024px estas reglas no existen, así que
+       los `Dialog` de escritorio no pueden heredar nada de acá.
+
+       Tres alturas (`data-altura`): compacta para selección rápida,
+       media para el caso normal y casi-completa para formularios largos.
+       La altura la fija el contenido y la limita el máximo — el cuerpo
+       es el único elemento que desplaza.
+       ================================================================= */
+    .mob-sheet-fondo {
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-overlay);
+      /* Doc §5: el fondo NO se atenúa. El backdrop existe para capturar
+         el toque fuera y marcar la modalidad, no para oscurecer. */
+      background: transparent;
+    }
+
+    .mob-sheet-viewport {
+      position: fixed;
+      inset: 0;
+      z-index: var(--z-modal);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      pointer-events: none;
+      /* Teclado virtual: `--drawer-keyboard-inset` la publica
+         `Drawer.VirtualKeyboardProvider` y solo existe mientras el
+         teclado está alineado — de ahí el fallback `0px` obligatorio.
+         Empujar el viewport (y no el popup) mantiene el sheet completo
+         por encima del teclado sin recalcular su geometría interna. */
+      padding-bottom: var(--drawer-keyboard-inset, 0px);
+    }
+
+    .mob-sheet {
+      --mob-sheet-max: 70dvh;
+      pointer-events: auto;
+      box-sizing: border-box;
+      display: flex;
+      min-height: 0;
+      width: 100%;
+      max-height: calc(
+        var(--mob-sheet-max) - var(--drawer-keyboard-inset, 0px)
+      );
+      flex-direction: column;
+      border-radius: var(--mob-radius-tarjeta) var(--mob-radius-tarjeta) 0 0;
+      background: var(--mob-superficie);
+      color: var(--mob-superficie-foreground);
+      /* Doc §5: la separación con el fondo es la superficie más una
+         sombra amplia y muy difusa hacia arriba. */
+      box-shadow: var(--mob-shadow-sheet);
+      outline: none;
+      transform: translateY(var(--drawer-swipe-movement-y, 0px));
+      transition: transform 420ms var(--mob-ease);
+      will-change: transform;
+    }
+
+    .mob-sheet[data-altura="compacta"] {
+      --mob-sheet-max: 48dvh;
+    }
+
+    .mob-sheet[data-altura="casi-completa"] {
+      --mob-sheet-max: 92dvh;
+    }
+
+    .mob-sheet[data-starting-style],
+    .mob-sheet[data-ending-style] {
+      transform: translateY(100%);
+    }
+
+    .mob-sheet[data-swiping] {
+      transition-duration: 0ms;
+    }
+
+    .mob-sheet[data-ending-style] {
+      transition-duration: calc(var(--drawer-swipe-strength, 1) * 400ms);
+    }
+
+    .mob-sheet-contenido,
+    .mob-sheet-pagina {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+      outline: none;
+    }
+
+    /* Una página de la pila que no está arriba sigue montada (para no
+       perder el formulario) pero no ocupa ni se recorre. `display: flex`
+       gana a `[hidden]` por especificidad, así que hay que decirlo. */
+    .mob-sheet-pagina[hidden] {
+      display: none;
+    }
+
+    .mob-sheet-agarradera {
+      margin: 0.5rem auto 0;
+      height: 0.25rem;
+      width: 2.25rem;
+      flex: none;
+      border-radius: var(--mob-radius-pill);
+      background: var(--mob-divisor);
+    }
+
+    /* Encabezado: título grande a la izquierda y un único botón circular
+       a la derecha, en la misma línea óptica (doc §5). */
+    .mob-sheet-encabezado {
+      display: flex;
+      flex: none;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: var(--mob-padding-tarjeta) var(--mob-margen-pantalla) 0.75rem;
+    }
+
+    .mob-sheet-encabezado-texto {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .mob-sheet-titulo {
+      font-size: 1.375rem;
+      font-weight: 700;
+      line-height: 1.75rem;
+      letter-spacing: -0.02em;
+      /* Igual que la cabecera de pantalla (#52): el título no se trunca. */
+      overflow-wrap: anywhere;
+      text-wrap: balance;
+    }
+
+    .mob-sheet-descripcion {
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+
+    .mob-sheet-boton-circular {
+      display: grid;
+      height: var(--mob-toque-min);
+      width: var(--mob-toque-min);
+      flex: none;
+      place-items: center;
+      border-radius: var(--mob-radius-pill);
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+      transition: background-color var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-sheet-boton-circular:active {
+      background: var(--mob-divisor);
+    }
+
+    .mob-sheet-boton-circular:disabled {
+      opacity: 0.5;
+    }
+
+    /* Único scroll de la capa: sin doble scroll, y el rebote no arrastra
+       la página de atrás. */
+    .mob-sheet-cuerpo {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+      padding: 0.25rem var(--mob-margen-pantalla) var(--mob-padding-tarjeta);
+    }
+
+    /* Una página sin pie (una subpágina de selección, por ejemplo) paga
+       ella misma el safe area: si no, la última fila queda pegada al borde
+       inferior de la pantalla. */
+    .mob-sheet-pagina > .mob-sheet-cuerpo:last-child {
+      padding-bottom: max(
+        var(--mob-padding-tarjeta),
+        calc(var(--mob-safe-bottom) + 0.75rem)
+      );
+    }
+
+    .mob-sheet-formulario {
+      display: flex;
+      min-height: 0;
+      flex: 1;
+      flex-direction: column;
+    }
+
+    /* Acción principal fija abajo, ancho completo, siempre visible aunque
+       esté deshabilitada (doc §5). Acá el safe area sí es padding: el
+       sheet está pegado al borde, no flotando como la barra inferior. */
+    .mob-sheet-acciones {
+      display: flex;
+      flex: none;
+      /* `column-reverse`: la acción primaria de un pie escrito para
+         escritorio va última en el DOM (`Cancelar` y luego `Guardar`), y
+         acá tiene que quedar arriba sin reordenar el marcado ni el orden
+         de tabulación. Es la misma decisión que ya tomaba
+         `DialogFooter` con `flex-col-reverse` en pantallas chicas. */
+      flex-direction: column-reverse;
+      gap: 0.625rem;
+      padding: 0.875rem var(--mob-margen-pantalla)
+        max(0.875rem, var(--mob-safe-bottom));
+      background: var(--mob-superficie);
+    }
+
+    .mob-sheet-acciones > * {
+      width: 100%;
+    }
+
+    /* Un pie de escritorio puede agrupar sus botones en un `div`; acá esa
+       fila se despliega en columna en vez de encoger los botones. */
+    .mob-sheet-acciones > div {
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 0.625rem;
+    }
+
+    .mob-sheet-acciones [data-slot="button"],
+    .mob-sheet-acciones .mob-boton {
+      width: 100%;
+      min-height: 3.25rem;
+      border-radius: var(--mob-radius-pill);
+    }
+
+    /* El terciario es una pill compacta (doc §6), no un tercer botón de
+       ancho completo compitiendo con la acción primaria. */
+    .mob-sheet-acciones > .mob-boton-terciario {
+      width: auto;
+      align-self: center;
+    }
+
+    .mob-sheet-boton-destructivo {
+      background: var(--destructive);
+      color: var(--destructive-foreground, oklch(1 0 0));
+    }
+
+    .mob-sheet-fila-opcion {
+      display: flex;
+      width: 100%;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      text-align: left;
+      font-size: 0.9375rem;
+      font-weight: 600;
+    }
+
+    .mob-sheet-fila-opcion:not(:first-child) {
+      border-top: 1px solid var(--mob-divisor);
+    }
+
+    .mob-sheet-fila-valor {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    .mob-sheet-fila-valor .mob-pill {
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    .mob-sheet-fila-accion {
+      display: flex;
+      width: 100%;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 0;
+      text-align: left;
+      font-size: 0.9375rem;
+      font-weight: 600;
+    }
+
+    .mob-sheet-fila-accion:not(:first-child) {
+      border-top: 1px solid var(--mob-divisor);
+    }
+
+    .mob-sheet-fila-accion .mob-sheet-fila-etiqueta {
+      flex: 1;
+    }
+
+    .mob-sheet-fila-accion[data-tono="destructivo"] {
+      color: var(--mob-pill-error-fg);
+    }
+
+    .mob-sheet-fila-icono {
+      display: grid;
+      height: 2rem;
+      width: 2rem;
+      flex: none;
+      place-items: center;
+      border-radius: var(--mob-squircle);
+      background: var(--mob-superficie-tenue);
+      color: inherit;
+    }
+
+    .mob-sheet-opciones {
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Selección persistente (doc §7): el elegido sube de contraste, el
+       resto se apaga. Sin checkmarks flotantes ni bordes de color. */
+    .mob-sheet-opcion {
+      display: flex;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      padding: 0.75rem 0;
+      text-align: left;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      color: var(--mob-superficie-tenue-foreground);
+      transition: color var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-sheet-opcion:not(:first-child) {
+      border-top: 1px solid var(--mob-divisor);
+    }
+
+    .mob-sheet-opcion[data-elegida="true"] {
+      color: var(--mob-superficie-foreground);
+    }
+
+    /* Variante destructiva (doc §5, "decisión"): el rojo va en el botón y
+       en el bloque de consecuencia, nunca también en el título. */
+    .mob-sheet-consecuencia {
+      border-radius: var(--mob-radius-bloque);
+      background: color-mix(in oklab, var(--destructive) 12%, transparent);
+      padding: var(--mob-padding-bloque);
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+      color: var(--mob-superficie-foreground);
+    }
+
+    .mob-sheet-error {
+      color: var(--mob-pill-error-fg);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .mob-sheet-cargando {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.875rem;
+    }
+
+    /* Confirmación — variante "decisión" del doc §5: composición
+       centrada, la única ruptura de la alineación a la izquierda. */
+    .mob-sheet-confirmar .mob-sheet-cuerpo {
+      display: flex;
+      flex-direction: column;
+      gap: 0.375rem;
+      padding-top: var(--mob-padding-tarjeta);
+      text-align: center;
+    }
+
+    .mob-sheet-confirmar-titulo {
+      font-size: 1.125rem;
+      font-weight: 700;
+    }
+
+    .mob-sheet-confirmar-texto {
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+
+    /* Punto de filtros activos (doc §7): sin número, el sheet es la única
+       fuente de verdad. */
+    .mob-punto-filtros {
+      position: absolute;
+      top: 0.4375rem;
+      right: 0.4375rem;
+      height: 0.5rem;
+      width: 0.5rem;
+      border-radius: var(--mob-radius-pill);
+      background: var(--mob-acento);
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -804,6 +1189,16 @@
 
     .mob-barra-inferior-tab:active {
       transform: none;
+    }
+
+    /* El sheet sigue entrando y saliendo (aparecer/desaparecer no es
+       decorativo: es la capa), pero sin desplazamiento animado. */
+    .mob-sheet {
+      transition-duration: 1ms;
+    }
+
+    .mob-sheet[data-ending-style] {
+      transition-duration: 1ms;
     }
   }
 }

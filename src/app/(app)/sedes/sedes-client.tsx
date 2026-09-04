@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog } from "@/components/ui/dialog";
+import { Capa } from "@/components/ui/capa";
+import { FiltrosMovil } from "@/components/ui/filtros-movil";
+import type { GrupoFiltro } from "@/lib/capas-movil";
 import { SelectorLocal } from "@/components/selector-local";
 import { FormSede } from "./form-sede";
 import {
@@ -73,6 +75,40 @@ export function SedesClient({
     return () => window.clearTimeout(espera);
   }, [actualizarFiltros, consulta, q]);
 
+  // Grupos del sheet de filtros móvil. La primera opción de cada grupo es
+  // el valor neutro (sin filtrar): de ahí sale el punto de "filtros
+  // activos" y el "Limpiar todo".
+  const gruposFiltro: GrupoFiltro[] = [
+    {
+      id: "estado",
+      etiqueta: "Estado",
+      opciones: [
+        { valor: "", etiqueta: "Todos los estados" },
+        { valor: "activas", etiqueta: "Activas" },
+        { valor: "inactivas", etiqueta: "Inactivas" },
+      ],
+    },
+    ...(esSuperadmin
+      ? [
+          {
+            id: "empresa",
+            etiqueta: "Empresa",
+            opciones: [
+              { valor: "", etiqueta: "Todas las empresas" },
+              ...empresas.map((empresa) => ({
+                valor: empresa.id,
+                etiqueta: empresa.nombreComercial,
+              })),
+            ],
+          },
+        ]
+      : []),
+  ];
+  const filtrosAplicados = {
+    estado: activo === true ? "activas" : activo === false ? "inactivas" : "",
+    empresa: empresaSeleccionada,
+  };
+
   const sedes = pagina.items;
   const activas = sedes.filter((sede) => sede.activo).length;
   const totalVentas = sedes.reduce(
@@ -131,14 +167,30 @@ export function SedesClient({
             : "lg:grid-cols-[minmax(0,1fr)_23rem]"
         }`}
       >
-        <div className="relative">
-          <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
-          <Input
-            value={consulta}
-            onChange={(evento) => setConsulta(evento.target.value)}
-            aria-label="Buscar por sede o dirección"
-            placeholder="Buscar por sede o dirección"
-            className="bg-muted/70 h-11 rounded-xl border-0 pl-9"
+        <div className="flex min-w-0 gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+            <Input
+              value={consulta}
+              onChange={(evento) => setConsulta(evento.target.value)}
+              aria-label="Buscar por sede o dirección"
+              placeholder="Buscar por sede o dirección"
+              className="bg-muted/70 h-11 w-full rounded-xl border-0 pl-9"
+            />
+          </div>
+          {/* Móvil (issue #54): empresa y estado dejan de ser dos ruedas
+              nativas del sistema y pasan al sheet único de filtros. En
+              escritorio siguen siendo los mismos controles de siempre. */}
+          <FiltrosMovil
+            grupos={gruposFiltro}
+            valores={filtrosAplicados}
+            alAplicar={(valores) => {
+              setEmpresaSeleccionada(valores.empresa ?? "");
+              actualizarFiltros({
+                empresa: valores.empresa ?? null,
+                estado: valores.estado ?? null,
+              });
+            }}
           />
         </div>
         {esSuperadmin ? (
@@ -156,7 +208,7 @@ export function SedesClient({
               actualizarFiltros({ empresa });
             }}
             placeholder="Filtrar por empresa"
-            className="bg-background h-11 rounded-xl"
+            className="bg-background hidden h-11 rounded-xl lg:flex"
           />
         ) : null}
         <select
@@ -167,7 +219,7 @@ export function SedesClient({
             actualizarFiltros({ estado: evento.target.value })
           }
           aria-label="Filtrar por estado"
-          className="border-input bg-background focus:ring-primary/15 h-11 rounded-xl border px-3 text-sm font-medium outline-none focus:ring-4"
+          className="border-input bg-background focus:ring-primary/15 hidden h-11 rounded-xl border px-3 text-sm font-medium outline-none focus:ring-4 lg:block"
         >
           <option value="">Todos los estados</option>
           <option value="activas">Activas</option>
@@ -275,7 +327,7 @@ export function SedesClient({
       ) : null}
 
       {dialogo ? (
-        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
+        <Capa abierto alCerrar={() => setDialogo(null)}>
           <FormSede
             sede={dialogo.modo === "editar" ? dialogo.sede : null}
             empresaId={empresaId}
@@ -284,7 +336,7 @@ export function SedesClient({
             }
             onCerrar={() => setDialogo(null)}
           />
-        </Dialog>
+        </Capa>
       ) : null}
     </section>
   );

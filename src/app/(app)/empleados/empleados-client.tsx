@@ -33,14 +33,16 @@ import {
   Metrica,
 } from "@/components/shell/pagina-ui";
 import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  Capa,
+  CapaContenido,
+  CapaCuerpo,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
+import { FiltrosMovil } from "@/components/ui/filtros-movil";
+import type { GrupoFiltro } from "@/lib/capas-movil";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -206,6 +208,31 @@ export function EmpleadosClient({
   const desde = pagina.items.length ? (paginaActual - 1) * porPagina + 1 : 0;
   const hasta = desde ? desde + pagina.items.length - 1 : 0;
 
+  // Grupos del sheet de filtros móvil. La primera opción de cada grupo es
+  // su valor neutro: de ahí salen el punto de "filtros activos" y el
+  // "Limpiar todo" del sheet.
+  const gruposFiltro: GrupoFiltro[] = [
+    {
+      id: "actividad",
+      etiqueta: "Actividad",
+      opciones: [
+        { valor: "all", etiqueta: "Toda la actividad" },
+        { valor: "con_compras", etiqueta: "Con compras" },
+        { valor: "sin_compras", etiqueta: "Sin compras" },
+      ],
+    },
+    {
+      id: "orden",
+      etiqueta: "Orden",
+      opciones: [
+        { valor: "nombre_asc", etiqueta: "Nombre A–Z" },
+        { valor: "nombre_desc", etiqueta: "Nombre Z–A" },
+        { valor: "monto_desc", etiqueta: "Mayor compra" },
+        { valor: "reciente", etiqueta: "Más recientes" },
+      ],
+    },
+  ];
+
   // El export cubre el universo filtrado completo (server, issue #41), no
   // solo la página visible: los mismos filtros salvo cursor/antes.
   const hrefExportar = (() => {
@@ -285,24 +312,45 @@ export function EmpleadosClient({
       <div className="bg-card overflow-hidden rounded-2xl border shadow-[0_12px_30px_rgba(16,24,40,0.07)]">
         <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-col gap-2 md:flex-row">
-            <div className="relative min-w-0 md:w-[360px]">
-              <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
-              <input
-                value={texto}
-                onChange={(e) => setTexto(e.target.value)}
-                placeholder="Buscar por nombre o documento"
-                className="border-input bg-background focus:border-primary focus:ring-primary/15 h-10 w-full rounded-lg border pr-9 pl-9 text-sm outline-none focus:ring-4"
+            <div className="flex min-w-0 items-center gap-2 md:w-[360px]">
+              <div className="relative min-w-0 flex-1">
+                <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
+                <input
+                  value={texto}
+                  onChange={(e) => setTexto(e.target.value)}
+                  placeholder="Buscar por nombre o documento"
+                  className="border-input bg-background focus:border-primary focus:ring-primary/15 h-10 w-full rounded-lg border pr-9 pl-9 text-sm outline-none focus:ring-4"
+                />
+                {texto ? (
+                  <button
+                    type="button"
+                    aria-label="Limpiar búsqueda"
+                    onClick={() => setTexto("")}
+                    className="text-muted-foreground hover:bg-muted absolute top-1/2 right-1 grid size-8 -translate-y-1/2 place-items-center rounded-md"
+                  >
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
+              {/* Móvil (issue #54): actividad y orden dejan de abrir la rueda
+                  nativa del sistema —una capa distinta por cada criterio— y
+                  pasan al sheet único de filtros, con subpágina por grupo.
+                  En escritorio siguen siendo los mismos `select`. */}
+              <FiltrosMovil
+                grupos={gruposFiltro}
+                valores={{ actividad: actividad ?? "all", orden }}
+                alAplicar={(valores) =>
+                  router.push(
+                    urlDe({
+                      actividad:
+                        valores.actividad === "all"
+                          ? null
+                          : (valores.actividad ?? null),
+                      orden: valores.orden ?? null,
+                    }),
+                  )
+                }
               />
-              {texto ? (
-                <button
-                  type="button"
-                  aria-label="Limpiar búsqueda"
-                  onClick={() => setTexto("")}
-                  className="text-muted-foreground hover:bg-muted absolute top-1/2 right-1 grid size-8 -translate-y-1/2 place-items-center rounded-md"
-                >
-                  <X className="size-4" />
-                </button>
-              ) : null}
             </div>
             <select
               value={actividad ?? "all"}
@@ -313,7 +361,8 @@ export function EmpleadosClient({
                   }),
                 )
               }
-              className="border-input bg-background focus:ring-primary/15 h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4"
+              aria-label="Filtrar por actividad"
+              className="border-input bg-background focus:ring-primary/15 hidden h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4 lg:block"
             >
               <option value="all">Toda la actividad</option>
               <option value="con_compras">Con compras</option>
@@ -322,7 +371,8 @@ export function EmpleadosClient({
             <select
               value={orden}
               onChange={(e) => router.push(urlDe({ orden: e.target.value }))}
-              className="border-input bg-background focus:ring-primary/15 h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4"
+              aria-label="Ordenar empleados"
+              className="border-input bg-background focus:ring-primary/15 hidden h-10 rounded-lg border px-3 text-sm font-medium outline-none focus:ring-4 lg:block"
             >
               <option value="nombre_asc">Nombre A–Z</option>
               <option value="nombre_desc">Nombre Z–A</option>
@@ -486,8 +536,12 @@ export function EmpleadosClient({
         </footer>
       </div>
 
-      {dialogo ? (
-        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
+      {dialogo && dialogo.tipo !== "rechazar" ? (
+        <Capa
+          abierto
+          alCerrar={() => setDialogo(null)}
+          variante={dialogo.tipo === "detalle" ? "detail" : "form"}
+        >
           {dialogo.tipo === "crear" ? (
             <FormEmpleado
               empresas={empresas}
@@ -518,13 +572,18 @@ export function EmpleadosClient({
               onCerrar={() => setDialogo(null)}
             />
           ) : null}
-          {dialogo.tipo === "rechazar" ? (
-            <DialogoRechazo
-              empleado={dialogo.empleado}
-              onCerrar={() => setDialogo(null)}
-            />
-          ) : null}
-        </Dialog>
+        </Capa>
+      ) : null}
+
+      {/* La confirmación destructiva es su propia capa (`alertdialog` en
+          escritorio, sheet con variante destructiva en móvil): montarla
+          dentro de la capa de detalle encadenaba dos modales, que es
+          justo lo que el issue #54 viene a eliminar. */}
+      {dialogo?.tipo === "rechazar" ? (
+        <DialogoRechazo
+          empleado={dialogo.empleado}
+          onCerrar={() => setDialogo(null)}
+        />
       ) : null}
     </section>
   );
@@ -721,17 +780,21 @@ function DetalleEmpleado({
   }, [estadoVerificacion, onCerrar, router]);
   const esPendiente = empleado.estado === "PENDIENTE_VERIFICACION";
   return (
-    <DialogContent pending={pendiente} variant="detail" className="sm:max-w-md">
-      <DialogHeader icon={<UserRound />} eyebrow="Ficha del empleado">
-        <DialogTitle>
+    <CapaContenido
+      pendiente={pendiente}
+      variante="detail"
+      className="sm:max-w-md"
+    >
+      <CapaEncabezado icono={<UserRound />} eyebrow="Ficha del empleado">
+        <CapaTitulo>
           {empleado.nombres} {empleado.apellidos}
-        </DialogTitle>
-        <DialogDescription>
+        </CapaTitulo>
+        <CapaDescripcion>
           {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
           {empleado.numeroDocumento} · {empleado.empresaNombre}
-        </DialogDescription>
-      </DialogHeader>
-      <DialogBody className="flex flex-col gap-4">
+        </CapaDescripcion>
+      </CapaEncabezado>
+      <CapaCuerpo className="flex flex-col gap-4">
         <dl className="divide-border/70 bg-muted/15 overflow-hidden rounded-[var(--radius-control)] border text-sm">
           <Detalle etiqueta="Estado">
             <EstadoBadge tono={TONO_ESTADO[empleado.estado]}>
@@ -749,9 +812,9 @@ function DetalleEmpleado({
             </Detalle>
           ) : null}
         </dl>
-      </DialogBody>
+      </CapaCuerpo>
       {puedeGestionar ? (
-        <DialogFooter className="flex-col gap-2 sm:flex-col">
+        <CapaPie className="flex-col gap-2 sm:flex-col">
           {esPendiente ? (
             <form action={formActionVerificar} className="flex flex-col gap-2">
               <input type="hidden" name="empleadoId" value={empleado.id} />
@@ -780,9 +843,9 @@ function DetalleEmpleado({
               </Button>
             ) : null}
           </div>
-        </DialogFooter>
+        </CapaPie>
       ) : null}
-    </DialogContent>
+    </CapaContenido>
   );
 }
 

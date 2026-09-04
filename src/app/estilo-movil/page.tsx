@@ -10,6 +10,7 @@ import {
 
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { DemoSheets } from "./demo-sheets";
 
 /**
  * Referencia viva de los tokens y primitivas móviles definidos para el
@@ -154,6 +155,18 @@ export default async function EstiloMovilPage() {
             <Copy className="mr-1.5 size-3.5" /> Copiar código
           </button>
         </div>
+      </section>
+
+      <section aria-labelledby="h-capas" className="mb-8">
+        <h2 id="h-capas" className="mb-3 text-sm font-semibold opacity-70">
+          Capas: bottom sheet (issue #54)
+        </h2>
+        <p className="mb-3 text-sm opacity-70">
+          Mecanismo único de capa por debajo de 1024px: tres alturas, pila
+          multipágina, protección de cierre con formulario modificado, variante
+          destructiva y el sheet de filtros.
+        </p>
+        <DemoSheets />
       </section>
 
       <section aria-labelledby="h-squircle">
