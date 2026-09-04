@@ -51,7 +51,22 @@ const nextConfig: NextConfig = {
       }
     : {}),
   async headers() {
-    return [{ source: "/(.*)", headers: securityHeaders }];
+    return [
+      { source: "/(.*)", headers: securityHeaders },
+      // El navegador debe consultar cada despliegue para detectar una nueva
+      // versión del worker; el alcance queda explícito incluso si cambia la
+      // ruta interna que genera Serwist.
+      {
+        source: "/serwist/sw.js",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "no-cache, no-store, must-revalidate",
+          },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
   },
   devIndicators: false,
 };

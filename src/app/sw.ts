@@ -17,6 +17,45 @@ declare global {
 declare const self: ServiceWorkerGlobalScope;
 
 const esNavegacion = (request: Request) => request.mode === "navigate";
+const VERSION_CACHE_PUBLICA = "v2";
+const CACHE_FUENTES = `convenios-publicos-${VERSION_CACHE_PUBLICA}-fuentes`;
+const CACHE_ICONOS = `convenios-publicos-${VERSION_CACHE_PUBLICA}-iconos`;
+const CACHE_FALLBACK = `convenios-publicos-${VERSION_CACHE_PUBLICA}-fallback`;
+
+/** Solo se retiran cachés públicas que esta aplicación creó. */
+const limpiarCachesPublicasObsoletas = async () => {
+  const actuales = new Set([CACHE_FUENTES, CACHE_ICONOS, CACHE_FALLBACK]);
+  const obsoletos = (await caches.keys()).filter(
+    (nombre) =>
+      (nombre === "fuentes" ||
+        nombre === "iconos" ||
+        nombre.startsWith("convenios-publicos-")) &&
+      !actuales.has(nombre),
+  );
+  await Promise.all(obsoletos.map((nombre) => caches.delete(nombre)));
+};
+
+self.addEventListener("activate", (evento) => {
+  evento.waitUntil(limpiarCachesPublicasObsoletas());
+});
+
+self.addEventListener("install", (evento) => {
+  evento.waitUntil(
+    caches.open(CACHE_FALLBACK).then((cache) => cache.add("/~offline")),
+  );
+});
+
+// Las navegaciones necesitan una respuesta HTML completa. Se resuelven a red
+// y, si esta no existe, directamente desde el fallback público; así no se
+// depende de que el manifiesto inyectado esté disponible en desarrollo.
+self.addEventListener("fetch", (evento) => {
+  if (!esNavegacion(evento.request)) return;
+  evento.respondWith(
+    fetch(evento.request).catch(
+      async () => (await caches.match("/~offline")) ?? Response.error(),
+    ),
+  );
+});
 
 /**
  * Traduce la petición del worker a la entrada de `politica-cache.ts`. Las
@@ -35,19 +74,23 @@ const describir = ({
   modo: request.mode,
   destino: request.destination,
   esAccionServidor: request.headers.has("next-action"),
+  esRsc: request.headers.get("rsc") === "1",
 });
 
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
-  skipWaiting: true,
+  // La activación la solicita el aviso de UI con `SKIP_WAITING`, después de
+  // persistir un posible borrador. Nunca se reemplaza una pestaña a mitad de
+  // una venta sin que la persona lo decida.
+  skipWaiting: false,
   clientsClaim: true,
   navigationPreload: true,
   runtimeCaching: [
     // Todo lo autenticado —navegaciones, Server Actions (incluida la
-    // búsqueda por DNI), /api/* y el payload RSC— va siempre a la red. El
-    // fallback de abajo cubre el caso sin conexión.
+    // búsqueda por DNI), /api/* y el payload RSC— va siempre a la red.
     {
-      matcher: (opciones) => esRedSiempre(describir(opciones)),
+      matcher: (opciones) =>
+        !esNavegacion(opciones.request) && esRedSiempre(describir(opciones)),
       handler: new NetworkOnly(),
     },
     {
@@ -62,21 +105,13 @@ const serwist = new Serwist({
       matcher: (opciones) =>
         esCachePrimero(describir(opciones)) &&
         opciones.request.destination === "font",
-      handler: new CacheFirst({ cacheName: "fuentes" }),
+      handler: new CacheFirst({ cacheName: CACHE_FUENTES }),
     },
     {
       matcher: (opciones) => esCachePrimero(describir(opciones)),
-      handler: new CacheFirst({ cacheName: "iconos" }),
+      handler: new CacheFirst({ cacheName: CACHE_ICONOS }),
     },
   ],
-  fallbacks: {
-    entries: [
-      {
-        url: "/~offline",
-        matcher: ({ request }) => esNavegacion(request),
-      },
-    ],
-  },
 });
 
 serwist.addEventListeners();

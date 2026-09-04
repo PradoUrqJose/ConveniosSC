@@ -35,6 +35,8 @@ export type PeticionClasificable = {
   destino?: string;
   /** ¿Trae la cabecera `Next-Action`? (Server Action de Next). */
   esAccionServidor?: boolean;
+  /** ¿Es un payload React Server Components? */
+  esRsc?: boolean;
 };
 
 function rutaDe(url: string): string {
@@ -42,6 +44,14 @@ function rutaDe(url: string): string {
     return new URL(url, "http://local").pathname;
   } catch {
     return url;
+  }
+}
+
+function tieneParametroRsc(url: string): boolean {
+  try {
+    return new URL(url, "http://local").searchParams.has("_rsc");
+  } catch {
+    return false;
   }
 }
 
@@ -61,7 +71,11 @@ export function politicaDeCache(peticion: PeticionClasificable): PoliticaCache {
 
   // 4. Datos de Next para navegaciones cliente (RSC payload): mismo
   //    contenido autenticado que el HTML, mismo trato.
-  if (ruta.endsWith(".rsc") || ruta.endsWith(".txt?_rsc")) {
+  if (
+    peticion.esRsc ||
+    ruta.endsWith(".rsc") ||
+    tieneParametroRsc(peticion.url)
+  ) {
     return "red-siempre";
   }
 

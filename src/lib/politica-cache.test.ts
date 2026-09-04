@@ -63,6 +63,19 @@ describe("nada autenticado se cachea", () => {
         metodo: "GET",
       }),
     ).toBe("red-siempre");
+    expect(
+      politicaDeCache({
+        url: "https://convenios.app/ventas?_rsc=8x2v",
+        metodo: "GET",
+      }),
+    ).toBe("red-siempre");
+    expect(
+      politicaDeCache({
+        url: "https://convenios.app/ventas",
+        metodo: "GET",
+        esRsc: true,
+      }),
+    ).toBe("red-siempre");
   });
 
   it("ningún método distinto de GET termina en caché", () => {

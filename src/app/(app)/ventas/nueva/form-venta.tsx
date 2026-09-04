@@ -1,6 +1,12 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import {
+  useActionState,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -129,43 +135,39 @@ export function FormVenta({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Persistir borrador (debounce 500 ms).
-  useEffect(() => {
+  const persistirBorrador = useCallback(() => {
     if (fase !== "formulario") return;
-    const timer = setTimeout(() => {
-      const vacio =
-        !empleado &&
-        !sedeId &&
-        montoBrutoTexto === "" &&
-        observacion === "" &&
-        !documento &&
-        evidencias.length === 0;
-      if (vacio) return;
-      guardarBorrador(usuarioId, {
-        ventaId,
-        empresaConvenioId: empresaConvenioId || null,
-        empleado: empleado
-          ? {
-              id: empleado.id,
-              tipoDocumento: empleado.tipoDocumento,
-              numeroDocumento: empleado.numeroDocumento,
-              nombres: empleado.nombres,
-              apellidos: empleado.apellidos,
-              empresaId: empleado.empresaId,
-              empresaNombre: empleado.empresaNombre,
-              estado: empleado.estado,
-              descuentoBps: empleado.descuentoBps,
-            }
-          : null,
-        sedeId: sedeId || null,
-        fechaVenta,
-        montoBruto: montoBrutoTexto,
-        observacion,
-        documento,
-        evidencias,
-      });
-    }, 500);
-    return () => clearTimeout(timer);
+    const vacio =
+      !empleado &&
+      !sedeId &&
+      montoBrutoTexto === "" &&
+      observacion === "" &&
+      !documento &&
+      evidencias.length === 0;
+    if (vacio) return;
+    guardarBorrador(usuarioId, {
+      ventaId,
+      empresaConvenioId: empresaConvenioId || null,
+      empleado: empleado
+        ? {
+            id: empleado.id,
+            tipoDocumento: empleado.tipoDocumento,
+            numeroDocumento: empleado.numeroDocumento,
+            nombres: empleado.nombres,
+            apellidos: empleado.apellidos,
+            empresaId: empleado.empresaId,
+            empresaNombre: empleado.empresaNombre,
+            estado: empleado.estado,
+            descuentoBps: empleado.descuentoBps,
+          }
+        : null,
+      sedeId: sedeId || null,
+      fechaVenta,
+      montoBruto: montoBrutoTexto,
+      observacion,
+      documento,
+      evidencias,
+    });
   }, [
     fase,
     ventaId,
@@ -179,6 +181,22 @@ export function FormVenta({
     evidencias,
     usuarioId,
   ]);
+
+  // Persistir borrador (debounce 500 ms), y sin demora cuando la PWA va a
+  // reemplazar el worker por una versión que la persona aceptó aplicar.
+  useEffect(() => {
+    const timer = setTimeout(persistirBorrador, 500);
+    return () => clearTimeout(timer);
+  }, [persistirBorrador]);
+
+  useEffect(() => {
+    window.addEventListener("convenios:antes-de-actualizar", persistirBorrador);
+    return () =>
+      window.removeEventListener(
+        "convenios:antes-de-actualizar",
+        persistirBorrador,
+      );
+  }, [persistirBorrador]);
 
   const continuarBorrador = () => {
     if (!borrador) return;

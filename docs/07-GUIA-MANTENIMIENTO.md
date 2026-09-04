@@ -536,13 +536,34 @@ Serwist genera el service worker desde `src/app/sw.ts`.
 - Navegaciones: solo red, con fallback a `/~offline`.
 - Server Actions: solo red.
 - `/api/*`: solo red.
-- Fuentes e iconos: caché primero.
+- Los payloads RSC (`RSC: 1` o `?_rsc`) también son solo red.
+- Fuentes e iconos: caché primero, en cachés públicas versionadas.
 - No existe cola offline de ventas.
 - El formulario mantiene un borrador local por usuario, pero guardar una venta
   sigue requiriendo conexión.
+- El worker espera a que la persona pulse **Actualizar**. En ese momento el
+  formulario persiste su borrador y recién entonces se activa el worker y se
+  recarga la pestaña. No volver a activar `skipWaiting: true`: interrumpe una
+  venta en curso.
+
+### Rollback de una PWA
+
+1. despliega de nuevo el artefacto o commit anterior (incluyendo su
+   `/serwist/sw.js`); no edites una versión publicada en sitio;
+2. abre la aplicación con conexión y confirma que el aviso de actualización
+   ofrece aplicar el rollback; al aceptarlo, el worker anterior toma control y
+   la pestaña se recarga una vez;
+3. en DevTools > Application verifica que solo sobreviven el precaché vigente
+   y `convenios-publicos-v2-{fuentes,iconos,fallback}`. La activación elimina los
+   nombres públicos históricos `fuentes`, `iconos` y versiones anteriores;
+4. con una venta sin enviar, acepta la actualización y confirma que el
+   borrador vuelve a aparecer. Después prueba una navegación sin red hacia
+   una ruta no disponible y la recuperación automática al volver la señal.
 
 Al cambiar el service worker, prueba instalación limpia, actualización desde
-una versión previa y modo offline. Los archivos generados `public/sw*` están
+una versión previa y modo offline. Confirma además que `/serwist/sw.js`
+responde `Cache-Control: no-cache, no-store, must-revalidate` y
+`Service-Worker-Allowed: /`. Los archivos generados `public/sw*` están
 ignorados por Git.
 
 ## 13. Diagnóstico rápido
