@@ -54,13 +54,16 @@ let yaHidrato = false;
 export function EsqueletoDiferido({
   children,
   ms = MS_UMBRAL_ESQUELETO,
+  inmediato = false,
 }: {
   children: React.ReactNode;
   ms?: number;
+  /** Los límites de ruta son el feedback del clic: no se difieren. */
+  inmediato?: boolean;
 }) {
   // En servidor `yaHidrato` es siempre `false` (solo lo enciende un efecto),
   // así que el HTML y la primera hidratación coinciden: sin desajuste.
-  const [visible, setVisible] = useState(!yaHidrato);
+  const [visible, setVisible] = useState(inmediato || !yaHidrato);
 
   useEffect(() => {
     yaHidrato = true;

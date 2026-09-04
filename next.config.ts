@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { withSerwist } from "@serwist/turbopack";
 
 const isDevelopment = process.env.NODE_ENV === "development";
+// Cache Components es global en Next 16.3. Se habilita solo en E2E para
+// validar los shells sin convertirlo todavía en una caché de producción.
+const cacheComponentsEnPrueba = process.env.NEXT_TEST_CACHE_COMPONENTS === "1";
 
 const securityHeaders = [
   {
@@ -25,6 +28,15 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  ...(cacheComponentsEnPrueba
+    ? {
+        cacheComponents: true,
+        experimental: {
+          exposeTestingApiInProductionBuild: true,
+          instantInsights: { validationLevel: "manual-warning" },
+        },
+      }
+    : {}),
   // Los dev tunnels terminan HTTPS y reenvían el POST a localhost. Next valida
   // Origin frente a X-Forwarded-Host para las Server Actions, así que se
   // autorizan explícitamente ambos orígenes solo durante el desarrollo.

@@ -708,16 +708,17 @@ function DetalleVenta() {
 function LoadingRegion({
   etiqueta,
   children,
+  inmediato = false,
 }: {
   etiqueta: string;
   children: React.ReactNode;
+  inmediato?: boolean;
 }) {
   return (
-    // El esqueleto se retiene ~200 ms (issue #56): por debajo de ese umbral
-    // la navegación ya terminó y el gris solo sería un destello. Se oculta
-    // con `visibility`, así que el alto está desde el primer cuadro y el
-    // contenido real no llega empujando la pantalla.
-    <EsqueletoDiferido>
+    // Los límites de ruta se muestran sin demora: son el feedback visible
+    // del clic. Su geometría se reserva desde el primer cuadro, por lo que
+    // el contenido real no llega empujando la pantalla.
+    <EsqueletoDiferido inmediato={inmediato}>
       <div aria-busy="true">
         <span className="sr-only" role="status">
           Cargando {etiqueta}
@@ -764,8 +765,10 @@ export function PageSkeleton({ variante = "tabla" }: { variante?: Variante }) {
     );
 
   return (
-    <LoadingRegion etiqueta={variante.replaceAll("-", " ")}>
-      {contenido}
-    </LoadingRegion>
+    <div data-navigation-shell={variante}>
+      <LoadingRegion etiqueta={variante.replaceAll("-", " ")} inmediato>
+        {contenido}
+      </LoadingRegion>
+    </div>
   );
 }

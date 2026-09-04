@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -11,6 +12,22 @@ type Props = {
   className?: string;
   children?: React.ReactNode;
 };
+
+/**
+ * Respuesta local al clic cuando el prefetch todavía no terminó. El espacio
+ * está siempre reservado para que el indicador no desplace el texto del menú.
+ */
+function IndicadorNavegacion() {
+  const { pending } = useLinkStatus();
+
+  return (
+    <span
+      aria-hidden="true"
+      data-pending={pending ? "true" : "false"}
+      className="ml-auto size-2 shrink-0 rounded-full bg-cyan-200 opacity-0 transition-opacity data-[pending=true]:animate-pulse data-[pending=true]:opacity-100 motion-reduce:animate-none"
+    />
+  );
+}
 
 /** Enlace de navegación con estado activo calculado desde la ruta actual. */
 export function EnlaceNav({ destino, className, children }: Props) {
@@ -35,6 +52,7 @@ export function EnlaceNav({ destino, className, children }: Props) {
         <span className="absolute inset-y-2 left-0 w-0.5 rounded-r-full bg-cyan-300" />
       ) : null}
       {children}
+      <IndicadorNavegacion />
     </Link>
   );
 }

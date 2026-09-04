@@ -16,6 +16,7 @@ export default defineConfig({
         command: `npm run dev -- --port ${puerto}`,
         url: baseURL,
         reuseExistingServer: !process.env.CI,
+        env: { ...process.env, NEXT_TEST_CACHE_COMPONENTS: "1" },
       }
     : undefined,
   projects: [

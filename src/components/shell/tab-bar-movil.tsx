@@ -146,10 +146,10 @@ function Pestaña({
   return (
     <Link
       href={destino.href}
-      // Prefetch medido: sin `prefetch` explícito el App Router usa el
-      // modo automático (la barra está siempre en viewport, así que
-      // forzarlo sólo añadía peticiones de datos dinámicos que la mayoría
-      // de las sesiones no usa).
+      // La barra siempre está en viewport. El prefetch explícito garantiza
+      // que Next prepare el límite `loading.tsx` del destino antes del toque;
+      // los datos autenticados siguen llegando solo después de navegar.
+      prefetch
       aria-label={destino.etiquetaCorta ? destino.etiqueta : undefined}
       aria-current={activo ? "page" : undefined}
       data-activo={activo ? "true" : "false"}
