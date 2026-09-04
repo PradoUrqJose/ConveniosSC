@@ -1,25 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Download, PlusSquare, Share, Smartphone, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
-const CLAVE_VISITAS = "pwa-visitas";
+const CLAVE_VALOR_PERCIBIDO = "pwa-valor-percibido";
 const CLAVE_DESCARTADO = "pwa-banner-descartado";
-const VISITAS_PARA_MOSTRAR = 2;
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-}
-
-function registrarVisitaYObtenerConteo(): number {
-  const previas = Number(localStorage.getItem(CLAVE_VISITAS) ?? "0");
-  const total = previas + 1;
-  localStorage.setItem(CLAVE_VISITAS, String(total));
-  return total;
 }
 
 function estaInstalada(): boolean {
@@ -37,16 +28,33 @@ function esIOS(): boolean {
   );
 }
 
+/** Eventos mínimos, sin identificadores ni datos de la operación del usuario. */
+function telemetria(
+  evento: "elegible" | "aceptada" | "descartada" | "lanzada",
+) {
+  console.info(JSON.stringify({ esquema: "convenios.pwa.v1", evento }));
+}
+
+function anunciarElegibilidad() {
+  window.dispatchEvent(new Event("convenios:instalacion-elegible"));
+}
+
 /**
  * Android y escritorio exponen `beforeinstallprompt`; Safari en iOS no. En
  * ese caso se muestra la instrucción nativa de "Añadir a pantalla de inicio".
  */
 export function BannerInstalacion() {
-  const pathname = usePathname();
   const [evento, setEvento] = useState<BeforeInstallPromptEvent | null>(null);
   const [instalacionIOS, setInstalacionIOS] = useState(false);
   const [visible, setVisible] = useState(false);
   const [hayModal, setHayModal] = useState(false);
+  const aceptacionRegistrada = useRef(false);
+
+  function registrarAceptacion() {
+    if (aceptacionRegistrada.current) return;
+    aceptacionRegistrada.current = true;
+    telemetria("aceptada");
+  }
 
   useEffect(() => {
     const actualizar = () =>
@@ -65,44 +73,52 @@ export function BannerInstalacion() {
 
   useEffect(() => {
     if (estaInstalada()) {
+      telemetria("lanzada");
       return;
     }
 
     const dispositivoIOS = esIOS();
     let eventoCapturado: BeforeInstallPromptEvent | null = null;
-    function mostrarDesdeMenu() {
+    const tieneValor = () =>
+      localStorage.getItem(CLAVE_VALOR_PERCIBIDO) === "1";
+    const puedeMostrarse = () =>
+      !localStorage.getItem(CLAVE_DESCARTADO) &&
+      (dispositivoIOS || eventoCapturado !== null);
+    function mostrar() {
+      if (!puedeMostrarse()) return;
       if (dispositivoIOS) {
         setInstalacionIOS(true);
         setVisible(true);
-      } else if (eventoCapturado) {
+      } else if (eventoCapturado !== null) {
         setEvento(eventoCapturado);
         setVisible(true);
       }
     }
+    // Perfil es una petición explícita. La confirmación de una venta es la
+    // acción de valor que hace pertinente una sugerencia no invasiva.
+    function mostrarDesdeMenu() {
+      mostrar();
+    }
+    function alPercibirValor() {
+      localStorage.setItem(CLAVE_VALOR_PERCIBIDO, "1");
+      mostrar();
+    }
     window.addEventListener("convenios:mostrar-instalacion", mostrarDesdeMenu);
+    window.addEventListener("convenios:valor-percibido", alPercibirValor);
 
-    if (localStorage.getItem(CLAVE_DESCARTADO)) {
-      return () =>
+    // Safari no implementa beforeinstallprompt. La guía se ofrece solo por
+    // petición desde Perfil o después de valor; nunca al abrir por primera vez.
+    if (dispositivoIOS) {
+      telemetria("elegible");
+      anunciarElegibilidad();
+      return () => {
         window.removeEventListener(
           "convenios:mostrar-instalacion",
           mostrarDesdeMenu,
         );
-    }
-
-    const conteo = registrarVisitaYObtenerConteo();
-
-    // Safari no implementa beforeinstallprompt, por lo que nunca habría un
-    // botón funcional si se dependiera únicamente de dicho evento.
-    if (dispositivoIOS) {
-      const temporizador = window.setTimeout(() => {
-        setInstalacionIOS(true);
-        setVisible(true);
-      }, 0);
-      return () => {
-        window.clearTimeout(temporizador);
         window.removeEventListener(
-          "convenios:mostrar-instalacion",
-          mostrarDesdeMenu,
+          "convenios:valor-percibido",
+          alPercibirValor,
         );
       };
     }
@@ -110,17 +126,16 @@ export function BannerInstalacion() {
     function alCapturarPrompt(e: Event) {
       e.preventDefault();
       eventoCapturado = e as BeforeInstallPromptEvent;
-      if (conteo >= VISITAS_PARA_MOSTRAR) {
-        setEvento(e as BeforeInstallPromptEvent);
-        setVisible(true);
-      } else {
-        setEvento(e as BeforeInstallPromptEvent);
-      }
+      setEvento(eventoCapturado);
+      telemetria("elegible");
+      anunciarElegibilidad();
+      if (tieneValor()) mostrar();
     }
 
     function alInstalar() {
       setVisible(false);
       localStorage.setItem(CLAVE_DESCARTADO, "1");
+      registrarAceptacion();
     }
 
     window.addEventListener("beforeinstallprompt", alCapturarPrompt);
@@ -132,13 +147,9 @@ export function BannerInstalacion() {
         "convenios:mostrar-instalacion",
         mostrarDesdeMenu,
       );
+      window.removeEventListener("convenios:valor-percibido", alPercibirValor);
     };
   }, []);
-
-  // No interrumpir el formulario de venta.
-  if (pathname.startsWith("/ventas/nueva")) {
-    return null;
-  }
 
   if (hayModal || !visible || (!evento && !instalacionIOS)) {
     return null;
@@ -147,14 +158,17 @@ export function BannerInstalacion() {
   function descartar() {
     setVisible(false);
     localStorage.setItem(CLAVE_DESCARTADO, "1");
+    telemetria("descartada");
   }
 
   async function instalar() {
     if (!evento) return;
     await evento.prompt();
-    await evento.userChoice;
+    const decision = await evento.userChoice;
     setVisible(false);
     localStorage.setItem(CLAVE_DESCARTADO, "1");
+    if (decision.outcome === "accepted") registrarAceptacion();
+    else telemetria("descartada");
   }
 
   return (

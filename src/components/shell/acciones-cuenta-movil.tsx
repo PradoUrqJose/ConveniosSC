@@ -13,6 +13,7 @@ import {
   MobileSheetFilaAccion,
   MobileSheetPagina,
 } from "@/components/ui/mobile-sheet";
+import { Button } from "@/components/ui/button";
 import { cerrarSesion } from "@/modules/auth/actions";
 
 /**
@@ -30,7 +31,8 @@ import { cerrarSesion } from "@/modules/auth/actions";
  * confirmación *dentro del mismo sheet* (doc §5, variante decisión), sin
  * encadenar un segundo modal encima.
  *
- * Solo móvil: en escritorio estas acciones siguen en el Sidebar, intacto.
+ * En escritorio, Perfil ofrece la instalación como acción directa; el sheet
+ * se conserva exclusivamente para las acciones de cuenta en móvil.
  */
 export function AccionesCuentaMovil() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -47,82 +49,114 @@ export function AccionesCuentaMovil() {
         Boolean(
           (navigator as Navigator & { standalone?: boolean }).standalone,
         ));
+    const esIOS =
+      /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+      (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    // iOS no emite beforeinstallprompt: puede mostrar la guía desde Perfil.
+    // En el resto esperamos la señal del banner para no ofrecer un botón que
+    // el navegador todavía no puede ejecutar.
     const temporizador = window.setTimeout(
-      () => setPuedeInstalar(!instalada),
+      () => setPuedeInstalar(!instalada && esIOS),
       0,
     );
-    return () => window.clearTimeout(temporizador);
+    const alSerElegible = () => setPuedeInstalar(true);
+    window.addEventListener("convenios:instalacion-elegible", alSerElegible);
+    return () => {
+      window.clearTimeout(temporizador);
+      window.removeEventListener(
+        "convenios:instalacion-elegible",
+        alSerElegible,
+      );
+    };
   }, []);
 
   return (
-    <div className="lg:hidden">
-      <button
-        type="button"
-        onClick={() => setAbierto(true)}
-        className="hover:bg-muted flex min-h-11 w-full items-center gap-2 rounded-xl border px-3 text-left text-sm font-medium"
-      >
-        <span className="flex-1">Opciones de la cuenta</span>
-        <ChevronRight className="size-4" aria-hidden="true" />
-      </button>
-
-      <MobileSheet
-        abierto={abierto}
-        alCerrar={() => setAbierto(false)}
-        altura="compacta"
-        agarradera
-      >
-        <MobileSheetPagina id="raiz" titulo="Tu cuenta">
-          <MobileSheetCuerpo>
-            <MobileSheetFilaAccion
-              icono={
-                oscuro ? (
-                  <Sun className="size-4" />
-                ) : (
-                  <Moon className="size-4" />
-                )
-              }
-              etiqueta={oscuro ? "Usar tema claro" : "Usar tema oscuro"}
-              onClick={() => setTheme(oscuro ? "light" : "dark")}
-            />
-            {puedeInstalar ? (
-              <MobileSheetFilaAccion
-                icono={<Download className="size-4" />}
-                etiqueta="Instalar aplicación"
-                onClick={() => {
-                  window.dispatchEvent(
-                    new Event("convenios:mostrar-instalacion"),
-                  );
-                  setAbierto(false);
-                }}
-              />
-            ) : null}
-            <MobileSheetFilaAccion
-              icono={<LogOut className="size-4" />}
-              etiqueta="Cerrar sesión"
-              tono="destructivo"
-              pagina="cerrar-sesion"
-            />
-          </MobileSheetCuerpo>
-        </MobileSheetPagina>
-
-        <MobileSheetPagina
-          id="cerrar-sesion"
-          titulo="¿Cerrar sesión?"
-          descripcion="Tendrás que volver a ingresar tu usuario y tu contraseña."
+    <div>
+      <div className="lg:hidden">
+        <button
+          type="button"
+          onClick={() => setAbierto(true)}
+          className="hover:bg-muted flex min-h-11 w-full items-center gap-2 rounded-xl border px-3 text-left text-sm font-medium"
         >
-          <MobileSheetCuerpo />
-          {/* `.mob-sheet-acciones` invierte el orden visual: el destructivo
+          <span className="flex-1">Opciones de la cuenta</span>
+          <ChevronRight className="size-4" aria-hidden="true" />
+        </button>
+
+        <MobileSheet
+          abierto={abierto}
+          alCerrar={() => setAbierto(false)}
+          altura="compacta"
+          agarradera
+        >
+          <MobileSheetPagina id="raiz" titulo="Tu cuenta">
+            <MobileSheetCuerpo>
+              <MobileSheetFilaAccion
+                icono={
+                  oscuro ? (
+                    <Sun className="size-4" />
+                  ) : (
+                    <Moon className="size-4" />
+                  )
+                }
+                etiqueta={oscuro ? "Usar tema claro" : "Usar tema oscuro"}
+                onClick={() => setTheme(oscuro ? "light" : "dark")}
+              />
+              {puedeInstalar ? (
+                <MobileSheetFilaAccion
+                  icono={<Download className="size-4" />}
+                  etiqueta="Instalar aplicación"
+                  onClick={() => {
+                    window.dispatchEvent(
+                      new Event("convenios:mostrar-instalacion"),
+                    );
+                    setAbierto(false);
+                  }}
+                />
+              ) : null}
+              <MobileSheetFilaAccion
+                icono={<LogOut className="size-4" />}
+                etiqueta="Cerrar sesión"
+                tono="destructivo"
+                pagina="cerrar-sesion"
+              />
+            </MobileSheetCuerpo>
+          </MobileSheetPagina>
+
+          <MobileSheetPagina
+            id="cerrar-sesion"
+            titulo="¿Cerrar sesión?"
+            descripcion="Tendrás que volver a ingresar tu usuario y tu contraseña."
+          >
+            <MobileSheetCuerpo />
+            {/* `.mob-sheet-acciones` invierte el orden visual: el destructivo
               queda arriba, pero en el DOM manda la salida segura. */}
-          <MobileSheetAcciones>
-            <MobileSheetCerrar>Seguir en la sesión</MobileSheetCerrar>
-            <form action={cerrarSesion}>
-              <MobileSheetBoton type="submit" variante="destructivo">
-                Cerrar sesión
-              </MobileSheetBoton>
-            </form>
-          </MobileSheetAcciones>
-        </MobileSheetPagina>
-      </MobileSheet>
+            <MobileSheetAcciones>
+              <MobileSheetCerrar>Seguir en la sesión</MobileSheetCerrar>
+              <form action={cerrarSesion}>
+                <MobileSheetBoton type="submit" variante="destructivo">
+                  Cerrar sesión
+                </MobileSheetBoton>
+              </form>
+            </MobileSheetAcciones>
+          </MobileSheetPagina>
+        </MobileSheet>
+      </div>
+
+      {/* El acceso voluntario también existe en escritorio: Perfil es el
+          lugar único para las opciones de cuenta, sin depender del banner. */}
+      {puedeInstalar ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="hidden lg:inline-flex"
+          onClick={() =>
+            window.dispatchEvent(new Event("convenios:mostrar-instalacion"))
+          }
+        >
+          <Download className="size-4" />
+          Instalar aplicación
+        </Button>
+      ) : null}
     </div>
   );
 }

@@ -26,17 +26,17 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       {
-        name: "Nueva venta",
-        short_name: "Nueva venta",
-        description: "Registrar una venta con convenio",
-        url: "/ventas/nueva",
-        icons: [{ src: "/icons/192.png", sizes: "192x192" }],
-      },
-      {
         name: "Ver ventas",
         short_name: "Ventas",
         description: "Consultar el historial de ventas",
         url: "/ventas",
+        icons: [{ src: "/icons/192.png", sizes: "192x192" }],
+      },
+      {
+        name: "Mi perfil",
+        short_name: "Perfil",
+        description: "Ver las opciones de tu cuenta",
+        url: "/perfil",
         icons: [{ src: "/icons/192.png", sizes: "192x192" }],
       },
     ],

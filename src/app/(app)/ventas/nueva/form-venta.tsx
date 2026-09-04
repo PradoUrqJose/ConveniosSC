@@ -368,6 +368,9 @@ export function FormVenta({
   useEffect(() => {
     if (!estado.ok || !estado.data) return;
     borrarBorrador(usuarioId);
+    // Registrar una venta es el momento de valor de la PWA. El banner global
+    // decide si el navegador permite instalar y evita interrumpir el formulario.
+    window.dispatchEvent(new Event("convenios:valor-percibido"));
     // eslint-disable-next-line react-hooks/set-state-in-effect -- transición a la pantalla de confirmación tras un `crearVenta` exitoso
     setConfirmacion(estado.data);
     setFase("confirmacion");
