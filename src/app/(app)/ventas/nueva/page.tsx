@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { Courier_Prime, IBM_Plex_Sans } from "next/font/google";
 
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { misConveniosVigentes } from "@/modules/convenios/query";
@@ -9,27 +8,6 @@ import {
 } from "@/modules/ventas/query";
 import { FormVenta } from "./form-venta";
 import { medirServidor } from "@/lib/observabilidad";
-
-/**
- * Tipografía del flujo de venta. Se sirve con `next/font`, que descarga las
- * fuentes en build y las publica bajo `/_next/static`: mismo origen (la CSP
- * fija `font-src 'self' data:`) y precacheadas por el service worker, así que
- * la PWA sigue funcionando sin conexión. Un `<link>` a fonts.googleapis.com
- * rompería ambas cosas.
- */
-const fuenteTexto = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  variable: "--font-venta-sans",
-  display: "swap",
-});
-
-const fuenteCifras = Courier_Prime({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  variable: "--font-venta-mono",
-  display: "swap",
-});
 
 export default async function NuevaVentaPage() {
   let ctx;
@@ -75,7 +53,6 @@ export default async function NuevaVentaPage() {
 
   return (
     <FormVenta
-      claseFuentes={`${fuenteTexto.variable} ${fuenteCifras.variable}`}
       usuarioId={ctx.usuarioId}
       convenios={convenios}
       sedes={sedes}

@@ -2079,11 +2079,10 @@
      local a ese flujo; en oscuro se reengancha a los tokens del tema para no
      dejar una pantalla clavada en claro. */
   .venta-shell {
-    /* Redefinir los tokens de fuente basta para que `font-sans`/`font-mono` de
-       Tailwind cambien dentro de esta pantalla, sin tocar el resto de la app. */
-    --font-sans: var(--font-venta-sans), ui-sans-serif, system-ui, sans-serif;
-    --font-mono:
-      var(--font-venta-mono), ui-monospace, SFMono-Regular, monospace;
+    /* Stack nativo: no depende de la descarga de Google Fonts durante el
+       build y mantiene las cifras tabulares del flujo con una monoespaciada. */
+    --font-sans: ui-sans-serif, system-ui, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, monospace;
 
     --venta-azul: #0047ff;
     --venta-azul-hondo: #0031b0;

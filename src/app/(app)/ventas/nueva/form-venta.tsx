@@ -74,15 +74,12 @@ const ESTADO_INICIAL: Resultado<VentaCreada> = {
 };
 
 export function FormVenta({
-  claseFuentes,
   usuarioId,
   convenios,
   sedes,
   sedePorDefectoId,
   config,
 }: {
-  /** Clases de `next/font` con las fuentes del flujo (se aplican al portal del Sheet). */
-  claseFuentes: string;
   usuarioId: string;
   convenios: ConvenioVigenteMio[];
   sedes: SedeOpcion[];
@@ -466,7 +463,7 @@ export function FormVenta({
         : "Todo listo. Revisa los importes antes de registrar.";
 
   return (
-    <section className={`venta-shell flex flex-col gap-6 pb-6 ${claseFuentes}`}>
+    <section className="venta-shell flex flex-col gap-6 pb-6">
       {/* ── Barra superior ── */}
       {/* En móvil el título de la pantalla lo pone la cabecera de ruta
           (`CabeceraPuntoVenta`, issue #52); acá solo queda el indicador de
@@ -1012,7 +1009,7 @@ export function FormVenta({
         <SheetContent
           side="bottom"
           showCloseButton={false}
-          className={`venta-shell gap-0 rounded-t-[26px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))] ${claseFuentes}`}
+          className="venta-shell gap-0 rounded-t-[26px] px-5 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]"
         >
           <SheetHeader className="p-0 text-left">
             <SheetTitle className="text-[19px] font-bold tracking-[-0.01em]">

@@ -56,3 +56,11 @@ jobs:
 
       - name: Presupuesto de JavaScript gzip
         run: npm run perf:budget
+
+      - name: Publicar reporte de bundles por ruta
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-rutas
+          path: artifacts/bundle/reporte-rutas.json
+          if-no-files-found: warn

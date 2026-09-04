@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib";
-import { readFile, readdir } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const raiz = process.cwd();
@@ -34,10 +34,20 @@ const entradas = await readdir(directorioChunks, { recursive: true });
 const chunksRuta = entradas.filter(
   (entrada) => typeof entrada === "string" && /page-.*\.js$/.test(entrada),
 );
+const rutaPublica = (entrada) => {
+  const segmentos = entrada
+    .replace(/\\/g, "/")
+    .replace(/\/page-.*$/, "")
+    .split("/")
+    .filter((segmento) => !/^\(.+\)$/.test(segmento));
+  return `/${segmentos.join("/")}`.replace(/\/$/, "") || "/";
+};
+const rutas = [];
 for (const entrada of chunksRuta) {
   const archivo = path.posix.join("static/chunks/app", entrada);
   const total = await tamanoGzip(archivo);
-  const ruta = `/${entrada.replace(/\\/g, "/").replace(/\/page-.*$/, "")}`;
+  const ruta = rutaPublica(entrada);
+  rutas.push({ ruta, archivo, gzipBytes: total });
   if (total > presupuesto.jsGzipAdicionalRutaBytes) {
     errores.push(
       `${ruta}: ${total} B gzip adicional supera ${presupuesto.jsGzipAdicionalRutaBytes} B`,
@@ -48,7 +58,13 @@ for (const entrada of chunksRuta) {
 const reporte = {
   presupuesto,
   compartidoGzipBytes: compartido,
-  rutas: chunksRuta.length,
+  rutas,
 };
+const directorioReporte = path.join(raiz, "artifacts", "bundle");
+await mkdir(directorioReporte, { recursive: true });
+await writeFile(
+  path.join(directorioReporte, "reporte-rutas.json"),
+  `${JSON.stringify(reporte, null, 2)}\n`,
+);
 console.info(JSON.stringify(reporte, null, 2));
 if (errores.length) throw new Error(errores.join("\n"));
