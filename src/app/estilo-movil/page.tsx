@@ -11,6 +11,7 @@ import {
 import { ErrorAuth, requireRol, requireSession } from "@/lib/auth/guardas";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { DemoSheets } from "./demo-sheets";
+import { DemoControles } from "./demo-controles";
 
 /**
  * Referencia viva de los tokens y primitivas móviles definidos para el
@@ -167,6 +168,19 @@ export default async function EstiloMovilPage() {
           destructiva y el sheet de filtros.
         </p>
         <DemoSheets />
+      </section>
+
+      <section aria-labelledby="h-controles" className="mb-8">
+        <h2 id="h-controles" className="mb-3 text-sm font-semibold opacity-70">
+          Controles táctiles (issue #55)
+        </h2>
+        <p className="mb-3 text-sm opacity-70">
+          Ningún control baja de 44x44 y ningún campo baja de 16px. Los cuatro
+          estados —pressed, focus-visible, disabled y pendiente— existen sin
+          depender de hover, y el error del campo viaja por aria-describedby, no
+          solo por color.
+        </p>
+        <DemoControles />
       </section>
 
       <section aria-labelledby="h-squircle">

@@ -32,6 +32,7 @@ export function DatePicker({
   min,
   max,
   id,
+  etiqueta = "Fecha",
   className,
 }: {
   name: string;
@@ -40,6 +41,9 @@ export function DatePicker({
   min?: string;
   max?: string;
   id?: string;
+  /** Nombre accesible del selector nativo móvil (el `<label>` de la
+   *  pantalla apunta al input oculto que envía el valor). */
+  etiqueta?: string;
   /** Permite a cada pantalla ajustar alto y forma del disparador. */
   className?: string;
 }) {
@@ -56,12 +60,42 @@ export function DatePicker({
   return (
     <Popover>
       <input type="hidden" id={id} name={name} value={value} />
+      {/* Por debajo de 1024px, el calendario nativo — issue #55.
+
+          La rejilla de react-day-picker es el único control de la app al
+          que no se le puede dar 44x44 por geometría: siete columnas por 44
+          son 308px y a 320px de ancho, con el padding del popover, no
+          entran. Antes de encoger la celda "solo un poco" conviene mirar
+          qué se gana con el calendario propio en un teléfono, y la
+          respuesta es nada: el selector nativo abre la rueda del sistema,
+          respeta `min`/`max`, ya es accesible, no se sale de la pantalla y
+          es el gesto que el usuario tiene aprendido de todas las demás
+          apps. El `<input type="date">` no lleva `name`: quien envía sigue
+          siendo el input oculto de arriba, así que el formulario no cambia.
+
+          El corte es por CSS y no por `useEsMovil()` a propósito: así el
+          HTML del servidor ya trae los dos y no hay un frame con el
+          control equivocado ni un salto al rotar el dispositivo. */}
+      <input
+        type="date"
+        aria-label={etiqueta}
+        value={value}
+        min={min}
+        max={max}
+        onChange={(evento) => {
+          if (evento.target.value) onChange(evento.target.value);
+        }}
+        className={cn(
+          "border-input bg-background text-foreground flex h-14 w-full items-center rounded-2xl border px-4 text-base lg:hidden",
+          className,
+        )}
+      />
       <PopoverTrigger
         render={
           <Button
             variant="outline"
             className={cn(
-              "bg-background h-14 w-full justify-start gap-3 rounded-2xl px-4 font-normal",
+              "bg-background hidden h-14 w-full justify-start gap-3 rounded-2xl px-4 font-normal lg:inline-flex",
               className,
             )}
           />

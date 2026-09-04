@@ -266,6 +266,13 @@
     --mob-pill-atencion-fg: color-mix(in oklab, var(--warning) 62%, black);
     --mob-pill-error-fg: color-mix(in oklab, var(--destructive) 88%, black);
 
+    /* Superficie destructiva sólida (el botón "Eliminar" del sheet) — issue
+       #55. En claro `--destructive` con texto blanco da 4.9:1 y sirve tal
+       cual; el token existe igual para que el modo oscuro pueda corregirse
+       sin tocar `--destructive`, que es de escritorio. */
+    --mob-destructivo: var(--destructive);
+    --mob-destructivo-foreground: oklch(1 0 0);
+
     /* Tipografía — el doc deja la fuente "por proyecto"; acá va el stack
        de sistema del propio desktop (`--font-sans`), cero descarga de
        red. Alias explícito para que ninguna migración futura reintroduzca
@@ -333,6 +340,13 @@
     --mob-pill-ok-fg: var(--success);
     --mob-pill-atencion-fg: var(--warning);
     --mob-pill-error-fg: color-mix(in oklab, var(--destructive) 92%, white);
+
+    /* El `--destructive` oscuro es un rojo claro (L 0.65) pensado para
+       texto y bordes; como fondo de un botón con texto blanco da 3.56:1 y
+       no pasa AA. Lo detectó `src/lib/contraste-movil.test.ts`. Acá baja a
+       L 0.58 —mismo tono, misma saturación— y llega a 4.74:1 sin tocar el
+       token de escritorio. */
+    --mob-destructivo: oklch(0.58 0.2 25);
   }
 
   @layer components {
@@ -1011,8 +1025,8 @@
     }
 
     .mob-sheet-boton-destructivo {
-      background: var(--destructive);
-      color: var(--destructive-foreground, oklch(1 0 0));
+      background: var(--mob-destructivo);
+      color: var(--mob-destructivo-foreground);
     }
 
     .mob-sheet-fila-opcion {
@@ -1163,6 +1177,349 @@
       border-radius: var(--mob-radius-pill);
       background: var(--mob-acento);
     }
+
+    /* =================================================================
+       Primitivas táctiles — issue #55 (PWA-MOB-05), doc §6 y §9.
+
+       Clases explícitas que consumen las migraciones de pantalla. La red
+       de seguridad geométrica (44x44 sobre TODO control por debajo de
+       1024px) vive fuera de `@layer components`, más abajo: acá van solo
+       las primitivas con piel propia.
+       ================================================================= */
+
+    /* Botón de ícono. El glifo puede medir 16 o 20px; el área táctil no
+       baja de 44x44 nunca (doc §9: "el icono puede ser menor, no el hit
+       area"). Sin `:hover`: en un dispositivo táctil el hover no existe
+       o queda pegado tras el toque, así que el feedback es `:active`. */
+    .mob-boton-icono {
+      display: inline-flex;
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      min-height: var(--mob-toque-min);
+      min-width: var(--mob-toque-min);
+      border-radius: var(--mob-radius-control);
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+      transition:
+        background-color var(--mob-duration) var(--mob-ease),
+        transform var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-boton-icono[data-tono="plano"] {
+      background: transparent;
+    }
+
+    .mob-boton-icono:active {
+      transform: scale(0.94);
+      background: color-mix(in oklab, var(--foreground) 12%, transparent);
+    }
+
+    /* Enlace de acción (LinkAction). Un destino ES navegación: se pinta
+       como control pero por dentro es un `<a>` real, sin primitiva de
+       botón encima — así conserva "abrir en otra pestaña", el menú
+       contextual y funciona antes de la hidratación. */
+    .mob-enlace-accion {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      min-height: var(--mob-toque-min);
+      min-width: var(--mob-toque-min);
+      border-radius: var(--mob-radius-pill);
+      padding-inline: 1.25rem;
+      font-weight: 600;
+      text-align: center;
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+      transition:
+        background-color var(--mob-duration) var(--mob-ease),
+        transform var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-enlace-accion[data-tono="acento"] {
+      background: var(--mob-acento);
+      color: var(--mob-acento-foreground);
+    }
+
+    .mob-enlace-accion[data-tono="plano"] {
+      background: transparent;
+      color: var(--mob-acento);
+      padding-inline: 0.5rem;
+    }
+
+    .mob-enlace-accion:active {
+      transform: scale(0.97);
+    }
+
+    /* Campo de texto. Dos invariantes que no se negocian por pantalla:
+       16px de font-size (menos que eso hace que Safari iOS haga zoom al
+       enfocar y deje la vista descuadrada) y 44px de alto. */
+    .mob-campo {
+      display: flex;
+      width: 100%;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      border: 0;
+      border-radius: var(--mob-radius-control);
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-foreground);
+      padding: 0.625rem 0.875rem;
+      font-size: 1rem;
+      line-height: 1.4;
+      outline: none;
+      transition: box-shadow var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-campo::placeholder {
+      color: color-mix(
+        in oklab,
+        var(--mob-superficie-tenue-foreground) 70%,
+        transparent
+      );
+    }
+
+    /* Estado de error: el anillo no es el único indicador — el mensaje
+       enlazado por `aria-describedby` lo dice con palabras. */
+    .mob-campo[aria-invalid="true"] {
+      box-shadow: inset 0 0 0 2px var(--mob-pill-error-fg);
+    }
+
+    /* Select nativo: en móvil la rueda del sistema gana a cualquier
+       popup propio — es accesible, no se sale de la pantalla y ya viene
+       con target táctil correcto. */
+    .mob-select {
+      /* A propósito NO se pone `appearance: none`: la flecha nativa del
+         sistema es la que el usuario reconoce y evita tener que pintar
+         un chevron con un color que después hay que auditar por modo.
+         El resto del estilo (superficie, radio, alto, 16px) sí es
+         nuestro y sí se aplica sobre un `<select>` nativo. */
+      padding-right: 0.5rem;
+      font-weight: 600;
+    }
+
+    /* Etiqueta persistente (doc §9): nunca placeholder-como-label. El
+       placeholder desaparece al escribir y con él la única pista de qué
+       se está escribiendo. */
+    .mob-campo-etiqueta {
+      display: block;
+      margin-bottom: 0.375rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    .mob-campo-ayuda {
+      margin-top: 0.375rem;
+      font-size: 0.8125rem;
+      line-height: 1.25rem;
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    .mob-campo-error {
+      margin-top: 0.375rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      line-height: 1.25rem;
+      color: var(--mob-pill-error-fg);
+    }
+
+    /* Estado pendiente compartido por botones y enlaces de acción: el
+       control sigue visible y con su tamaño, deja de aceptar toques y lo
+       anuncia (`aria-busy`), en vez de desaparecer y mover el layout. */
+    .mob-boton[data-pendiente="true"],
+    .mob-boton-icono[data-pendiente="true"],
+    .mob-enlace-accion[data-pendiente="true"] {
+      pointer-events: none;
+      opacity: 0.72;
+    }
+
+    .mob-boton:disabled,
+    .mob-boton-icono:disabled,
+    .mob-campo:disabled,
+    .mob-boton-terciario:disabled {
+      opacity: 0.5;
+      /* Sin `pointer-events: none`: un control deshabilitado tiene que
+         seguir recibiendo el toque para que el lector de pantalla y el
+         tooltip puedan explicar por qué no se puede usar. */
+      cursor: default;
+    }
+  }
+
+  /* ===================================================================
+     Red de seguridad táctil — issue #55 (PWA-MOB-05).
+
+     Las primitivas `.mob-*` resuelven la pantalla ya migrada; esto
+     resuelve todo lo demás. Por debajo de 1024px ningún control propio
+     puede medir menos de 44px de alto, venga de donde venga: un
+     `<Button size="icon-sm">` heredado del escritorio (28px), un
+     `<button>` suelto dentro de una card (los 16px del "Ver cambios" de
+     auditoría), un `<select>` de filtros (30px) o un ítem de menú.
+
+     Va FUERA de `@layer components` a propósito. Las utilidades de
+     Tailwind viven en su propia capa y le ganan a cualquier regla
+     colocada en `components`; una hoja sin capa gana a todas las capas,
+     así que `h-6`/`h-7` de una pantalla vieja no puede volver a dejar un
+     target de 24px. Se fija `min-height`/`min-width` y nunca `height`:
+     el control crece hasta el mínimo y sigue pudiendo ser más grande.
+
+     Escape hatch único y explícito: `data-toque="compacto"`. Se usa solo
+     donde el elemento no es un objetivo táctil (el chevron interno de un
+     popup de select, el cierre de un toast que ya trae el suyo), y queda
+     grepeable para revisarlo.
+     =================================================================== */
+  :where(
+    button,
+    summary,
+    select,
+    textarea,
+    input:not([type="checkbox"], [type="radio"], [type="hidden"]),
+    [role="button"],
+    [role="tab"],
+    [role="radio"],
+    [role="menuitem"],
+    [role="menuitemcheckbox"],
+    [role="menuitemradio"],
+    [role="option"],
+    [data-slot="button"],
+    [data-slot="input"],
+    [data-slot="textarea"],
+    [data-slot="select-trigger"],
+    [data-slot="select-item"],
+    [data-slot="dropdown-menu-item"],
+    [data-slot="dropdown-menu-checkbox-item"],
+    [data-slot="dropdown-menu-radio-item"],
+    [data-slot="dropdown-menu-sub-trigger"],
+    [data-slot="tabs-trigger"],
+    [data-slot="accordion-trigger"],
+    .mob-enlace-accion
+  ):not(
+    [data-toque="compacto"],
+    [data-close-button],
+    [data-slot="checkbox"],
+    [data-slot="switch"],
+    [data-slot="select-scroll-up-button"],
+    [data-slot="select-scroll-down-button"],
+    [data-slot="drawer-swipe-handle"],
+    [hidden]
+  ) {
+    min-height: var(--mob-toque-min);
+  }
+
+  /* El ancho mínimo solo aplica a los controles que pueden quedar
+     estrechos por tener un ícono como único contenido. Un input o un
+     ítem de menú ya ocupan el ancho de su contenedor, y forzarles 44px
+     de ancho mínimo no arregla nada y sí puede desbordar a 320px. */
+  :where(
+    button,
+    [role="button"],
+    [role="tab"],
+    [role="radio"],
+    [data-slot="button"],
+    .mob-enlace-accion
+  ):not(
+    [data-toque="compacto"],
+    [data-close-button],
+    [data-slot="checkbox"],
+    [data-slot="switch"],
+    [data-slot="drawer-swipe-handle"],
+    [hidden]
+  ) {
+    min-width: var(--mob-toque-min);
+  }
+
+  /* Checkbox y switch quedan fuera de las dos reglas de arriba (Base UI
+     los renderiza como `<button>`, así que las habrían agarrado) porque no
+     pueden crecer a 44px sin deformar el dibujo: la casilla mide 16px y el
+     riel 20px por diseño, y estirarlos los convierte en otra cosa. Su área
+     táctil se extiende con un pseudo-elemento centrado, que es exactamente
+     la distinción que pide el issue — el ícono puede ser menor, el hit
+     area no. Los tests miden `max(caja, ::after)` por eso mismo.
+
+     Los dos componentes ya traían de escritorio un `after:-inset-x-3
+     after:-inset-y-2`, que da 40x32 en el checkbox y 56x34 en el switch:
+     la idea correcta, el número corto. Acá ese mismo `::after` pasa a
+     medir 44x44 centrado sobre el control, sin tocar el dibujo. */
+  :where([data-slot="checkbox"], [data-slot="switch"]):not(
+    [data-toque="compacto"]
+  ) {
+    position: relative;
+  }
+
+  :where([data-slot="checkbox"], [data-slot="switch"]):not(
+      [data-toque="compacto"]
+    )::after {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    translate: -50% -50%;
+    width: max(100%, var(--mob-toque-min));
+    height: max(100%, var(--mob-toque-min));
+    content: "";
+  }
+
+  /* ===================================================================
+     Inputs de 16px — issue #55.
+
+     Safari iOS hace zoom al enfocar cualquier campo con menos de 16px y
+     deja la página desplazada y con la mitad del formulario fuera de
+     pantalla; no hay forma de deshacerlo sin bloquear el zoom del
+     usuario, que sería peor. Por eso el piso es una regla del sistema y
+     no una clase que cada pantalla se acuerde de poner: hoy hay
+     `text-sm` a mano en filtros de empresas, convenios, usuarios, sedes
+     y empleados.
+
+     Sin capa (gana a las utilidades) y con escape hatch
+     `data-texto="propio"` para el campo que legítimamente necesita otro
+     tamaño (siempre mayor, nunca menor).
+     =================================================================== */
+  :where(
+    input:not(
+      [type="checkbox"],
+      [type="radio"],
+      [type="range"],
+      [type="hidden"]
+    ),
+    select,
+    textarea
+  ):not([data-texto="propio"]) {
+    font-size: 1rem;
+  }
+
+  /* ===================================================================
+     Estados sin hover — issue #55, doc §9.
+
+     En un dispositivo táctil `:hover` no existe (o peor: se queda pegado
+     después del toque y deja el control "encendido"). Los cuatro estados
+     que sí tienen que existir son pressed, focus-visible, disabled y
+     pendiente, y ninguno depende del puntero.
+     =================================================================== */
+  @media (hover: none) {
+    /* Feedback de pulsación en el mismo frame del toque: nada de esperar
+       a que la navegación resuelva. */
+    :where([data-slot="button"], .mob-enlace-accion):active:not(:disabled) {
+      opacity: 0.86;
+    }
+
+    /* No hace falta neutralizar los `hover:` del proyecto: Tailwind v4
+       ya los emite dentro de `@media (hover: hover)`, así que en un
+       dispositivo táctil ni siquiera se declaran y no pueden quedarse
+       pegados tras el toque. Lo que faltaba —y es lo que agrega este
+       bloque— era el estado pressed equivalente. */
+  }
+
+  /* Foco visible propio y uniforme: dos píxeles de acento separados del
+     control. El teclado externo y el conmutador (switch control) son
+     ciudadanos de primera en una PWA instalada. */
+  :focus-visible {
+    outline: 2px solid var(--mob-acento);
+    outline-offset: 2px;
+  }
+
+  /* Operación en vuelo: el control se queda donde está, con su tamaño, y
+     lo dice. Nada de reemplazarlo por un spinner que mueve el layout. */
+  :where([aria-busy="true"], [data-pendiente="true"]) {
+    cursor: progress;
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1200,6 +1557,51 @@
     .mob-sheet[data-ending-style] {
       transition-duration: 1ms;
     }
+  }
+}
+
+/* =====================================================================
+   Política global de movimiento reducido — issue #55 (PWA-MOB-05).
+
+   Hasta ahora cada componente traía su propio bloque
+   `prefers-reduced-motion` (modal, skeleton, elevación, barra inferior,
+   sheet). Funciona mientras alguien se acuerde de escribirlo: el
+   `motion-reduce:` que falta en una pantalla nueva no se ve en code
+   review y sí se ve —literalmente— en la cara de quien tiene sensibilidad
+   vestibular. Esta regla invierte el default: con la preferencia activada
+   NADA se anima, y los bloques por componente que siguen abajo quedan
+   como documentación del caso particular.
+
+   Se declara con `!important` porque tiene que ganarle también a las
+   animaciones declaradas en línea y a las utilidades de Tailwind, y con
+   `1ms` en vez de `0s` para que los eventos `transitionend`/`animationend`
+   —de los que dependen las transiciones de entrada y salida de Base UI—
+   sigan disparándose y las capas no se queden montadas para siempre.
+
+   Lo que NO se toca: opacidad y color, que no producen movimiento; y la
+   aparición/desaparición de una capa, que es información, no decoración.
+   ===================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+
+  html {
+    scroll-behavior: auto !important;
+  }
+
+  /* El shimmer del esqueleto es el caso de manual: un desplazamiento
+     infinito y puramente decorativo. Se apaga entero, no se acelera. */
+  .skeleton-shimmer::after,
+  .animate-pulse,
+  .animate-spin {
+    animation: none !important;
   }
 }
 
@@ -1505,7 +1907,16 @@
   .dialog-popup[data-ending-style] {
     transform: translate(-50%, calc(-50% + 6px)) scale(0.985);
   }
+}
 
+/* Los 15px de los campos dentro de un diálogo son una decisión de la línea
+   visual de escritorio (docs/14-LINEA-DISENO-MODALES.md). Arrancaban en
+   640px, y entre 640 y 1023px eso son campos de 15px en un teléfono en
+   horizontal o en una tablet: por debajo de 16px Safari iOS hace zoom al
+   enfocar y descuadra el formulario entero. Desde el issue #55 la regla
+   empieza donde empieza el escritorio (1024px), que es además el mismo
+   corte que aísla todo el sistema móvil. */
+@media (min-width: 1024px) {
   [data-slot="dialog-content"] [data-slot="input"],
   [data-slot="dialog-content"] [data-slot="select-trigger"],
   [data-slot="dialog-content"] form select,

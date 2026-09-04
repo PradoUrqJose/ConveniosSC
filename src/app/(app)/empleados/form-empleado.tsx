@@ -82,6 +82,7 @@ function CampoDocumentoEmpleado({
         name="numeroDocumento"
         required
         autoComplete="off"
+        aria-describedby="numeroDocumento-ayuda"
         disabled={disabled}
         maxLength={maxLength}
         value={value}
@@ -131,6 +132,7 @@ function CampoDocumentoEmpleado({
         disabled={disabled}
         maxLength={maxLength}
         aria-label="Número de DNI"
+        aria-describedby="numeroDocumento-ayuda"
         className="absolute inset-0 size-full cursor-text opacity-0 disabled:cursor-not-allowed"
       />
     </div>
@@ -337,7 +339,10 @@ export function FormEmpleado({
                   onChange={setNumeroDocumento}
                   disabled={pendiente}
                 />
-                <p className="text-muted-foreground mt-2 text-xs">
+                <p
+                  id="numeroDocumento-ayuda"
+                  className="text-muted-foreground mt-2 text-xs"
+                >
                   {tipoDocumento === "DNI"
                     ? `${numeroDocumento.length} de 8 dígitos`
                     : "Hasta 12 caracteres, sin espacios"}
@@ -365,6 +370,7 @@ export function FormEmpleado({
               id="nombres"
               name="nombres"
               required
+              autoComplete="given-name"
               autoCapitalize="words"
               disabled={pendiente}
               value={nombres}
@@ -378,6 +384,7 @@ export function FormEmpleado({
               id="apellidos"
               name="apellidos"
               required
+              autoComplete="family-name"
               autoCapitalize="words"
               disabled={pendiente}
               value={apellidos}
@@ -395,7 +402,10 @@ export function FormEmpleado({
           <Input
             id="telefono"
             name="telefono"
+            type="tel"
             inputMode="tel"
+            autoComplete="tel-national"
+            aria-describedby="telefono-ayuda"
             disabled={pendiente}
             value={telefono}
             onChange={(event) =>
@@ -404,7 +414,7 @@ export function FormEmpleado({
             placeholder="9XX XXX XXX"
             className="font-mono tracking-[0.1em]"
           />
-          <p className="text-muted-foreground text-xs">
+          <p id="telefono-ayuda" className="text-muted-foreground text-xs">
             Le avisamos por WhatsApp cuando su beneficio esté activo.
           </p>
         </div>

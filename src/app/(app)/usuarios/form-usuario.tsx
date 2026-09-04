@@ -155,6 +155,13 @@ export function FormUsuario({
             id="username"
             name="username"
             required
+            /* Es el usuario de otra persona: el autocompletado del
+               navegador ofrecería el del administrador que está creándolo
+               y el gestor de contraseñas trataría el formulario como un
+               alta de credencial propia. */
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
             disabled={pendiente || esEdicion}
             value={username}
             onChange={(e) => setUsername(e.target.value)}
