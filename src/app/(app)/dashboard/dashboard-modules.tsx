@@ -68,47 +68,52 @@ export async function DashboardMetricas({
   return (
     <>
       {dashboard.totales.cantidad ? (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metrica
-            etiqueta="Ventas"
-            valor={String(dashboard.totales.cantidad)}
-            detalle="Operaciones registradas"
-            icono={<ReceiptText className="size-4.5" />}
-          />
-          <Metrica
-            etiqueta="Bruto"
-            valor={
-              <span className="money">
-                {formatearSoles(dashboard.totales.sumaBrutoCentimos)}
-              </span>
-            }
-            detalle="Monto antes del beneficio"
-            icono={<WalletCards className="size-4.5" />}
-            tono="success"
-          />
-          <Metrica
-            etiqueta="Descuento"
-            valor={
-              <span className="money">
-                {formatearSoles(dashboard.totales.sumaDescuentoCentimos)}
-              </span>
-            }
-            detalle="Beneficios entregados"
-            icono={<BadgePercent className="size-4.5" />}
-            tono="warning"
-          />
-          <Metrica
-            etiqueta="Ticket promedio"
-            valor={
-              <span className="money">
-                {formatearSoles(dashboard.totales.ticketPromedioCentimos)}
-              </span>
-            }
-            detalle="Promedio por operación"
-            icono={<ChartNoAxesCombined className="size-4.5" />}
-            tono="neutral"
-          />
-        </div>
+        <>
+          {/* La composición de escritorio aprobada queda intacta. En móvil la
+              primera lectura es una métrica ancla y lo restante pierde peso. */}
+          <div className="hidden grid-cols-2 gap-3 lg:grid lg:grid-cols-4">
+            <Metrica
+              etiqueta="Ventas"
+              valor={String(dashboard.totales.cantidad)}
+              detalle="Operaciones registradas"
+              icono={<ReceiptText className="size-4.5" />}
+            />
+            <Metrica
+              etiqueta="Bruto"
+              valor={
+                <span className="money">
+                  {formatearSoles(dashboard.totales.sumaBrutoCentimos)}
+                </span>
+              }
+              detalle="Monto antes del beneficio"
+              icono={<WalletCards className="size-4.5" />}
+              tono="success"
+            />
+            <Metrica
+              etiqueta="Descuento"
+              valor={
+                <span className="money">
+                  {formatearSoles(dashboard.totales.sumaDescuentoCentimos)}
+                </span>
+              }
+              detalle="Beneficios entregados"
+              icono={<BadgePercent className="size-4.5" />}
+              tono="warning"
+            />
+            <Metrica
+              etiqueta="Ticket promedio"
+              valor={
+                <span className="money">
+                  {formatearSoles(dashboard.totales.ticketPromedioCentimos)}
+                </span>
+              }
+              detalle="Promedio por operación"
+              icono={<ChartNoAxesCombined className="size-4.5" />}
+              tono="neutral"
+            />
+          </div>
+          <MetricasMovil dashboard={dashboard} />
+        </>
       ) : (
         <EstadoVacio texto="No hay ventas registradas en este periodo." />
       )}
@@ -122,6 +127,69 @@ export async function DashboardMetricas({
         </p>
       ) : null}
     </>
+  );
+}
+
+function MetricasMovil({ dashboard }: { dashboard: Dashboard }) {
+  const secundarias =
+    dashboard.direccion === "compradas"
+      ? [
+          {
+            etiqueta: "Monto bruto",
+            valor: formatearSoles(dashboard.totales.sumaBrutoCentimos),
+          },
+          {
+            etiqueta: "Ticket promedio",
+            valor: formatearSoles(dashboard.totales.ticketPromedioCentimos),
+          },
+        ]
+      : [
+          {
+            etiqueta: "Monto bruto",
+            valor: formatearSoles(dashboard.totales.sumaBrutoCentimos),
+          },
+          {
+            etiqueta: "Descuentos",
+            valor: formatearSoles(dashboard.totales.sumaDescuentoCentimos),
+          },
+          {
+            etiqueta: "Ticket promedio",
+            valor: formatearSoles(dashboard.totales.ticketPromedioCentimos),
+          },
+        ];
+  return (
+    <section className="space-y-3 lg:hidden" aria-label="Resumen del periodo">
+      <article className="bg-primary text-primary-foreground shadow-primary/20 relative overflow-hidden rounded-[1.25rem] p-4 shadow-lg">
+        <ReceiptText
+          className="absolute -right-2 -bottom-3 size-24 opacity-15"
+          aria-hidden="true"
+        />
+        <p className="text-primary-foreground/70 text-xs font-bold tracking-[0.08em] uppercase">
+          Operaciones registradas
+        </p>
+        <p className="mt-1 text-4xl leading-none font-bold tracking-tight tabular-nums">
+          {dashboard.totales.cantidad}
+        </p>
+        <p className="text-primary-foreground/80 mt-2 text-sm">
+          Ventas en el periodo activo
+        </p>
+      </article>
+      <div className="grid grid-cols-2 gap-2.5">
+        {secundarias.map((metrica) => (
+          <article
+            key={metrica.etiqueta}
+            className="bg-card ring-foreground/7 min-w-0 rounded-xl p-3 ring-1"
+          >
+            <p className="text-muted-foreground truncate text-xs font-semibold">
+              {metrica.etiqueta}
+            </p>
+            <p className="money mt-1 truncate text-base font-bold">
+              {metrica.valor}
+            </p>
+          </article>
+        ))}
+      </div>
+    </section>
   );
 }
 

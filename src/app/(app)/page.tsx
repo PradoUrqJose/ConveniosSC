@@ -75,23 +75,38 @@ export default async function InicioPage() {
         titulo={`Hola, ${nombre}`}
         descripcion="Todo listo para registrar la siguiente venta."
         accion={
-          // En móvil el botón central de la barra inferior ya cubre esta acción.
-          <Link
-            href="/ventas/nueva"
-            className="group hidden min-h-16 items-center justify-between gap-5 rounded-2xl bg-white px-5 font-bold text-blue-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 hover:shadow-2xl active:translate-y-0 sm:flex md:min-w-60"
-          >
-            <span className="flex items-center gap-3">
-              <span className="grid size-10 place-items-center rounded-xl bg-cyan-100 text-blue-800">
-                <Plus className="size-5" />
+          <>
+            {/* En móvil se hace visible dentro del primer viewport; la barra
+                inferior sigue siendo un segundo acceso, no el único CTA. */}
+            <Link
+              href="/ventas/nueva"
+              className="group flex min-h-12 items-center justify-between gap-4 rounded-xl bg-white px-4 text-sm font-bold text-blue-950 shadow-lg shadow-blue-950/20 transition active:translate-y-px lg:hidden"
+            >
+              <span className="flex items-center gap-2.5">
+                <span className="grid size-8 place-items-center rounded-lg bg-cyan-100 text-blue-800">
+                  <Plus className="size-4" />
+                </span>
+                Nueva venta
               </span>
-              Nueva venta
-            </span>
-            <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
-          </Link>
+              <ArrowRight className="size-4" />
+            </Link>
+            <Link
+              href="/ventas/nueva"
+              className="group hidden min-h-16 items-center justify-between gap-5 rounded-2xl bg-white px-5 font-bold text-blue-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 hover:shadow-2xl active:translate-y-0 md:min-w-60 lg:flex"
+            >
+              <span className="flex items-center gap-3">
+                <span className="grid size-10 place-items-center rounded-xl bg-cyan-100 text-blue-800">
+                  <Plus className="size-5" />
+                </span>
+                Nueva venta
+              </span>
+              <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+            </Link>
+          </>
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="hidden grid-cols-2 gap-3 lg:grid lg:grid-cols-4">
         <Metrica
           etiqueta="Ventas este mes"
           valor={resumenMes.cantidad}
@@ -132,6 +147,45 @@ export default async function InicioPage() {
           tono="neutral"
         />
       </div>
+
+      <section
+        className="space-y-3 lg:hidden"
+        aria-label="Resumen de ventas del mes"
+      >
+        <article className="bg-primary text-primary-foreground shadow-primary/20 relative overflow-hidden rounded-[1.25rem] p-4 shadow-lg">
+          <ReceiptText
+            className="absolute -right-2 -bottom-3 size-24 opacity-15"
+            aria-hidden="true"
+          />
+          <p className="text-primary-foreground/70 text-xs font-bold tracking-[0.08em] uppercase">
+            Ventas este mes
+          </p>
+          <p className="mt-1 text-4xl leading-none font-bold tracking-tight tabular-nums">
+            {resumenMes.cantidad}
+          </p>
+          <p className="text-primary-foreground/80 mt-2 text-sm">
+            Operaciones registradas
+          </p>
+        </article>
+        <div className="grid grid-cols-2 gap-2.5">
+          <article className="bg-card ring-foreground/7 rounded-xl p-3 ring-1">
+            <p className="text-muted-foreground text-xs font-semibold">
+              Monto vendido
+            </p>
+            <p className="money mt-1 truncate text-base font-bold">
+              {formatearSoles(resumenMes.sumaBruto)}
+            </p>
+          </article>
+          <article className="bg-card ring-foreground/7 rounded-xl p-3 ring-1">
+            <p className="text-muted-foreground text-xs font-semibold">
+              Descuentos
+            </p>
+            <p className="money mt-1 truncate text-base font-bold">
+              {formatearSoles(resumenMes.sumaDescuento)}
+            </p>
+          </article>
+        </div>
+      </section>
 
       <section className="surface-panel">
         <header className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">

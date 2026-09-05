@@ -16,7 +16,7 @@ import {
   CabeceraMovil,
   ContextoMovil,
 } from "@/components/shell/cabecera-movil";
-import { DashboardControls } from "./dashboard-client";
+import { DashboardControls, DashboardFiltrosMovil } from "./dashboard-client";
 import {
   DashboardDataRegion,
   DashboardTransition,
@@ -84,6 +84,12 @@ export default async function DashboardPage({
               esAdmin={sesion.rol === "ADMIN_EMPRESA"}
             />
           }
+        />
+        <DashboardFiltrosMovil
+          desde={desde}
+          hasta={hasta}
+          direccion={direccion}
+          esAdmin={sesion.rol === "ADMIN_EMPRESA"}
         />
         <DashboardDataRegion>
           <div className="flex flex-col gap-3.5 sm:gap-5">
