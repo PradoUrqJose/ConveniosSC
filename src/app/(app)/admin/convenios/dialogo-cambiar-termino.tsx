@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { formatearFechaUI, hoyLima } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
@@ -105,18 +105,18 @@ export function DialogoCambiarTermino({
   useDialogFormError(estado, formulario, "error-cambiar-descuento");
 
   return (
-    <DialogContent pending={pendiente} className="sm:max-w-md">
-      <DialogHeader
-        icon={<Percent />}
+    <CapaContenido pendiente={pendiente} className="sm:max-w-md">
+      <CapaEncabezado
+        icono={<Percent />}
         tone="warning"
         eyebrow="Condiciones del convenio"
       >
-        <DialogTitle>Cambiar descuento</DialogTitle>
-        <DialogDescription>
+        <CapaTitulo>Cambiar descuento</CapaTitulo>
+        <CapaDescripcion>
           Se cierra el término vigente y se abre uno nuevo desde la fecha
           elegida.
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
       <fieldset className="flex flex-col gap-1">
         <legend className="text-sm font-medium">Dirección</legend>
@@ -141,7 +141,7 @@ export function DialogoCambiarTermino({
         </div>
       </fieldset>
 
-      <DialogForm
+      <CapaFormulario
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -210,15 +210,13 @@ export function DialogoCambiarTermino({
           </p>
         ) : null}
 
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
+        <CapaPie className="mt-2">
+          <CapaCerrar>Cancelar</CapaCerrar>
           <Button type="submit" disabled={pendiente}>
             {pendiente ? "Aplicando…" : "Confirmar cambio"}
           </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

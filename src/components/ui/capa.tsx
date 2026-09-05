@@ -13,6 +13,7 @@ import {
   DialogForm,
   DialogHeader,
   DialogTitle,
+  type DialogTone,
 } from "@/components/ui/dialog";
 import {
   MobileSheet,
@@ -141,18 +142,21 @@ export function CapaEncabezado({
   children,
   icono,
   eyebrow,
+  tone,
   className,
 }: {
   children: React.ReactNode;
   /** Solo escritorio: en móvil el doc §5 pide título grande, sin eyebrow. */
   icono?: React.ReactNode;
   eyebrow?: string;
+  /** Solo escritorio: el sheet no tiñe su encabezado por tono. */
+  tone?: DialogTone;
   className?: string;
 }) {
   const { movil } = useCapa();
   if (movil) return <MobileSheetEncabezado>{children}</MobileSheetEncabezado>;
   return (
-    <DialogHeader icon={icono} eyebrow={eyebrow} className={className}>
+    <DialogHeader icon={icono} eyebrow={eyebrow} tone={tone} className={className}>
       {children}
     </DialogHeader>
   );

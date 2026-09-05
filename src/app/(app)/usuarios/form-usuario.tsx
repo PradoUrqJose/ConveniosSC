@@ -18,14 +18,14 @@ import { Switch } from "@/components/ui/switch";
 import { SelectorAsincrono } from "@/components/selector-asincrono";
 import { SelectorLocal } from "@/components/selector-local";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import type { Resultado } from "@/lib/tipos";
 import {
@@ -125,22 +125,22 @@ export function FormUsuario({
   const esSuperadminRol = rol === "SUPERADMIN";
 
   return (
-    <DialogContent pending={pendiente} className="sm:max-w-lg">
-      <DialogHeader
-        icon={esEdicion ? <UserCog /> : <UserPlus />}
+    <CapaContenido pendiente={pendiente} className="sm:max-w-lg">
+      <CapaEncabezado
+        icono={esEdicion ? <UserCog /> : <UserPlus />}
         eyebrow="Gestión de accesos"
       >
-        <DialogTitle>
+        <CapaTitulo>
           {esEdicion ? "Editar usuario" : "Crear usuario"}
-        </DialogTitle>
-        <DialogDescription>
+        </CapaTitulo>
+        <CapaDescripcion>
           {esEdicion
             ? `@${usuario!.username} · el username no se puede cambiar.`
             : "Se generará una contraseña temporal que se muestra una sola vez."}
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
-      <DialogForm
+      <CapaFormulario
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -297,10 +297,8 @@ export function FormUsuario({
           </p>
         ) : null}
 
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
+        <CapaPie className="mt-2">
+          <CapaCerrar>Cancelar</CapaCerrar>
           <Button type="submit" disabled={pendiente}>
             {pendiente
               ? "Guardando…"
@@ -308,8 +306,8 @@ export function FormUsuario({
                 ? "Guardar cambios"
                 : "Crear usuario"}
           </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

@@ -9,14 +9,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { formatearFechaUI } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
@@ -74,19 +74,19 @@ export function FormEditarConvenio({
   useDialogFormError(estado, formulario, "error-form-editar-convenio");
 
   return (
-    <DialogContent pending={pendiente} className="sm:max-w-md">
-      <DialogHeader
-        icon={<Handshake />}
+    <CapaContenido pendiente={pendiente} className="sm:max-w-md">
+      <CapaEncabezado
+        icono={<Handshake />}
         tone="warning"
         eyebrow="Gestión de convenios"
       >
-        <DialogTitle>Editar convenio</DialogTitle>
-        <DialogDescription>
+        <CapaTitulo>Editar convenio</CapaTitulo>
+        <CapaDescripcion>
           {convenio.empresaA.nombre} ⇄ {convenio.empresaB.nombre}
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
-      <DialogForm
+      <CapaFormulario
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -152,15 +152,13 @@ export function FormEditarConvenio({
           </p>
         ) : null}
 
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
+        <CapaPie className="mt-2">
+          <CapaCerrar>Cancelar</CapaCerrar>
           <Button type="submit" disabled={pendiente}>
             {pendiente ? "Guardando…" : "Guardar cambios"}
           </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

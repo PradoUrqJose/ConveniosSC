@@ -11,14 +11,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { SelectorLocal } from "@/components/selector-local";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { hoyLima } from "@/lib/fechas";
 import type { Resultado } from "@/lib/tipos";
@@ -74,15 +74,15 @@ export function FormConvenio({
   useDialogFormError(estado, formulario, "error-form-convenio");
 
   return (
-    <DialogContent pending={pendiente} className="sm:max-w-lg">
-      <DialogHeader icon={<Handshake />} eyebrow="Gestión de convenios">
-        <DialogTitle>Crear convenio</DialogTitle>
-        <DialogDescription>
+    <CapaContenido pendiente={pendiente} className="sm:max-w-lg">
+      <CapaEncabezado icono={<Handshake />} eyebrow="Gestión de convenios">
+        <CapaTitulo>Crear convenio</CapaTitulo>
+        <CapaDescripcion>
           Un convenio une dos empresas con descuentos direccionales.
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
-      <DialogForm
+      <CapaFormulario
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -244,15 +244,13 @@ export function FormConvenio({
           </p>
         ) : null}
 
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
+        <CapaPie className="mt-2">
+          <CapaCerrar>Cancelar</CapaCerrar>
           <Button type="submit" disabled={pendiente || !empresaX || !empresaY}>
             {pendiente ? "Creando…" : "Crear convenio"}
           </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

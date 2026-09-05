@@ -10,14 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import { useDialogFormError } from "@/components/ui/use-dialog-form-error";
 import { actualizarEmpresa, crearEmpresa } from "@/modules/empresas/actions";
 import type { FilaEmpresa } from "@/modules/empresas/query";
@@ -86,19 +86,19 @@ export function FormEmpresa({
   const desactiva = esEdicion && !activo && (empresa?.activo ?? true);
 
   return (
-    <DialogContent pending={pendiente} className="sm:max-w-lg">
-      <DialogHeader icon={<Building2 />} eyebrow="Directorio empresarial">
-        <DialogTitle>
+    <CapaContenido pendiente={pendiente} className="sm:max-w-lg">
+      <CapaEncabezado icono={<Building2 />} eyebrow="Directorio empresarial">
+        <CapaTitulo>
           {esEdicion ? "Editar empresa" : "Crear empresa"}
-        </DialogTitle>
-        <DialogDescription>
+        </CapaTitulo>
+        <CapaDescripcion>
           {esEdicion
             ? "Actualiza los datos de la empresa."
             : "Se creará la empresa con su sede «Principal»."}
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
-      <DialogForm
+      <CapaFormulario
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -251,10 +251,8 @@ export function FormEmpresa({
           </p>
         ) : null}
 
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
+        <CapaPie className="mt-2">
+          <CapaCerrar>Cancelar</CapaCerrar>
           <Button
             type="submit"
             disabled={pendiente || (desactiva && !confirmaDesactivar)}
@@ -265,8 +263,8 @@ export function FormEmpresa({
                 ? "Guardar cambios"
                 : "Crear empresa"}
           </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

@@ -15,16 +15,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog } from "@/components/ui/dialog";
+import {
+  Capa,
+  CapaContenido,
+  CapaCuerpo,
+  CapaEncabezado,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
+import { FiltrosMovil } from "@/components/ui/filtros-movil";
+import type { GrupoFiltro } from "@/lib/capas-movil";
+import { FilaCatalogoMovil } from "@/components/shell/catalogo-movil";
 import type { Pagina } from "@/lib/tipos";
 import type { FilaEmpresa } from "@/modules/empresas/query";
 import { FormEmpresa } from "./form-empresa";
 import {
   CabeceraPagina,
+  CampoDetalle,
   EstadoSinResultados,
 } from "@/components/shell/pagina-ui";
 
-type Dialogo = { modo: "crear" } | { modo: "editar"; empresa: FilaEmpresa };
+type Dialogo =
+  | { modo: "crear" }
+  | { modo: "editar"; empresa: FilaEmpresa }
+  | { modo: "detalle"; empresa: FilaEmpresa };
+
+const GRUPOS_FILTRO: GrupoFiltro[] = [
+  {
+    id: "activo",
+    etiqueta: "Estado",
+    opciones: [
+      { valor: "", etiqueta: "Todos los estados" },
+      { valor: "true", etiqueta: "Activas" },
+      { valor: "false", etiqueta: "Inactivas" },
+    ],
+  },
+];
 
 export function EmpresasClient({
   pagina,
@@ -133,22 +159,35 @@ export function EmpresasClient({
 
       <form
         role="search"
-        className="control-bar flex flex-wrap items-center gap-2"
+        className="control-bar flex items-center gap-2"
         onSubmit={(evento) => {
           evento.preventDefault();
           actualizarFiltros({ q: consulta });
         }}
       >
-        <div className="relative flex-1">
+        {/* El buscador y el único select competían por el mismo ancho y a
+            320-390px el buscador terminaba recortado (issue #68). El select
+            baja al sheet de filtros en móvil; en escritorio sigue visible
+            tal cual estaba. */}
+        <div className="relative min-w-0 flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
           <Input
             name="q"
             value={consulta}
             onChange={(evento) => setConsulta(evento.target.value)}
             placeholder="Buscar por nombre o RUC"
-            className="bg-muted/70 h-11 rounded-xl border-0 pl-9"
+            className="bg-muted/70 h-11 w-full rounded-xl border-0 pl-9"
           />
         </div>
+        <FiltrosMovil
+          grupos={GRUPOS_FILTRO}
+          valores={{ activo: estadoFiltro }}
+          alAplicar={(valores) => {
+            const valor = valores.activo ?? "";
+            setEstadoFiltro(valor);
+            actualizarFiltros({ activo: valor || null });
+          }}
+        />
         <select
           name="activo"
           value={estadoFiltro}
@@ -158,7 +197,7 @@ export function EmpresasClient({
             actualizarFiltros({ activo: valor || null });
           }}
           aria-label="Filtrar por estado"
-          className="border-input bg-background h-11 rounded-xl border px-3 text-sm"
+          className="border-input bg-background hidden h-11 rounded-xl border px-3 text-sm lg:block"
         >
           <option value="">Todos los estados</option>
           <option value="true">Activas</option>
@@ -182,68 +221,108 @@ export function EmpresasClient({
           }}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {pagina.items.map((empresa) => (
-            <Card
-              key={empresa.id}
-              className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-            >
-              <CardContent className="flex h-full flex-col gap-3 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2.5">
-                      <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
-                        <Building2 className="size-4" />
-                      </span>
-                      <h2
-                        className="truncate font-bold"
-                        title={empresa.nombreComercial}
-                      >
-                        {empresa.nombreComercial}
-                      </h2>
-                    </div>
-                    <p
-                      className="text-muted-foreground mt-2 truncate text-sm"
-                      title={empresa.razonSocial}
-                    >
-                      {empresa.razonSocial}
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      RUC <span className="font-mono">{empresa.ruc}</span>
-                    </p>
-                  </div>
+        <>
+          {/* Móvil (issue #68): mismo patrón de fila compacta de Sedes y
+              Empleados — identidad, RUC, resumen y estado en 64px, toda la
+              fila abre el detalle; "Editar" se muda al pie de ese sheet. */}
+          <div className="divide-y lg:hidden">
+            {pagina.items.map((empresa) => (
+              <FilaCatalogoMovil
+                key={empresa.id}
+                icono={<Building2 className="size-4.5" />}
+                titulo={empresa.nombreComercial}
+                ariaLabel={`Ver detalle de ${empresa.nombreComercial}, ${empresa.activo ? "activa" : "inactiva"}`}
+                onClick={() => setDialogo({ modo: "detalle", empresa })}
+                badge={
                   <Badge variant={empresa.activo ? "success" : "secondary"}>
                     {empresa.activo ? "Activa" : "Inactiva"}
                   </Badge>
-                </div>
+                }
+                meta={
+                  <>
+                    RUC {empresa.ruc}
+                    <span>·</span>
+                    {empresa.totalUsuarios} usuarios
+                    <span>·</span>
+                    {empresa.totalEmpleados} empleados
+                  </>
+                }
+              />
+            ))}
+          </div>
+          <div className="hidden grid-cols-1 gap-4 md:grid-cols-2 lg:grid xl:grid-cols-3">
+            {pagina.items.map((empresa) => (
+              <Card
+                key={empresa.id}
+                className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                <CardContent className="flex h-full flex-col gap-3 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2.5">
+                        <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
+                          <Building2 className="size-4" />
+                        </span>
+                        <h2
+                          className="truncate font-bold"
+                          title={empresa.nombreComercial}
+                        >
+                          {empresa.nombreComercial}
+                        </h2>
+                      </div>
+                      <p
+                        className="text-muted-foreground mt-2 truncate text-sm"
+                        title={empresa.razonSocial}
+                      >
+                        {empresa.razonSocial}
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        RUC <span className="font-mono">{empresa.ruc}</span>
+                      </p>
+                    </div>
+                    <Badge variant={empresa.activo ? "success" : "secondary"}>
+                      {empresa.activo ? "Activa" : "Inactiva"}
+                    </Badge>
+                  </div>
 
-                <dl className="mt-1 grid grid-cols-3 gap-2 text-center text-sm">
-                  <div className="bg-muted/60 rounded-lg px-2 py-2">
-                    <dt className="text-muted-foreground text-xs">Usuarios</dt>
-                    <dd className="font-semibold">{empresa.totalUsuarios}</dd>
-                  </div>
-                  <div className="bg-muted/60 rounded-lg px-2 py-2">
-                    <dt className="text-muted-foreground text-xs">Empleados</dt>
-                    <dd className="font-semibold">{empresa.totalEmpleados}</dd>
-                  </div>
-                  <div className="bg-muted/60 rounded-lg px-2 py-2">
-                    <dt className="text-muted-foreground text-xs">Convenios</dt>
-                    <dd className="font-semibold">{empresa.totalConvenios}</dd>
-                  </div>
-                </dl>
+                  <dl className="mt-1 grid grid-cols-3 gap-2 text-center text-sm">
+                    <div className="bg-muted/60 rounded-lg px-2 py-2">
+                      <dt className="text-muted-foreground text-xs">
+                        Usuarios
+                      </dt>
+                      <dd className="font-semibold">{empresa.totalUsuarios}</dd>
+                    </div>
+                    <div className="bg-muted/60 rounded-lg px-2 py-2">
+                      <dt className="text-muted-foreground text-xs">
+                        Empleados
+                      </dt>
+                      <dd className="font-semibold">
+                        {empresa.totalEmpleados}
+                      </dd>
+                    </div>
+                    <div className="bg-muted/60 rounded-lg px-2 py-2">
+                      <dt className="text-muted-foreground text-xs">
+                        Convenios
+                      </dt>
+                      <dd className="font-semibold">
+                        {empresa.totalConvenios}
+                      </dd>
+                    </div>
+                  </dl>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-auto self-start"
-                  onClick={() => setDialogo({ modo: "editar", empresa })}
-                >
-                  Editar
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-auto self-start"
+                    onClick={() => setDialogo({ modo: "editar", empresa })}
+                  >
+                    Editar
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       {pagina.items.length > 0 ? (
@@ -302,17 +381,73 @@ export function EmpresasClient({
       ) : null}
 
       {dialogo ? (
-        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
-          <FormEmpresa
-            empresa={dialogo.modo === "editar" ? dialogo.empresa : null}
-            onCerrar={() => setDialogo(null)}
-          />
-        </Dialog>
+        <Capa
+          abierto
+          alCerrar={() => setDialogo(null)}
+          variante={dialogo.modo === "detalle" ? "detail" : "form"}
+        >
+          {dialogo.modo === "detalle" ? (
+            <DetalleEmpresa
+              empresa={dialogo.empresa}
+              onEditar={() =>
+                setDialogo({ modo: "editar", empresa: dialogo.empresa })
+              }
+            />
+          ) : (
+            <FormEmpresa
+              empresa={dialogo.modo === "editar" ? dialogo.empresa : null}
+              onCerrar={() => setDialogo(null)}
+            />
+          )}
+        </Capa>
       ) : null}
 
       <div className="sr-only" aria-live="polite">
         {q ? `Búsqueda: ${q}` : ""}
       </div>
     </section>
+  );
+}
+
+function DetalleEmpresa({
+  empresa,
+  onEditar,
+}: {
+  empresa: FilaEmpresa;
+  onEditar: () => void;
+}) {
+  return (
+    <CapaContenido variante="detail" className="sm:max-w-md">
+      <CapaEncabezado icono={<Building2 />} eyebrow="Ficha de la empresa">
+        <CapaTitulo>{empresa.nombreComercial}</CapaTitulo>
+      </CapaEncabezado>
+      <CapaCuerpo>
+        <dl className="divide-border/70 bg-muted/15 overflow-hidden rounded-[var(--radius-control)] border text-sm">
+          <CampoDetalle etiqueta="Estado">
+            <Badge variant={empresa.activo ? "success" : "secondary"}>
+              {empresa.activo ? "Activa" : "Inactiva"}
+            </Badge>
+          </CampoDetalle>
+          <CampoDetalle etiqueta="Razón social">
+            {empresa.razonSocial}
+          </CampoDetalle>
+          <CampoDetalle etiqueta="RUC">{empresa.ruc}</CampoDetalle>
+          <CampoDetalle etiqueta="Usuarios">
+            {empresa.totalUsuarios}
+          </CampoDetalle>
+          <CampoDetalle etiqueta="Empleados">
+            {empresa.totalEmpleados}
+          </CampoDetalle>
+          <CampoDetalle etiqueta="Convenios">
+            {empresa.totalConvenios}
+          </CampoDetalle>
+        </dl>
+      </CapaCuerpo>
+      <CapaPie>
+        <Button onClick={onEditar} className="w-full">
+          Editar empresa
+        </Button>
+      </CapaPie>
+    </CapaContenido>
   );
 }

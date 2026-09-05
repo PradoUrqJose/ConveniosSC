@@ -5,14 +5,14 @@ import { KeyRound } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogForm,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  CapaCerrar,
+  CapaContenido,
+  CapaDescripcion,
+  CapaEncabezado,
+  CapaFormulario,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import type { Resultado } from "@/lib/tipos";
 import { resetearPassword } from "@/modules/usuarios/actions";
 import type { FilaUsuario } from "@/modules/usuarios/query";
@@ -52,20 +52,24 @@ export function DialogoResetear({
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
 
   return (
-    <DialogContent pending={pendiente} variant="secret" className="sm:max-w-md">
-      <DialogHeader
-        icon={<KeyRound />}
+    <CapaContenido
+      pendiente={pendiente}
+      variante="secret"
+      className="sm:max-w-md"
+    >
+      <CapaEncabezado
+        icono={<KeyRound />}
         tone="warning"
         eyebrow="Seguridad de cuenta"
       >
-        <DialogTitle>Restablecer contraseña</DialogTitle>
-        <DialogDescription>
+        <CapaTitulo>Restablecer contraseña</CapaTitulo>
+        <CapaDescripcion>
           Se generará una nueva contraseña temporal para @{usuario.username} y
           se revocarán todas sus sesiones.
-        </DialogDescription>
-      </DialogHeader>
+        </CapaDescripcion>
+      </CapaEncabezado>
 
-      <DialogForm
+      <CapaFormulario
         ref={formulario}
         action={formAction}
         className="flex flex-col gap-4"
@@ -78,15 +82,13 @@ export function DialogoResetear({
           </p>
         ) : null}
 
-        <DialogFooter className="mt-2">
-          <DialogClose render={<Button variant="outline" />}>
-            Cancelar
-          </DialogClose>
+        <CapaPie className="mt-2">
+          <CapaCerrar>Cancelar</CapaCerrar>
           <Button type="submit" disabled={pendiente}>
             {pendiente ? "Restableciendo…" : "Restablecer contraseña"}
           </Button>
-        </DialogFooter>
-      </DialogForm>
-    </DialogContent>
+        </CapaPie>
+      </CapaFormulario>
+    </CapaContenido>
   );
 }

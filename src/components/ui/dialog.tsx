@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type DialogVariant = "form" | "confirm" | "detail" | "secret";
-type DialogTone = "default" | "destructive" | "warning" | "success";
+export type DialogTone = "default" | "destructive" | "warning" | "success";
 
 type CloseAttempt = {
   reason: DialogPrimitive.Root.ChangeEventReason;

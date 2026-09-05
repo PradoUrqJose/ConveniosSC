@@ -10,13 +10,22 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Capa } from "@/components/ui/capa";
+import {
+  Capa,
+  CapaContenido,
+  CapaCuerpo,
+  CapaEncabezado,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import { FiltrosMovil } from "@/components/ui/filtros-movil";
 import type { GrupoFiltro } from "@/lib/capas-movil";
 import { SelectorLocal } from "@/components/selector-local";
+import { FilaCatalogoMovil } from "@/components/shell/catalogo-movil";
 import { FormSede } from "./form-sede";
 import {
   CabeceraPagina,
+  CampoDetalle,
   EstadoSinResultados,
   Metrica,
 } from "@/components/shell/pagina-ui";
@@ -45,7 +54,10 @@ export function SedesClient({
   const router = useRouter();
   const searchParams = useSearchParams();
   const [dialogo, setDialogo] = useState<
-    { modo: "crear" } | { modo: "editar"; sede: FilaSede } | null
+    | { modo: "crear" }
+    | { modo: "editar"; sede: FilaSede }
+    | { modo: "detalle"; sede: FilaSede }
+    | null
   >(null);
   const [empresaSeleccionada, setEmpresaSeleccionada] = useState(
     empresaFiltro?.id ?? "",
@@ -250,64 +262,102 @@ export function SedesClient({
           }}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sedes.map((sede) => (
-            <Card
-              key={sede.id}
-              className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-            >
-              <CardContent className="flex h-full min-h-64 flex-col gap-4 p-5">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
-                        <Store className="size-4" />
-                      </span>
-                      <h2 className="line-clamp-2 font-semibold">
-                        {sede.nombre}
-                      </h2>
-                    </div>
-                    {esSuperadmin ? (
-                      <p
-                        className="text-muted-foreground mt-2 truncate text-sm"
-                        title={sede.empresaNombre}
-                      >
-                        {sede.empresaNombre}
-                      </p>
-                    ) : null}
-                    <p className="text-muted-foreground mt-3 flex min-h-10 items-start gap-1.5 text-sm leading-5">
-                      <MapPin className="mt-0.5 size-3.5 shrink-0" />
-                      <span className="line-clamp-2">
-                        {sede.direccion ?? "Sin dirección registrada"}
-                      </span>
-                    </p>
-                  </div>
+        <>
+          {/* Móvil (issue #68): la tarjeta con mucho vacío baja a una fila
+              compacta de 64px —nombre, empresa (superadmin), dirección y
+              estado— que abre el detalle. "Editar" ya no es un botón de la
+              fila: vive en el pie del detalle, igual que en Empleados. */}
+          <div className="divide-y lg:hidden">
+            {sedes.map((sede) => (
+              <FilaCatalogoMovil
+                key={sede.id}
+                icono={<Store className="size-4.5" />}
+                titulo={sede.nombre}
+                ariaLabel={`Ver detalle de ${sede.nombre}, ${sede.activo ? "activa" : "inactiva"}`}
+                onClick={() => setDialogo({ modo: "detalle", sede })}
+                badge={
                   <Badge variant={sede.activo ? "success" : "secondary"}>
                     {sede.activo ? "Activa" : "Inactiva"}
                   </Badge>
-                </div>
+                }
+                meta={
+                  <>
+                    {esSuperadmin ? (
+                      <>
+                        <span className="truncate">{sede.empresaNombre}</span>
+                        <span>·</span>
+                      </>
+                    ) : null}
+                    <span className="truncate">
+                      {sede.direccion ?? "Sin dirección"}
+                    </span>
+                    <span>·</span>
+                    {sede.totalVentas30d} venta
+                    {sede.totalVentas30d === 1 ? "" : "s"}
+                  </>
+                }
+              />
+            ))}
+          </div>
+          <div className="hidden grid-cols-1 gap-4 sm:grid-cols-2 lg:grid xl:grid-cols-3">
+            {sedes.map((sede) => (
+              <Card
+                key={sede.id}
+                className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+              >
+                <CardContent className="flex h-full min-h-64 flex-col gap-4 p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="bg-primary/10 text-primary grid size-9 shrink-0 place-items-center rounded-xl">
+                          <Store className="size-4" />
+                        </span>
+                        <h2 className="line-clamp-2 font-semibold">
+                          {sede.nombre}
+                        </h2>
+                      </div>
+                      {esSuperadmin ? (
+                        <p
+                          className="text-muted-foreground mt-2 truncate text-sm"
+                          title={sede.empresaNombre}
+                        >
+                          {sede.empresaNombre}
+                        </p>
+                      ) : null}
+                      <p className="text-muted-foreground mt-3 flex min-h-10 items-start gap-1.5 text-sm leading-5">
+                        <MapPin className="mt-0.5 size-3.5 shrink-0" />
+                        <span className="line-clamp-2">
+                          {sede.direccion ?? "Sin dirección registrada"}
+                        </span>
+                      </p>
+                    </div>
+                    <Badge variant={sede.activo ? "success" : "secondary"}>
+                      {sede.activo ? "Activa" : "Inactiva"}
+                    </Badge>
+                  </div>
 
-                <div className="bg-muted/65 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm">
-                  <span className="text-muted-foreground">
-                    Ventas en 30 días
-                  </span>
-                  <strong>{sede.totalVentas30d}</strong>
-                </div>
+                  <div className="bg-muted/65 flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-sm">
+                    <span className="text-muted-foreground">
+                      Ventas en 30 días
+                    </span>
+                    <strong>{sede.totalVentas30d}</strong>
+                  </div>
 
-                {puedeGestionar ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-auto self-start"
-                    onClick={() => setDialogo({ modo: "editar", sede })}
-                  >
-                    Editar
-                  </Button>
-                ) : null}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                  {puedeGestionar ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="mt-auto self-start"
+                      onClick={() => setDialogo({ modo: "editar", sede })}
+                    >
+                      Editar
+                    </Button>
+                  ) : null}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </>
       )}
 
       {pagina.cursor ? (
@@ -329,17 +379,79 @@ export function SedesClient({
       ) : null}
 
       {dialogo ? (
-        <Capa abierto alCerrar={() => setDialogo(null)}>
-          <FormSede
-            sede={dialogo.modo === "editar" ? dialogo.sede : null}
-            empresaId={empresaId}
-            esUltimaActiva={
-              activas === 1 && dialogo.modo === "editar" && dialogo.sede.activo
-            }
-            onCerrar={() => setDialogo(null)}
-          />
+        <Capa
+          abierto
+          alCerrar={() => setDialogo(null)}
+          variante={dialogo.modo === "detalle" ? "detail" : "form"}
+        >
+          {dialogo.modo === "detalle" ? (
+            <DetalleSede
+              sede={dialogo.sede}
+              esSuperadmin={esSuperadmin}
+              puedeGestionar={puedeGestionar}
+              onEditar={() =>
+                setDialogo({ modo: "editar", sede: dialogo.sede })
+              }
+            />
+          ) : (
+            <FormSede
+              sede={dialogo.modo === "editar" ? dialogo.sede : null}
+              empresaId={empresaId}
+              esUltimaActiva={
+                activas === 1 &&
+                dialogo.modo === "editar" &&
+                dialogo.sede.activo
+              }
+              onCerrar={() => setDialogo(null)}
+            />
+          )}
         </Capa>
       ) : null}
     </section>
+  );
+}
+
+function DetalleSede({
+  sede,
+  esSuperadmin,
+  puedeGestionar,
+  onEditar,
+}: {
+  sede: FilaSede;
+  esSuperadmin: boolean;
+  puedeGestionar: boolean;
+  onEditar: () => void;
+}) {
+  return (
+    <CapaContenido variante="detail" className="sm:max-w-md">
+      <CapaEncabezado icono={<Store />} eyebrow="Ficha de la sede">
+        <CapaTitulo>{sede.nombre}</CapaTitulo>
+      </CapaEncabezado>
+      <CapaCuerpo>
+        <dl className="divide-border/70 bg-muted/15 overflow-hidden rounded-[var(--radius-control)] border text-sm">
+          <CampoDetalle etiqueta="Estado">
+            <Badge variant={sede.activo ? "success" : "secondary"}>
+              {sede.activo ? "Activa" : "Inactiva"}
+            </Badge>
+          </CampoDetalle>
+          {esSuperadmin ? (
+            <CampoDetalle etiqueta="Empresa">{sede.empresaNombre}</CampoDetalle>
+          ) : null}
+          <CampoDetalle etiqueta="Dirección">
+            {sede.direccion ?? "Sin dirección registrada"}
+          </CampoDetalle>
+          <CampoDetalle etiqueta="Ventas (30 días)">
+            {sede.totalVentas30d}
+          </CampoDetalle>
+        </dl>
+      </CapaCuerpo>
+      {puedeGestionar ? (
+        <CapaPie>
+          <Button onClick={onEditar} className="w-full">
+            Editar sede
+          </Button>
+        </CapaPie>
+      ) : null}
+    </CapaContenido>
   );
 }

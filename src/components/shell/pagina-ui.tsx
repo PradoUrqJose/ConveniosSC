@@ -461,3 +461,23 @@ export function IndicadorPendienteSuperficie({
     </div>
   );
 }
+
+/**
+ * Fila `dt`/`dd` de un panel de detalle (issue #67/#68): etiqueta a la
+ * izquierda, valor alineado a la derecha. Antes se repetía a mano en cada
+ * sheet de detalle; ahora es un único lugar para ese layout.
+ */
+export function CampoDetalle({
+  etiqueta,
+  children,
+}: {
+  etiqueta: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex justify-between gap-4 px-4 py-3">
+      <dt className="text-muted-foreground">{etiqueta}</dt>
+      <dd className="text-right">{children}</dd>
+    </div>
+  );
+}

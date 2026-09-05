@@ -18,7 +18,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog } from "@/components/ui/dialog";
+import {
+  Capa,
+  CapaContenido,
+  CapaCuerpo,
+  CapaEncabezado,
+  CapaPie,
+  CapaTitulo,
+} from "@/components/ui/capa";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +33,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { FiltrosMovil } from "@/components/ui/filtros-movil";
+import type { GrupoFiltro } from "@/lib/capas-movil";
+import { FilaCatalogoMovil } from "@/components/shell/catalogo-movil";
 import { SelectorAsincrono } from "@/components/selector-asincrono";
 import { formatearFechaHoraLima } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
@@ -40,6 +50,7 @@ import { DialogoPassword } from "./dialogo-password";
 import { BotonDesbloquear } from "./boton-desbloquear";
 import {
   CabeceraPagina,
+  CampoDetalle,
   EstadoSinResultados,
 } from "@/components/shell/pagina-ui";
 
@@ -47,7 +58,29 @@ type Dialogo =
   | { tipo: "crear" }
   | { tipo: "editar"; usuario: FilaUsuario }
   | { tipo: "reset"; usuario: FilaUsuario }
-  | { tipo: "desactivar"; usuario: FilaUsuario };
+  | { tipo: "desactivar"; usuario: FilaUsuario }
+  | { tipo: "detalle"; usuario: FilaUsuario };
+
+const ROLES_FILTRO: GrupoFiltro = {
+  id: "rol",
+  etiqueta: "Rol",
+  opciones: [
+    { valor: "", etiqueta: "Todos los roles" },
+    { valor: "SUPERADMIN", etiqueta: "Admin. general" },
+    { valor: "ADMIN_EMPRESA", etiqueta: "Administrador" },
+    { valor: "VENDEDOR", etiqueta: "Vendedor" },
+  ],
+};
+
+const ESTADO_FILTRO: GrupoFiltro = {
+  id: "estado",
+  etiqueta: "Estado",
+  opciones: [
+    { valor: "", etiqueta: "Todos los estados" },
+    { valor: "activos", etiqueta: "Activos" },
+    { valor: "inactivos", etiqueta: "Inactivos" },
+  ],
+};
 
 const CENTINELA_PRIMERA_PAGINA = "-";
 
@@ -193,9 +226,63 @@ export function UsuariosClient({
         }
       />
 
+      {/* Móvil (issue #68): de cuatro filtros siempre visibles a dos —
+          buscador y empresa siguen siendo campos de búsqueda propios— más
+          un sheet para rol/estado. Escritorio conserva la grilla de cuatro
+          controles tal cual estaba. */}
+      <div role="search" className="control-bar flex flex-col gap-2 lg:hidden">
+        <div className="flex min-w-0 gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
+            <Input
+              value={consulta}
+              onChange={(evento) => setConsulta(evento.target.value)}
+              placeholder="Buscar por username o nombre"
+              className="bg-muted/70 h-11 w-full rounded-xl border-0 pl-9"
+            />
+          </div>
+          <FiltrosMovil
+            grupos={[ROLES_FILTRO, ESTADO_FILTRO]}
+            valores={{
+              rol: rol ?? "",
+              estado:
+                activo === true
+                  ? "activos"
+                  : activo === false
+                    ? "inactivos"
+                    : "",
+            }}
+            alAplicar={(valores) =>
+              router.replace(
+                urlDe({
+                  rol: valores.rol || null,
+                  estado: valores.estado || null,
+                }),
+                { scroll: false },
+              )
+            }
+          />
+        </div>
+        <SelectorAsincrono
+          id="empresa-movil"
+          name="empresa"
+          value={empresaSeleccionada}
+          etiquetaInicial={empresaFiltro?.nombreComercial}
+          buscar={buscarEmpresas}
+          onChange={(empresa) => {
+            setEmpresaSeleccionada(empresa);
+            router.replace(urlDe({ empresa: empresa || null }), {
+              scroll: false,
+            });
+          }}
+          placeholder="Filtrar por empresa"
+          className="bg-background h-11 rounded-xl"
+        />
+      </div>
+
       <div
         role="search"
-        className="control-bar grid gap-2 lg:grid-cols-[minmax(0,1fr)_13rem_16rem_13rem]"
+        className="control-bar hidden gap-2 lg:grid lg:grid-cols-[minmax(0,1fr)_13rem_16rem_13rem]"
       >
         <div className="relative flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-2.5 size-4 -translate-y-1/2" />
@@ -269,135 +356,179 @@ export function UsuariosClient({
           }}
         />
       ) : (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {pagina.items.map((u) => {
-            const esUnoMismo = u.id === yoUsuarioId;
-            return (
-              <Card
+        <>
+          {/* Móvil (issue #68): fila compacta —identidad, rol, empresa,
+              estado y actividad— que abre el detalle. Ahí se consolidan
+              Editar/Restablecer/Bloquear/Desactivar en un solo pie: el "···"
+              de 28px de escritorio no tiene equivalente táctil aquí porque
+              ya no compite con nada más en la fila. */}
+          <div className="divide-y lg:hidden">
+            {pagina.items.map((u) => (
+              <FilaCatalogoMovil
                 key={u.id}
-                className="bg-card/90 rounded-[1.35rem] p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-start gap-3">
-                    <span className="from-primary/15 text-primary grid size-11 shrink-0 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 text-xs font-extrabold">
-                      {`${u.nombres[0] ?? ""}${u.apellidos[0] ?? ""}`.toUpperCase()}
-                    </span>
-                    <div className="flex min-w-0 flex-col gap-1">
-                      <div className="min-w-0">
-                        <span className="block leading-5 font-bold break-words">
-                          {u.nombres} {u.apellidos}
-                        </span>
-                        <span
-                          className="text-muted-foreground block truncate text-sm"
-                          title={`@${u.username}`}
-                        >
-                          @{u.username}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-sm">
-                        <RolBadge rol={u.rol} />
-                        {u.empresaNombre ? (
-                          <span className="text-muted-foreground">
-                            <span
-                              className="line-clamp-1"
-                              title={u.empresaNombre}
-                            >
-                              {u.empresaNombre}
-                            </span>
+                icono={
+                  <span className="text-xs font-extrabold">
+                    {`${u.nombres[0] ?? ""}${u.apellidos[0] ?? ""}`.toUpperCase()}
+                  </span>
+                }
+                titulo={`${u.nombres} ${u.apellidos}`}
+                ariaLabel={`Ver detalle de @${u.username}, ${u.activo ? "activo" : "inactivo"}`}
+                onClick={() => setDialogo({ tipo: "detalle", usuario: u })}
+                badge={
+                  u.bloqueado ? (
+                    <Badge variant="destructive">Bloqueado</Badge>
+                  ) : u.activo ? (
+                    <Badge variant="success">Activo</Badge>
+                  ) : (
+                    <Badge variant="secondary">Inactivo</Badge>
+                  )
+                }
+                meta={
+                  <>
+                    @{u.username}
+                    <span>·</span>
+                    {NOMBRE_ROL[u.rol]}
+                    {u.empresaNombre ? (
+                      <>
+                        <span>·</span>
+                        <span className="truncate">{u.empresaNombre}</span>
+                      </>
+                    ) : null}
+                  </>
+                }
+              />
+            ))}
+          </div>
+          <div className="hidden gap-4 lg:grid xl:grid-cols-2">
+            {pagina.items.map((u) => {
+              const esUnoMismo = u.id === yoUsuarioId;
+              return (
+                <Card
+                  key={u.id}
+                  className="bg-card/90 rounded-[1.35rem] p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="from-primary/15 text-primary grid size-11 shrink-0 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 text-xs font-extrabold">
+                        {`${u.nombres[0] ?? ""}${u.apellidos[0] ?? ""}`.toUpperCase()}
+                      </span>
+                      <div className="flex min-w-0 flex-col gap-1">
+                        <div className="min-w-0">
+                          <span className="block leading-5 font-bold break-words">
+                            {u.nombres} {u.apellidos}
                           </span>
-                        ) : null}
-                        {u.debeCambiarPassword ? (
-                          <Badge variant="secondary">
-                            Cambio de contraseña pendiente
-                          </Badge>
-                        ) : null}
-                        {u.bloqueado ? (
-                          <Badge variant="destructive">Bloqueado</Badge>
-                        ) : null}
+                          <span
+                            className="text-muted-foreground block truncate text-sm"
+                            title={`@${u.username}`}
+                          >
+                            @{u.username}
+                          </span>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 text-sm">
+                          <RolBadge rol={u.rol} />
+                          {u.empresaNombre ? (
+                            <span className="text-muted-foreground">
+                              <span
+                                className="line-clamp-1"
+                                title={u.empresaNombre}
+                              >
+                                {u.empresaNombre}
+                              </span>
+                            </span>
+                          ) : null}
+                          {u.debeCambiarPassword ? (
+                            <Badge variant="secondary">
+                              Cambio de contraseña pendiente
+                            </Badge>
+                          ) : null}
+                          {u.bloqueado ? (
+                            <Badge variant="destructive">Bloqueado</Badge>
+                          ) : null}
+                        </div>
                       </div>
+                    </div>
+
+                    <div className="flex shrink-0 flex-col items-end gap-1 text-sm">
+                      {u.activo ? (
+                        <Badge variant="success">Activo</Badge>
+                      ) : (
+                        <Badge variant="secondary">Inactivo</Badge>
+                      )}
                     </div>
                   </div>
 
-                  <div className="flex shrink-0 flex-col items-end gap-1 text-sm">
-                    {u.activo ? (
-                      <Badge variant="success">Activo</Badge>
-                    ) : (
-                      <Badge variant="secondary">Inactivo</Badge>
-                    )}
+                  <div className="text-muted-foreground mt-4 grid grid-cols-2 gap-2 text-xs">
+                    <div className="bg-muted/60 rounded-xl px-3 py-2.5">
+                      <span className="block">Último acceso</span>
+                      <strong className="text-foreground mt-0.5 block truncate font-semibold">
+                        {u.ultimoAccesoAt
+                          ? formatearFechaHoraLima(u.ultimoAccesoAt)
+                          : "Nunca ingresó"}
+                      </strong>
+                    </div>
+                    <div className="bg-muted/60 rounded-xl px-3 py-2.5">
+                      <span className="block">Actividad</span>
+                      <strong className="text-foreground mt-0.5 block font-semibold">
+                        {u.ventas30d} ventas · 30 días
+                      </strong>
+                    </div>
                   </div>
-                </div>
 
-                <div className="text-muted-foreground mt-4 grid grid-cols-2 gap-2 text-xs">
-                  <div className="bg-muted/60 rounded-xl px-3 py-2.5">
-                    <span className="block">Último acceso</span>
-                    <strong className="text-foreground mt-0.5 block truncate font-semibold">
-                      {u.ultimoAccesoAt
-                        ? formatearFechaHoraLima(u.ultimoAccesoAt)
-                        : "Nunca ingresó"}
-                    </strong>
-                  </div>
-                  <div className="bg-muted/60 rounded-xl px-3 py-2.5">
-                    <span className="block">Actividad</span>
-                    <strong className="text-foreground mt-0.5 block font-semibold">
-                      {u.ventas30d} ventas · 30 días
-                    </strong>
-                  </div>
-                </div>
-
-                <div className="mt-4 flex items-center justify-between gap-2 border-t pt-4">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDialogo({ tipo: "editar", usuario: u })}
-                  >
-                    <Pencil className="size-3.5" /> Editar
-                  </Button>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      render={
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={`Más acciones para @${u.username}`}
-                        />
-                      }
+                  <div className="mt-4 flex items-center justify-between gap-2 border-t pt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDialogo({ tipo: "editar", usuario: u })}
                     >
-                      <MoreHorizontal className="size-4" />
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem
-                        onClick={() =>
-                          setDialogo({ tipo: "reset", usuario: u })
+                      <Pencil className="size-3.5" /> Editar
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger
+                        render={
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            aria-label={`Más acciones para @${u.username}`}
+                          />
                         }
                       >
-                        <KeyRound /> Restablecer contraseña
-                      </DropdownMenuItem>
-                      {u.bloqueado ? (
-                        <BotonDesbloquear usuario={u} enMenu />
-                      ) : null}
-                      {!esUnoMismo ? (
-                        <>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem
-                            variant={u.activo ? "destructive" : "default"}
-                            onClick={() =>
-                              setDialogo({ tipo: "desactivar", usuario: u })
-                            }
-                          >
-                            {u.activo ? <UserRoundX /> : <UserRoundCheck />}
-                            {u.activo
-                              ? "Desactivar usuario"
-                              : "Reactivar usuario"}
-                          </DropdownMenuItem>
-                        </>
-                      ) : null}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+                        <MoreHorizontal className="size-4" />
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem
+                          onClick={() =>
+                            setDialogo({ tipo: "reset", usuario: u })
+                          }
+                        >
+                          <KeyRound /> Restablecer contraseña
+                        </DropdownMenuItem>
+                        {u.bloqueado ? (
+                          <BotonDesbloquear usuario={u} enMenu />
+                        ) : null}
+                        {!esUnoMismo ? (
+                          <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              variant={u.activo ? "destructive" : "default"}
+                              onClick={() =>
+                                setDialogo({ tipo: "desactivar", usuario: u })
+                              }
+                            >
+                              {u.activo ? <UserRoundX /> : <UserRoundCheck />}
+                              {u.activo
+                                ? "Desactivar usuario"
+                                : "Reactivar usuario"}
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </>
       )}
 
       {hrefAnterior || hrefSiguiente ? (
@@ -422,8 +553,17 @@ export function UsuariosClient({
         </div>
       ) : null}
 
-      {dialogo ? (
-        <Dialog open onOpenChange={(abierto) => !abierto && setDialogo(null)}>
+      {/* "desactivar" queda fuera de la capa: `DialogoDesactivar` monta su
+          propio `ConfirmarDestructivo` (alertdialog en escritorio, sheet
+          destructivo en móvil), y envolverlo en una segunda capa apilaba
+          dos modales para la misma confirmación — el mismo ajuste que
+          Empleados hizo para "rechazar" (issue #67). */}
+      {dialogo && dialogo.tipo !== "desactivar" ? (
+        <Capa
+          abierto
+          alCerrar={() => setDialogo(null)}
+          variante={dialogo.tipo === "detalle" ? "detail" : "form"}
+        >
           {dialogo.tipo === "crear" ? (
             <FormUsuario
               esSuperadmin={esSuperadmin}
@@ -451,12 +591,28 @@ export function UsuariosClient({
               }
             />
           ) : (
-            <DialogoDesactivar
+            <DetalleUsuario
               usuario={dialogo.usuario}
-              onCerrar={() => setDialogo(null)}
+              esUnoMismo={dialogo.usuario.id === yoUsuarioId}
+              onEditar={() =>
+                setDialogo({ tipo: "editar", usuario: dialogo.usuario })
+              }
+              onRestablecer={() =>
+                setDialogo({ tipo: "reset", usuario: dialogo.usuario })
+              }
+              onDesactivar={() =>
+                setDialogo({ tipo: "desactivar", usuario: dialogo.usuario })
+              }
             />
           )}
-        </Dialog>
+        </Capa>
+      ) : null}
+
+      {dialogo?.tipo === "desactivar" ? (
+        <DialogoDesactivar
+          usuario={dialogo.usuario}
+          onCerrar={() => setDialogo(null)}
+        />
       ) : null}
 
       {passwordData ? (
@@ -470,5 +626,88 @@ export function UsuariosClient({
         />
       ) : null}
     </section>
+  );
+}
+
+function DetalleUsuario({
+  usuario: u,
+  esUnoMismo,
+  onEditar,
+  onRestablecer,
+  onDesactivar,
+}: {
+  usuario: FilaUsuario;
+  esUnoMismo: boolean;
+  onEditar: () => void;
+  onRestablecer: () => void;
+  onDesactivar: () => void;
+}) {
+  return (
+    <CapaContenido variante="detail" className="sm:max-w-md">
+      <CapaEncabezado icono={<UserCog />} eyebrow="Ficha del usuario">
+        <CapaTitulo>
+          {u.nombres} {u.apellidos}
+        </CapaTitulo>
+      </CapaEncabezado>
+      <CapaCuerpo>
+        <dl className="divide-border/70 bg-muted/15 overflow-hidden rounded-[var(--radius-control)] border text-sm">
+          <CampoDetalle etiqueta="Usuario">@{u.username}</CampoDetalle>
+          <CampoDetalle etiqueta="Rol">
+            <RolBadge rol={u.rol} />
+          </CampoDetalle>
+          {u.empresaNombre ? (
+            <CampoDetalle etiqueta="Empresa">{u.empresaNombre}</CampoDetalle>
+          ) : null}
+          <CampoDetalle etiqueta="Estado">
+            {u.bloqueado ? (
+              <Badge variant="destructive">Bloqueado</Badge>
+            ) : u.activo ? (
+              <Badge variant="success">Activo</Badge>
+            ) : (
+              <Badge variant="secondary">Inactivo</Badge>
+            )}
+          </CampoDetalle>
+          {u.debeCambiarPassword ? (
+            <CampoDetalle etiqueta="Contraseña">
+              <Badge variant="secondary">Cambio pendiente</Badge>
+            </CampoDetalle>
+          ) : null}
+          <CampoDetalle etiqueta="Último acceso">
+            {u.ultimoAccesoAt
+              ? formatearFechaHoraLima(u.ultimoAccesoAt)
+              : "Nunca ingresó"}
+          </CampoDetalle>
+          <CampoDetalle etiqueta="Actividad">
+            {u.ventas30d} ventas · 30 días
+          </CampoDetalle>
+        </dl>
+      </CapaCuerpo>
+      {/* Consolida lo que en escritorio vive en el menú "···" de 28px: en
+          móvil no compite con nada más en la fila, así que cada acción es
+          su propio botón de 44px+ en vez de un ítem de menú. */}
+      <CapaPie className="flex-wrap">
+        <Button variant="outline" onClick={onEditar} className="flex-1">
+          <Pencil className="size-3.5" /> Editar
+        </Button>
+        <Button variant="outline" onClick={onRestablecer} className="flex-1">
+          <KeyRound className="size-3.5" /> Restablecer contraseña
+        </Button>
+        {u.bloqueado ? <BotonDesbloquear usuario={u} /> : null}
+        {!esUnoMismo ? (
+          <Button
+            variant={u.activo ? "destructive" : "default"}
+            onClick={onDesactivar}
+            className="flex-1"
+          >
+            {u.activo ? (
+              <UserRoundX className="size-3.5" />
+            ) : (
+              <UserRoundCheck className="size-3.5" />
+            )}
+            {u.activo ? "Desactivar" : "Reactivar"}
+          </Button>
+        ) : null}
+      </CapaPie>
+    </CapaContenido>
   );
 }
