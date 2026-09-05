@@ -7,8 +7,10 @@ import { VentaDetalleClient } from "./venta-detalle-client";
 
 export default async function VentaDetallePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ volver?: string }>;
 }) {
   let sesion;
   try {
@@ -30,5 +32,9 @@ export default async function VentaDetallePage({
     notFound();
   }
 
-  return <VentaDetalleClient venta={res.data} />;
+  const { volver } = await searchParams;
+  // Solo aceptamos el listado interno como retorno: evita que un parámetro
+  // manipulado convierta el botón Atrás en un redirect abierto.
+  const retorno = volver?.startsWith("/ventas") ? volver : "/ventas";
+  return <VentaDetalleClient venta={res.data} volver={retorno} />;
 }

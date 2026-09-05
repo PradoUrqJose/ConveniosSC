@@ -184,12 +184,14 @@ export function Metrica({
   detalle,
   icono,
   tono = "primary",
+  className,
 }: {
   etiqueta: string;
   valor: ReactNode;
   detalle?: ReactNode;
   icono: ReactNode;
   tono?: "primary" | "success" | "warning" | "neutral";
+  className?: string;
 }) {
   const colores = {
     primary: "bg-primary/10 text-primary ring-primary/10",
@@ -199,7 +201,12 @@ export function Metrica({
   }[tono];
 
   return (
-    <article className="group bg-card/90 ring-foreground/7 elevation-normal elevation-hover relative min-w-0 overflow-hidden rounded-[1.25rem] p-3.5 ring-1 sm:p-5">
+    <article
+      className={cn(
+        "group bg-card/90 ring-foreground/7 elevation-normal elevation-hover relative min-w-0 overflow-hidden rounded-[1.25rem] p-3.5 ring-1 sm:p-5",
+        className,
+      )}
+    >
       <div className="flex items-start justify-between gap-2">
         <p className="text-muted-foreground min-w-0 truncate text-xs leading-5 font-bold tracking-[0.05em] uppercase">
           {etiqueta}

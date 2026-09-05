@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useState } from "react";
 import Link from "next/link";
 import {
@@ -26,8 +27,21 @@ import { formatearFechaHoraLima, formatearFechaUI } from "@/lib/fechas";
 import type { DetalleVenta } from "@/modules/ventas/query";
 import { DialogoAnular } from "./dialogo-anular";
 
-export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
+// El visor (zoom y gestos) no participa en el primer detalle. Cargarlo sólo
+// al abrir una evidencia mantiene el presupuesto de JS de PERF-01.
+const VisorAdjuntos = dynamic(() => import("./visor-adjuntos"), {
+  ssr: false,
+});
+
+export function VentaDetalleClient({
+  venta,
+  volver,
+}: {
+  venta: DetalleVenta;
+  volver: string;
+}) {
   const [anularAbierto, setAnularAbierto] = useState(false);
+  const [adjuntoActivo, setAdjuntoActivo] = useState<number | null>(null);
   const anulada = venta.estado === "ANULADA";
 
   const menuAnular = venta.puedeAnular ? (
@@ -58,12 +72,12 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
         className="lg:hidden"
         variante="secundaria"
         titulo="Detalle de venta"
-        atras={{ href: "/ventas", etiqueta: "Volver a ventas" }}
+        atras={{ href: volver, etiqueta: "Volver a ventas" }}
         acciones={menuAnular}
       />
       <div className="hidden items-center justify-between gap-3 lg:flex">
         <Link
-          href="/ventas"
+          href={volver}
           className="text-muted-foreground hover:text-foreground flex items-center gap-2 text-sm font-semibold"
         >
           <span className="bg-card ring-foreground/8 grid size-9 place-items-center rounded-xl shadow-sm ring-1">
@@ -204,12 +218,11 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {venta.adjuntos.map((a) => (
-              <a
+              <button
                 key={a.id}
-                href={`/api/adjuntos/${a.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-muted flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border text-center"
+                type="button"
+                onClick={() => setAdjuntoActivo(venta.adjuntos.indexOf(a))}
+                className="bg-muted focus-visible:ring-ring flex aspect-square flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border text-center outline-none focus-visible:ring-2"
               >
                 {a.mime === "application/pdf" ? (
                   <>
@@ -222,6 +235,8 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={`/api/adjuntos/${a.id}?miniatura=1`}
+                    loading="lazy"
+                    decoding="async"
                     alt={
                       a.descripcion ??
                       (a.tipo === "DOCUMENTO_VENTA" ? "Documento" : "Evidencia")
@@ -229,7 +244,7 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
                     className="size-full object-cover"
                   />
                 )}
-              </a>
+              </button>
             ))}
           </div>
         )}
@@ -249,6 +264,13 @@ export function VentaDetalleClient({ venta }: { venta: DetalleVenta }) {
           ventaId={venta.id}
           entidad={`Venta por ${formatearSoles(venta.montoFinalCentimos)}`}
           onCerrar={() => setAnularAbierto(false)}
+        />
+      ) : null}
+      {adjuntoActivo !== null ? (
+        <VisorAdjuntos
+          adjuntos={venta.adjuntos}
+          indiceInicial={adjuntoActivo}
+          alCerrar={() => setAdjuntoActivo(null)}
         />
       ) : null}
     </section>

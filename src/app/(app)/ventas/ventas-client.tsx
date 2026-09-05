@@ -170,10 +170,21 @@ export function VentasClient({
   const [pendienteTransicion, startTransition] = useTransition();
   const solicitud = useRef(0);
   const busquedaRestaurada = useRef<string | null>(null);
+  const scrollRestaurado = useRef(false);
 
   useEffect(() => {
     vistaRef.current = vista;
   }, [vista]);
+
+  useEffect(() => {
+    if (scrollRestaurado.current) return;
+    scrollRestaurado.current = true;
+    const clave = `ventas:scroll:${pathname}${window.location.search}`;
+    const y = Number(window.sessionStorage.getItem(clave));
+    if (!Number.isFinite(y) || y < 0) return;
+    window.sessionStorage.removeItem(clave);
+    requestAnimationFrame(() => window.scrollTo({ top: y, behavior: "auto" }));
+  }, [pathname]);
 
   const paginaVisible = vista.pagina;
   const spVisible = vista.sp;
@@ -185,6 +196,12 @@ export function VentasClient({
   const ayer = sumarDias(hoy, -1);
   const catalogos = catalogosPorDireccion[direccion];
   const pendiente = cargando || pendienteTransicion;
+  const urlRetorno = `${pathname}${typeof window === "undefined" ? "" : window.location.search}`;
+  const recordarPosicion = () =>
+    window.sessionStorage.setItem(
+      `ventas:scroll:${urlRetorno}`,
+      String(window.scrollY),
+    );
 
   /**
    * Cambia la URL sólo cuando el resultado está listo. Mientras tanto se
@@ -484,10 +501,19 @@ export function VentasClient({
               if (abierto) asegurarCatalogos();
             }}
           >
-            <SheetTrigger render={<Button variant="outline" size="sm" />}>
+            <SheetTrigger
+              render={<Button variant="outline" className="relative size-11" />}
+              aria-label={`Filtros${filtrosActivos.length > 0 ? ` (${filtrosActivos.length} aplicados)` : ""}`}
+            >
               <Filter className="size-4" />
-              Filtros
-              {filtrosActivos.length > 0 ? ` (${filtrosActivos.length})` : ""}
+              {filtrosActivos.length > 0 ? (
+                <span
+                  className="bg-primary text-primary-foreground absolute -top-1 -right-1 grid size-4 place-items-center rounded-full text-[10px]"
+                  aria-hidden="true"
+                >
+                  {filtrosActivos.length}
+                </span>
+              ) : null}
             </SheetTrigger>
             <SheetContent
               side="bottom"
@@ -568,7 +594,7 @@ export function VentasClient({
         />
       ) : null}
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
         <Metrica
           etiqueta="Operaciones"
           valor={paginaVisible.resumen.cantidad}
@@ -591,6 +617,7 @@ export function VentasClient({
           detalle="Bruto menos descuentos"
           icono={<WalletCards className="size-4.5" />}
           tono="success"
+          className="hidden lg:block"
         />
         <Metrica
           etiqueta="Monto bruto"
@@ -601,6 +628,7 @@ export function VentasClient({
           }
           detalle="Antes de descuentos"
           icono={<Wallet className="size-4.5" />}
+          className="hidden lg:block"
         />
         <Metrica
           etiqueta="Descuentos"
@@ -612,6 +640,7 @@ export function VentasClient({
           detalle="Beneficios aplicados"
           icono={<BadgePercent className="size-4.5" />}
           tono="warning"
+          className="hidden lg:block"
         />
       </div>
 
@@ -662,6 +691,8 @@ export function VentasClient({
                 hoy={hoy}
                 ayer={ayer}
                 pendiente={pendiente}
+                urlRetorno={urlRetorno}
+                alAbrirDetalle={recordarPosicion}
               />
               <Paginador
                 paginaActual={paginaActual}
@@ -687,6 +718,8 @@ export function VentasClient({
                 onNavegar={irA}
                 orden={orden}
                 pendiente={pendiente}
+                urlRetorno={urlRetorno}
+                alAbrirDetalle={recordarPosicion}
                 paginador={
                   <Paginador
                     paginaActual={paginaActual}
@@ -963,6 +996,8 @@ function ListaMovil({
   hoy,
   ayer,
   pendiente,
+  urlRetorno,
+  alAbrirDetalle,
 }: {
   items: FilaVenta[];
   esAdmin: boolean;
@@ -971,6 +1006,8 @@ function ListaMovil({
   hoy: string;
   ayer: string;
   pendiente: boolean;
+  urlRetorno: string;
+  alAbrirDetalle: () => void;
 }) {
   const agrupaPorDia = orden.startsWith("fecha");
 
@@ -1013,6 +1050,8 @@ function ListaMovil({
                 venta={v}
                 esAdmin={esAdmin}
                 direccion={direccion}
+                urlRetorno={urlRetorno}
+                alAbrirDetalle={alAbrirDetalle}
               />
             ))}
           </div>
@@ -1031,16 +1070,21 @@ function TarjetaVenta({
   venta,
   esAdmin,
   direccion,
+  urlRetorno,
+  alAbrirDetalle,
 }: {
   venta: FilaVenta;
   esAdmin: boolean;
   direccion: string;
+  urlRetorno: string;
+  alAbrirDetalle: () => void;
 }) {
   const anulada = venta.estado === "ANULADA";
   const contraparte = empresaContraparte(venta, direccion);
   return (
     <Link
-      href={`/ventas/${venta.id}`}
+      href={`/ventas/${venta.id}?volver=${encodeURIComponent(urlRetorno)}`}
+      onClick={alAbrirDetalle}
       className={`bg-card/90 ring-foreground/7 hover:bg-card animate-in fade-in-0 flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg ${
         venta.requiereRevision && !anulada ? "ring-warning/35 bg-warning/5" : ""
       }`}
@@ -1101,6 +1145,8 @@ function TablaVentas({
   onNavegar,
   orden,
   pendiente,
+  urlRetorno,
+  alAbrirDetalle,
   paginador,
 }: {
   items: FilaVenta[];
@@ -1110,6 +1156,8 @@ function TablaVentas({
   onNavegar: (url: string) => void;
   orden: string;
   pendiente: boolean;
+  urlRetorno: string;
+  alAbrirDetalle: () => void;
   paginador: ReactNode;
 }) {
   const router = useRouter();
@@ -1167,7 +1215,12 @@ function TablaVentas({
                 <TableRow
                   key={v.id}
                   className={`animate-in fade-in-0 h-[72px] cursor-pointer duration-300 ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
-                  onClick={() => router.push(`/ventas/${v.id}`)}
+                  onClick={() => {
+                    alAbrirDetalle();
+                    router.push(
+                      `/ventas/${v.id}?volver=${encodeURIComponent(urlRetorno)}`,
+                    );
+                  }}
                 >
                   <TableCell>
                     <div>{formatearFechaUI(v.fechaVenta)}</div>
@@ -1265,9 +1318,12 @@ function TablaVentas({
                         pero abrir el detalle no depende exclusivamente de él —
                         este link es alcanzable y operable por teclado. */}
                     <Link
-                      href={`/ventas/${v.id}`}
+                      href={`/ventas/${v.id}?volver=${encodeURIComponent(urlRetorno)}`}
                       aria-label={`Ver detalle de la venta de ${nombreCompleto}`}
-                      onClick={(e) => e.stopPropagation()}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        alAbrirDetalle();
+                      }}
                       className="text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-ring/50 inline-flex size-8 items-center justify-center rounded-lg outline-none focus-visible:ring-2"
                     >
                       <ChevronRight className="size-4" aria-hidden="true" />
