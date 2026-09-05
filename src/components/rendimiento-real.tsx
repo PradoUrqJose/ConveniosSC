@@ -119,5 +119,29 @@ export function RendimientoReal({ rol }: { rol: RolRum }) {
     return () => observer.disconnect();
   }, [publicar, ruta]);
 
+  // Frames perdidos — issue #70 (PWA-MOTION-01): un frame "largo" (Long
+  // Animation Frames API, ~lo que antes se aproximaba con `longtask`) es
+  // trabajo del hilo principal que no alcanzó a pintar a 60fps. La
+  // transición lateral y el resto del movimiento móvil corren en ese
+  // mismo hilo, así que esto es la señal de si "cuestan" cuadros de
+  // verdad, más allá de lo que ya mide INP. No todos los navegadores
+  // soportan el tipo de entrada; sin soporte, el observer no reporta nada
+  // en vez de fallar (no está en `lib.dom.d.ts` todavía).
+  useEffect(() => {
+    if (
+      typeof PerformanceObserver === "undefined" ||
+      !PerformanceObserver.supportedEntryTypes?.includes("long-animation-frame")
+    ) {
+      return;
+    }
+    const observer = new PerformanceObserver((lista) => {
+      for (const entrada of lista.getEntries()) {
+        publicar("framesPerdidos", entrada.duration);
+      }
+    });
+    observer.observe({ type: "long-animation-frame", buffered: true });
+    return () => observer.disconnect();
+  }, [publicar, ruta]);
+
   return null;
 }

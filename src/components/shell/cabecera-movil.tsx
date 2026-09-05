@@ -7,6 +7,7 @@ import type { MouseEvent, ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 import { useCuentaMovil } from "@/components/shell/contexto-cuenta-movil";
+import { iniciarTransicionMovil } from "@/lib/transicion-movil";
 
 export type VarianteCabeceraMovil = "raiz" | "secundaria" | "formulario";
 
@@ -45,6 +46,11 @@ export function BotonAtrasMovil({ href, etiqueta }: AtrasMovil) {
     ) {
       return;
     }
+    // La transición lateral (issue #70) se inicia acá porque acá es donde
+    // se decide "volver": `startViewTransition` toma la foto de esta
+    // pantalla en el mismo clic, antes de que la navegación (cualquiera de
+    // las dos ramas) reemplace el contenido.
+    iniciarTransicionMovil("atras");
     const indice = (window.history.state as { idx?: number } | null)?.idx;
     if (typeof indice === "number" && indice > 0) {
       evento.preventDefault();

@@ -12,6 +12,7 @@ export const NOMBRES_METRICA_RUM = [
   "js",
   "api",
   "adjunto",
+  "framesPerdidos",
 ] as const;
 
 export type RolRum = (typeof ROLES_RUM)[number];

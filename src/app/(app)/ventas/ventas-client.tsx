@@ -50,6 +50,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatearSoles } from "@/lib/dinero";
+import { iniciarTransicionMovil } from "@/lib/transicion-movil";
 import {
   formatearFechaUI,
   formatearHoraLima,
@@ -1084,8 +1085,13 @@ function TarjetaVenta({
   return (
     <Link
       href={`/ventas/${venta.id}?volver=${encodeURIComponent(urlRetorno)}`}
-      onClick={alAbrirDetalle}
-      className={`bg-card/90 ring-foreground/7 hover:bg-card animate-in fade-in-0 flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg ${
+      onClick={() => {
+        // Lista → detalle (issue #70): la foto de esta tarjeta se toma en
+        // el clic, antes de que la navegación reemplace la pantalla.
+        iniciarTransicionMovil("adelante");
+        alAbrirDetalle();
+      }}
+      className={`bg-card/90 ring-foreground/7 hover:bg-card active:bg-card animate-in fade-in-0 flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] active:shadow-sm active:duration-75 ${
         venta.requiereRevision && !anulada ? "ring-warning/35 bg-warning/5" : ""
       }`}
     >

@@ -650,6 +650,10 @@
        desincronizarse.
        ================================================================= */
     .mob-barra-inferior {
+      /* Identidad propia para la transición lateral (issue #70): la barra
+         vive en las dos pantallas (lista y detalle) y no debe deslizar
+         con el resto — se queda fija mientras el contenido se mueve. */
+      view-transition-name: mob-barra-inferior;
       position: fixed;
       inset-inline: 0;
       bottom: 0;
@@ -1538,6 +1542,97 @@
     cursor: progress;
   }
 
+  /* ===================================================================
+     Transición lateral de navegación — issue #70 (PWA-MOTION-01), doc §11.
+
+     `src/lib/transicion-movil.ts` marca `data-mob-transicion="adelante"`
+     (lista → detalle) o `"atras"` (volver) en `<html>` justo antes de
+     `document.startViewTransition`. Estas reglas sólo le dan forma a esa
+     transición nativa del navegador — nada de esto corre si el navegador
+     no soporta la API (degrada a navegación instantánea) ni fuera de este
+     breakpoint: a 1024px o más nunca existe el atributo ni esta regla, así
+     que el desktop no puede adoptar la transición por accidente.
+     =================================================================== */
+  html[data-mob-transicion] {
+    /* Deja pasar el toque a la pantalla ya montada debajo: la transición
+       es cosmética, no debe bloquear el siguiente gesto (doc §11). */
+    &::view-transition {
+      pointer-events: none;
+    }
+
+    &::view-transition-group(root) {
+      animation-duration: var(--mob-duration);
+      animation-timing-function: var(--mob-ease);
+    }
+
+    /* La barra inferior es chrome persistente (vive en lista y detalle):
+       se ancla en vez de deslizar, igual que un header fijo, para que el
+       usuario tenga una sola referencia espacial estable durante el
+       movimiento (doc §11). */
+    &::view-transition-group(mob-barra-inferior) {
+      animation: none;
+      z-index: var(--z-nav-movil);
+    }
+    &::view-transition-old(mob-barra-inferior) {
+      display: none;
+    }
+    &::view-transition-new(mob-barra-inferior) {
+      animation: none;
+    }
+  }
+
+  html[data-mob-transicion="adelante"] {
+    &::view-transition-old(root) {
+      animation-name: mob-transicion-sale-izquierda;
+    }
+    &::view-transition-new(root) {
+      animation-name: mob-transicion-entra-derecha;
+    }
+  }
+
+  html[data-mob-transicion="atras"] {
+    &::view-transition-old(root) {
+      animation-name: mob-transicion-sale-derecha;
+    }
+    &::view-transition-new(root) {
+      animation-name: mob-transicion-entra-izquierda;
+    }
+  }
+
+  @keyframes mob-transicion-sale-izquierda {
+    to {
+      transform: translateX(-32%);
+      opacity: 0;
+    }
+  }
+  @keyframes mob-transicion-entra-derecha {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes mob-transicion-sale-derecha {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes mob-transicion-entra-izquierda {
+    from {
+      transform: translateX(-32%);
+      opacity: 0;
+    }
+  }
+
+  /* Doc §9: "Sin shimmer. Pulso muy sutil de opacidad, o estático. Estático
+     es más honesto." `.skeleton-shimmer` es compartido con desktop (issue
+     #37/#56), así que el barrido continuo no se quita ahí; se apaga sólo
+     acá, donde vive el resto del sistema de movimiento propio de móvil
+     (issue #70). Sin el `::after` en movimiento, el skeleton queda como su
+     fondo `--muted` estático — la superficie tenue del componente real. */
+  .skeleton-shimmer::after {
+    animation: none;
+    content: none;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .mob-boton {
       transition-duration: 1ms;
@@ -1572,6 +1667,18 @@
 
     .mob-sheet[data-ending-style] {
       transition-duration: 1ms;
+    }
+
+    /* Red de seguridad: `puedeTransicionarMovil()` ya evita marcar
+       `data-mob-transicion` con reduced motion activo, así que en el flujo
+       normal esto no llega a aplicarse. Cubre el caso en que la
+       preferencia cambia mientras el atributo ya está puesto. */
+    html[data-mob-transicion] {
+      &::view-transition-group(root),
+      &::view-transition-old(root),
+      &::view-transition-new(root) {
+        animation-duration: 1ms;
+      }
     }
   }
 }

@@ -17,6 +17,7 @@ import { BannerOffline } from "@/components/shell/banner-offline";
 import { BadgePendientes } from "@/components/shell/badge-pendientes";
 import { medirServidor } from "@/lib/observabilidad";
 import { RendimientoReal } from "@/components/rendimiento-real";
+import { TransicionMovilResolver } from "@/components/shell/transicion-movil-resolver";
 
 export default async function AppLayout({
   children,
@@ -94,6 +95,7 @@ export default async function AppLayout({
           >
             {esPuntoVenta ? <CabeceraPuntoVenta /> : null}
             {children}
+            <TransicionMovilResolver />
           </main>
         </div>
         {!esPuntoVenta ? (
