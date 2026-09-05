@@ -107,6 +107,11 @@ export function FormVenta({
     useState<ResultadoBusquedaDocumento | null>(null);
   const [empleado, setEmpleado] = useState<EmpleadoResuelto | null>(null);
   const [resumenAbierto, setResumenAbierto] = useState(false);
+  const [tecladoInset, setTecladoInset] = useState(0);
+  // En desktop se ven los tres bloques como siempre; este índice solo decide
+  // cuál se muestra en móvil. Así el flujo tiene una única decisión por vista
+  // sin desmontar los campos ya cargados al avanzar o retroceder.
+  const [pasoActual, setPasoActual] = useState<1 | 2 | 3>(1);
 
   const [sedeId, setSedeId] = useState(sedePorDefectoId ?? sedes[0]?.id ?? "");
   const [fechaVenta, setFechaVenta] = useState(hoy);
@@ -124,6 +129,28 @@ export function FormVenta({
   const [borrador, setBorrador] = useState<BorradorVenta | null>(null);
 
   const busquedaIdRef = useRef(0);
+
+  // iOS y Android no desplazan siempre los elementos `fixed` al abrir el
+  // teclado. La Visual Viewport sí refleja ese espacio: elevamos la CTA para
+  // que siga siendo alcanzable sin cerrar el teclado ni perder el contexto.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const actualizarInset = () => {
+      const inset = Math.max(
+        0,
+        Math.round(window.innerHeight - viewport.height - viewport.offsetTop),
+      );
+      setTecladoInset((actual) => (actual === inset ? actual : inset));
+    };
+    actualizarInset();
+    viewport.addEventListener("resize", actualizarInset);
+    viewport.addEventListener("scroll", actualizarInset);
+    return () => {
+      viewport.removeEventListener("resize", actualizarInset);
+      viewport.removeEventListener("scroll", actualizarInset);
+    };
+  }, []);
 
   // Banner de borrador al montar (D08).
   useEffect(() => {
@@ -235,6 +262,14 @@ export function FormVenta({
         "Recuperamos el documento y las evidencias de tu borrador anterior. Si necesitas reemplazarlos, vuelve a adjuntarlos.",
       );
     }
+    setPasoActual(
+      borrador.documento &&
+        (!config.requiereEvidenciaEnVenta || borrador.evidencias.length > 0)
+        ? 3
+        : borrador.montoBruto
+          ? 2
+          : 1,
+    );
     setBorrador(null);
   };
 
@@ -438,6 +473,7 @@ export function FormVenta({
     setNotaArchivosRestaurados(null);
     setDocumentoKey((k) => k + 1);
     setEvidenciasKey((k) => k + 1);
+    setPasoActual(1);
   };
 
   if (fase === "confirmacion" && confirmacion && empleado) {
@@ -507,6 +543,38 @@ export function FormVenta({
         </p>
       </header>
 
+      {/* Progreso compacto del wizard. En desktop el resumen lateral conserva
+          la presentación anterior; en móvil deja claro dónde se está y ofrece
+          volver sin borrar lo escrito. */}
+      <div className="flex items-center gap-3 lg:hidden">
+        {pasoActual > 1 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => setPasoActual((pasoActual - 1) as 1 | 2)}
+            className="shrink-0 rounded-full px-3 font-semibold"
+          >
+            Anterior
+          </Button>
+        ) : null}
+        <div
+          className="flex flex-1 items-center gap-1.5"
+          role="img"
+          aria-label={`Paso ${pasoActual} de 3`}
+        >
+          {[1, 2, 3].map((paso) => (
+            <i
+              key={paso}
+              className={`h-1.5 flex-1 rounded-full ${paso <= pasoActual ? "bg-[var(--venta-azul)]" : "bg-[var(--venta-linea)]"}`}
+            />
+          ))}
+        </div>
+        <span className="shrink-0 font-mono text-xs font-bold text-[var(--venta-gris)]">
+          {pasoActual}/3
+        </span>
+      </div>
+
       {borrador ? (
         <Alert>
           <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
@@ -543,6 +611,7 @@ export function FormVenta({
             descripcion="Busca por documento y traemos su empresa de convenio."
             activo={!pasoUnoListo}
             hecho={pasoUnoListo}
+            visibleEnMovil={pasoActual === 1}
           >
             <div className="flex flex-wrap items-center gap-2.5">
               <Select
@@ -716,6 +785,7 @@ export function FormVenta({
             activo={pasoUnoListo && !pasoDosListo}
             hecho={pasoDosListo}
             bloqueado={!pasoUnoListo}
+            visibleEnMovil={pasoActual === 2}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex min-w-0 flex-col">
@@ -841,6 +911,7 @@ export function FormVenta({
             activo={pasoDosListo && !pasoTresListo}
             hecho={pasoTresListo}
             bloqueado={!pasoUnoListo}
+            visibleEnMovil={pasoActual === 3}
           >
             {notaArchivosRestaurados ? (
               <Alert className="mb-4">
@@ -1014,15 +1085,33 @@ export function FormVenta({
       </form>
 
       {/* ── Barra inferior móvil (PWA) ── */}
-      <div className="border-border bg-background/95 fixed inset-x-0 bottom-0 z-[var(--z-cta-movil)] border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+      <div
+        style={{ bottom: tecladoInset }}
+        className="border-border bg-background/95 fixed inset-x-0 z-[var(--z-cta-movil)] border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+      >
         <Button
           type="button"
           size="lg"
-          disabled={!puedeGuardar}
-          onClick={() => setResumenAbierto(true)}
+          disabled={
+            pendiente ||
+            (pasoActual === 1
+              ? !pasoUnoListo
+              : pasoActual === 2
+                ? !pasoDosListo
+                : !puedeGuardar)
+          }
+          onClick={() => {
+            if (pasoActual === 1) setPasoActual(2);
+            else if (pasoActual === 2) setPasoActual(3);
+            else setResumenAbierto(true);
+          }}
           className="h-14 w-full rounded-full bg-[var(--venta-azul)] text-base font-semibold text-white shadow-[var(--venta-azul)]/20 shadow-lg hover:bg-[var(--venta-azul-hondo)] disabled:bg-[var(--venta-hueco)] disabled:text-[var(--venta-gris-claro)]"
         >
-          Revisar venta
+          {pasoActual === 1
+            ? "Continuar con importes"
+            : pasoActual === 2
+              ? "Continuar con evidencia"
+              : "Revisar venta"}
         </Button>
       </div>
 
@@ -1103,6 +1192,7 @@ function PasoTarjeta({
   activo = false,
   hecho = false,
   bloqueado = false,
+  visibleEnMovil = true,
   children,
 }: {
   numero: number;
@@ -1111,6 +1201,7 @@ function PasoTarjeta({
   activo?: boolean;
   hecho?: boolean;
   bloqueado?: boolean;
+  visibleEnMovil?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -1118,7 +1209,7 @@ function PasoTarjeta({
       // `inert` (no solo `pointer-events`) también saca el paso del foco por
       // teclado y del árbol de accesibilidad; los `input` se siguen enviando.
       inert={bloqueado}
-      className={`rounded-[26px] border-2 bg-[var(--venta-papel)] p-5 transition-[border-color,opacity] duration-200 sm:p-7 ${
+      className={`${visibleEnMovil ? "block" : "hidden"} rounded-[26px] border-2 bg-[var(--venta-papel)] p-5 transition-[border-color,opacity] duration-200 sm:p-7 lg:block ${
         activo && !bloqueado
           ? "border-[var(--venta-azul-borde)]"
           : "border-transparent"

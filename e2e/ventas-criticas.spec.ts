@@ -16,7 +16,9 @@ async function iniciarSesion(
 ) {
   await page.goto("/login");
   await page.getByLabel("Usuario").fill(credenciales.usuario);
-  await page.getByLabel("Contraseña").fill(credenciales.password);
+  await page
+    .getByRole("textbox", { name: "Contraseña" })
+    .fill(credenciales.password);
   await page.getByRole("button", { name: "Ingresar" }).click();
   await expect(page).not.toHaveURL(/login/);
 }
@@ -24,23 +26,18 @@ async function iniciarSesion(
 test("venta con empleado existente aparece en el listado", async ({ page }) => {
   await iniciarSesion(page);
   await page.goto("/ventas/nueva");
-  const [tipoBox, documentoBox, sedeBox, montoBox] = await Promise.all([
+  const [tipoBox, documentoBox] = await Promise.all([
     page.getByLabel("Tipo de documento").boundingBox(),
     page.getByLabel("Documento del empleado").boundingBox(),
-    page.getByLabel("Sede").boundingBox(),
-    page.getByLabel("Monto de venta (S/)").boundingBox(),
   ]);
   expect(tipoBox).not.toBeNull();
   expect(documentoBox).not.toBeNull();
-  expect(sedeBox).not.toBeNull();
-  expect(montoBox).not.toBeNull();
   expect(Math.round(tipoBox!.height)).toBe(Math.round(documentoBox!.height));
-  // El monto es el campo destacado del paso 2 (rediseño de Nueva venta): puede
-  // ser más alto que la sede, nunca más bajo.
-  expect(montoBox!.height).toBeGreaterThanOrEqual(sedeBox!.height);
+  const esDesktop = (page.viewportSize()?.width ?? 0) >= 1024;
+  if (!esDesktop) await expect(page.getByLabel("Sede")).toBeHidden();
   const selectorTipoDocumento = page.getByLabel("Tipo de documento");
   const botonBuscar = page.getByRole("button", { name: /buscar empleado/i });
-  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+  if (esDesktop) {
     const anchoBuscarDni = (await botonBuscar.boundingBox())?.width;
     expect(anchoBuscarDni).toBeGreaterThan(44);
 
@@ -86,7 +83,26 @@ test("venta con empleado existente aparece en el listado", async ({ page }) => {
   await page.getByRole("button", { name: /buscar empleado/i }).click();
   await expect.poll(() => solicitudesPost).toBe(1);
   await expect(page.getByLabel("Empresa convenio")).not.toHaveValue("");
+  if (!esDesktop) {
+    await page.getByRole("button", { name: /continuar con importes/i }).click();
+    await expect(page.getByLabel("Sede")).toBeVisible();
+  }
+  const [sedeBox, montoBox] = await Promise.all([
+    page.getByLabel("Sede").boundingBox(),
+    page.getByLabel("Monto de venta (S/)").boundingBox(),
+  ]);
+  expect(sedeBox).not.toBeNull();
+  expect(montoBox).not.toBeNull();
+  // El monto es el campo destacado del paso 2: puede ser más alto que la
+  // sede, nunca más bajo.
+  expect(montoBox!.height).toBeGreaterThanOrEqual(sedeBox!.height);
   await page.getByLabel("Monto de venta (S/)").fill("120.00");
+  if (!esDesktop) {
+    await page
+      .getByRole("button", { name: /continuar con evidencia/i })
+      .click();
+    await expect(page.getByLabel(/Documento de venta/i)).toBeVisible();
+  }
   await page
     .getByLabel(/Documento de venta/i)
     .setInputFiles("public/icons/192.png");
@@ -94,12 +110,17 @@ test("venta con empleado existente aparece en el listado", async ({ page }) => {
     name: "Vista previa del documento de venta",
   });
   await expect(previewDocumento).toBeVisible();
-  if ((page.viewportSize()?.width ?? 0) >= 1024) {
+  if (esDesktop) {
     await expect
       .poll(async () => (await previewDocumento.boundingBox())?.width ?? 0)
       .toBeGreaterThan(100);
   }
-  await page.getByRole("button", { name: /guardar venta/i }).click();
+  if (esDesktop) {
+    await page.getByRole("button", { name: /guardar venta/i }).click();
+  } else {
+    await page.getByRole("button", { name: /revisar venta/i }).click();
+    await page.getByRole("button", { name: /confirmar y guardar/i }).click();
+  }
   await expect(page.getByText(/venta registrada/i)).toBeVisible();
   await page.goto("/ventas");
   await expect(page.getByText("120.00")).toBeVisible();

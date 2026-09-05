@@ -27,6 +27,8 @@ export type EmpleadoBorrador = {
 };
 
 export type BorradorVenta = {
+  /** Permite invalidar de forma segura borradores de una forma anterior. */
+  version: 1;
   ventaId: string;
   empresaConvenioId: string | null;
   empleado: EmpleadoBorrador | null;
@@ -45,6 +47,7 @@ export type BorradorVenta = {
 };
 
 const VEINTICUATRO_HORAS_MS = 24 * 60 * 60 * 1000;
+const VERSION_BORRADOR = 1 as const;
 
 function claveDe(usuarioId: string): string {
   return `venta-borrador:${usuarioId}`;
@@ -55,7 +58,20 @@ export function leerBorrador(usuarioId: string): BorradorVenta | null {
   try {
     const bruto = window.localStorage.getItem(claveDe(usuarioId));
     if (!bruto) return null;
-    return JSON.parse(bruto) as BorradorVenta;
+    const borrador = JSON.parse(bruto) as Partial<BorradorVenta>;
+    // La versión anterior a este campo tiene exactamente la misma forma: se
+    // migra en memoria para que una actualización de la PWA no borre una venta
+    // a medio registrar. Cualquier otra versión sí se descarta de inmediato.
+    if (
+      (borrador.version !== undefined &&
+        borrador.version !== VERSION_BORRADOR) ||
+      typeof borrador.guardadoEn !== "number" ||
+      Date.now() - borrador.guardadoEn >= VEINTICUATRO_HORAS_MS
+    ) {
+      window.localStorage.removeItem(claveDe(usuarioId));
+      return null;
+    }
+    return { ...borrador, version: VERSION_BORRADOR } as BorradorVenta;
   } catch {
     return null;
   }
@@ -64,16 +80,23 @@ export function leerBorrador(usuarioId: string): BorradorVenta | null {
 /** Un borrador solo es relevante para el banner de "continuar" si tiene menos de 24 h. */
 export function borradorVigente(borrador: BorradorVenta | null): boolean {
   if (!borrador) return false;
-  return Date.now() - borrador.guardadoEn < VEINTICUATRO_HORAS_MS;
+  return (
+    borrador.version === VERSION_BORRADOR &&
+    Date.now() - borrador.guardadoEn < VEINTICUATRO_HORAS_MS
+  );
 }
 
 export function guardarBorrador(
   usuarioId: string,
-  datos: Omit<BorradorVenta, "guardadoEn">,
+  datos: Omit<BorradorVenta, "guardadoEn" | "version">,
 ): void {
   if (typeof window === "undefined") return;
   try {
-    const completo: BorradorVenta = { ...datos, guardadoEn: Date.now() };
+    const completo: BorradorVenta = {
+      ...datos,
+      version: VERSION_BORRADOR,
+      guardadoEn: Date.now(),
+    };
     window.localStorage.setItem(claveDe(usuarioId), JSON.stringify(completo));
   } catch {
     // localStorage lleno o deshabilitado: el borrador es una mejora, no un requisito.
