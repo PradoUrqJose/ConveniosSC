@@ -74,6 +74,7 @@ export function FormularioCambiarPassword({
   }, [alCompletar, estado, router]);
 
   const error = !estado.ok && estado.mensaje ? estado.mensaje : null;
+  const campoConError = !estado.ok ? estado.campo : undefined;
   const Form = compacto ? DialogForm : "form";
   useDialogFormError(estado, formulario, "error-cambiar-password");
 
@@ -91,6 +92,10 @@ export function FormularioCambiarPassword({
           autoComplete="current-password"
           required
           disabled={pendiente}
+          aria-invalid={campoConError === "actual" ? true : undefined}
+          aria-describedby={
+            campoConError === "actual" ? "error-cambiar-password" : undefined
+          }
         />
       </div>
 
@@ -107,13 +112,16 @@ export function FormularioCambiarPassword({
             required
             disabled={pendiente}
             className="pr-10"
+            aria-invalid={campoConError === "nueva" ? true : undefined}
+            aria-describedby={
+              campoConError === "nueva" ? "error-cambiar-password" : undefined
+            }
           />
           <button
             type="button"
             onClick={() => setMostrar((v) => !v)}
             aria-label={mostrar ? "Ocultar contraseñas" : "Mostrar contraseñas"}
-            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
-            tabIndex={-1}
+            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex min-h-11 min-w-11 items-center justify-center lg:min-h-10 lg:min-w-10"
           >
             {mostrar ? (
               <EyeOff className="size-4" />
@@ -135,6 +143,12 @@ export function FormularioCambiarPassword({
           onChange={(e) => setConfirmacion(e.target.value)}
           required
           disabled={pendiente}
+          aria-invalid={campoConError === "confirmacion" ? true : undefined}
+          aria-describedby={
+            campoConError === "confirmacion"
+              ? "error-cambiar-password"
+              : undefined
+          }
         />
       </div>
 
@@ -159,15 +173,17 @@ export function FormularioCambiarPassword({
         ))}
       </ul>
 
-      {compacto && error ? (
-        <p
-          id="error-cambiar-password"
-          role="alert"
-          className="text-destructive text-sm"
-        >
-          {error}
-        </p>
-      ) : null}
+      <div className="min-h-5 lg:min-h-0" aria-live="polite">
+        {error ? (
+          <p
+            id="error-cambiar-password"
+            role="alert"
+            className="text-destructive text-sm"
+          >
+            {error}
+          </p>
+        ) : null}
+      </div>
 
       {compacto ? (
         <DialogFooter>
@@ -186,15 +202,6 @@ export function FormularioCambiarPassword({
           {pendiente ? "Guardando…" : etiquetaBoton}
         </Button>
       )}
-      {!compacto && error ? (
-        <p
-          id="error-cambiar-password"
-          role="alert"
-          className="text-destructive text-sm"
-        >
-          {error}
-        </p>
-      ) : null}
     </Form>
   );
 }

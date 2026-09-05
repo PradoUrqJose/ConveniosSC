@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Download, LogOut, Moon, Sun } from "lucide-react";
+import { Download, LogOut, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
@@ -21,11 +21,9 @@ import { cerrarSesion } from "@/modules/auth/actions";
  * (PWA-MOB-04).
  *
  * #52 bajó tema, instalación y cierre de sesión desde el menú del avatar
- * —que se fue con el header global— a una lista suelta dentro de `/perfil`.
- * #54 las devuelve a una capa, pero a **la** capa del sistema: un bottom
- * sheet, el mismo mecanismo que usan filtros, edición y confirmación. Así
- * no queda un menú desplegable con su propia geometría y su propio cierre
- * conviviendo con los sheets del resto de la app.
+ * —que se fue con el header global— a Perfil. Las preferencias quedan como
+ * filas visibles de la lista; solo la decisión irreversible de cerrar sesión
+ * usa la capa del sistema (un bottom sheet), igual que filtros y edición.
  *
  * El cierre de sesión no dispara nada al tocarlo: empuja una subpágina de
  * confirmación *dentro del mismo sheet* (doc §5, variante decisión), sin
@@ -73,14 +71,94 @@ export function AccionesCuentaMovil() {
   return (
     <div>
       <div className="lg:hidden">
-        <button
-          type="button"
-          onClick={() => setAbierto(true)}
-          className="hover:bg-muted flex min-h-11 w-full items-center gap-2 rounded-xl border px-3 text-left text-sm font-medium"
+        <section
+          aria-labelledby="preferencias-cuenta"
+          className="overflow-hidden rounded-xl border"
         >
-          <span className="flex-1">Opciones de la cuenta</span>
-          <ChevronRight className="size-4" aria-hidden="true" />
-        </button>
+          <h2
+            id="preferencias-cuenta"
+            className="text-muted-foreground px-4 pt-3 text-xs font-semibold tracking-wide uppercase"
+          >
+            Preferencias y sesión
+          </h2>
+          <div className="mt-2 divide-y">
+            <button
+              type="button"
+              onClick={() => setTheme(oscuro ? "light" : "dark")}
+              className="hover:bg-muted flex min-h-14 w-full items-center gap-3 px-4 text-left"
+            >
+              {oscuro ? (
+                <Sun
+                  className="text-muted-foreground size-5"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Moon
+                  className="text-muted-foreground size-5"
+                  aria-hidden="true"
+                />
+              )}
+              <span className="flex-1">
+                <span className="block text-sm font-medium">Tema</span>
+                <span className="text-muted-foreground block text-xs">
+                  {oscuro
+                    ? "Oscuro. Cambiar a claro"
+                    : "Claro. Cambiar a oscuro"}
+                </span>
+              </span>
+            </button>
+            {puedeInstalar ? (
+              <button
+                type="button"
+                onClick={() =>
+                  window.dispatchEvent(
+                    new Event("convenios:mostrar-instalacion"),
+                  )
+                }
+                className="hover:bg-muted flex min-h-14 w-full items-center gap-3 px-4 text-left"
+              >
+                <Download
+                  className="text-muted-foreground size-5"
+                  aria-hidden="true"
+                />
+                <span>
+                  <span className="block text-sm font-medium">
+                    Instalar aplicación
+                  </span>
+                  <span className="text-muted-foreground block text-xs">
+                    Acceso rápido desde la pantalla de inicio
+                  </span>
+                </span>
+              </button>
+            ) : (
+              <div className="flex min-h-14 items-center gap-3 px-4">
+                <Download
+                  className="text-muted-foreground size-5"
+                  aria-hidden="true"
+                />
+                <span>
+                  <span className="block text-sm font-medium">Instalación</span>
+                  <span className="text-muted-foreground block text-xs">
+                    Disponible cuando el navegador permita instalarla
+                  </span>
+                </span>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => setAbierto(true)}
+              className="hover:bg-destructive/10 text-destructive flex min-h-14 w-full items-center gap-3 px-4 text-left"
+            >
+              <LogOut className="size-5" aria-hidden="true" />
+              <span>
+                <span className="block text-sm font-medium">Cerrar sesión</span>
+                <span className="text-muted-foreground block text-xs">
+                  Te pediremos confirmación antes de salir
+                </span>
+              </span>
+            </button>
+          </div>
+        </section>
 
         <MobileSheet
           abierto={abierto}

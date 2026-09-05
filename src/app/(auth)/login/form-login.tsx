@@ -26,6 +26,7 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
     ESTADO_INICIAL,
   );
   const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [sinConexion, setSinConexion] = useState(false);
   // `<form action>` limpia los campos no controlados al resolver la action.
   // El usuario se mantiene controlado para no obligar a reescribirlo tras un
   // fallo; la contraseña sí debe borrarse, así que se deja sin controlar.
@@ -56,8 +57,18 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
     }
   }, [error]);
 
+  useEffect(() => {
+    const alRecuperarConexion = () => setSinConexion(false);
+    window.addEventListener("online", alRecuperarConexion);
+    return () => window.removeEventListener("online", alRecuperarConexion);
+  }, []);
+
+  const errorVisible = sinConexion
+    ? "Sin conexión. Revisa tu red e inténtalo de nuevo."
+    : error;
+
   return (
-    <main className="dark:bg-background relative flex flex-1 items-center justify-center overflow-hidden bg-[#f5f7ff] px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:py-8">
+    <main className="dark:bg-background relative flex min-h-dvh flex-1 items-start justify-center overflow-x-hidden overflow-y-auto bg-[#f5f7ff] px-4 pt-[calc(1.5rem+env(safe-area-inset-top))] pb-[calc(1.5rem+env(safe-area-inset-bottom))] sm:items-center sm:py-8">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="bg-primary/15 absolute -top-24 -left-28 size-80 rounded-full blur-3xl" />
         <div className="absolute -right-24 -bottom-28 size-96 rounded-full bg-violet-400/15 blur-3xl" />
@@ -102,7 +113,16 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
               </p>
             </div>
 
-            <form action={formAction} className="flex flex-col gap-4">
+            <form
+              action={formAction}
+              className="flex flex-col gap-4"
+              onSubmit={(event) => {
+                if (!navigator.onLine) {
+                  event.preventDefault();
+                  setSinConexion(true);
+                }
+              }}
+            >
               <div className="flex flex-col gap-2">
                 <Label htmlFor="username">Usuario</Label>
                 <Input
@@ -116,7 +136,8 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
                   disabled={pendiente}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  aria-invalid={error ? true : undefined}
+                  aria-invalid={errorVisible ? true : undefined}
+                  aria-describedby={errorVisible ? "login-error" : undefined}
                 />
               </div>
 
@@ -132,8 +153,8 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
                     required
                     disabled={pendiente}
                     className="pr-10"
-                    aria-invalid={error ? true : undefined}
-                    aria-describedby={error ? "login-error" : undefined}
+                    aria-invalid={errorVisible ? true : undefined}
+                    aria-describedby={errorVisible ? "login-error" : undefined}
                   />
                   <button
                     type="button"
@@ -143,8 +164,7 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
                         ? "Ocultar contraseña"
                         : "Mostrar contraseña"
                     }
-                    className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex w-10 items-center justify-center"
-                    tabIndex={-1}
+                    className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex min-h-11 min-w-11 items-center justify-center lg:min-h-10 lg:min-w-10"
                   >
                     {mostrarPassword ? (
                       <EyeOff className="size-4" />
@@ -155,14 +175,14 @@ export function LoginForm({ volver }: { volver: string | undefined }) {
                 </div>
               </div>
 
-              {error && (
+              {errorVisible && (
                 <p
                   id="login-error"
                   role="alert"
                   aria-live="polite"
                   className="border-destructive/30 bg-destructive/10 text-destructive rounded-lg border px-3 py-2 text-sm"
                 >
-                  {error}
+                  {errorVisible}
                 </p>
               )}
 
