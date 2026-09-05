@@ -14,6 +14,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:e2e": "playwright test",
+    "test:e2e:qa": "E2E_QA_CONTRACT=1 playwright test e2e/contrato-qa-pwa.spec.ts e2e/pwa-core.spec.ts e2e/primitivas-tactiles-movil.spec.ts e2e/shell-movil.spec.ts --project=desktop",
     "test:baseline": "E2E_BASELINE=1 playwright test e2e/baseline-desktop.spec.ts --project=desktop",
     "test:baseline:movil": "E2E_BASELINE=1 playwright test e2e/baseline-movil.spec.ts --project=mobile && node scripts/comparar-baseline-movil.mjs artifacts/performance/movil.json",
     "perf:budget": "node scripts/verificar-presupuesto-rendimiento.mjs",

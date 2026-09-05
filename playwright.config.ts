@@ -8,9 +8,26 @@ const puerto = new URL(baseURL).port || "3000";
 
 export default defineConfig({
   testDir: "./e2e",
+  outputDir: "artifacts/playwright/test-results",
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
-  use: { baseURL, trace: "on-first-retry" },
+  // Un fallo de una matriz responsive sin su viewport ni una imagen obliga a
+  // reproducirlo a ciegas. Estas evidencias se conservan como artefacto de CI.
+  use: {
+    baseURL,
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+  },
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        [
+          "html",
+          { outputFolder: "artifacts/playwright/report", open: "never" },
+        ],
+      ]
+    : "list",
   webServer: iniciarServidor
     ? {
         command: `npm run dev -- --port ${puerto}`,

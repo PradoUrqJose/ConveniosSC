@@ -17,7 +17,8 @@ import AxeBuilder from "@axe-core/playwright";
  * 5. Reduced motion sin desplazamientos ni shimmer.
  * 6. Escritorio a 1024px sin cambios: ninguna de estas reglas existe ahí.
  */
-const habilitado = process.env.E2E_BASELINE === "1";
+const habilitado =
+  process.env.E2E_BASELINE === "1" || process.env.E2E_QA_CONTRACT === "1";
 const cookieSesion = process.env.SESSION_COOKIE_NAME ?? "convenios_sesion";
 
 const viewports = [
@@ -48,11 +49,14 @@ const rutas = [
 const TOQUE_MINIMO = 44;
 
 async function iniciarSesionSuperadmin(page: Page) {
-  const usuario = process.env.E2E_BASELINE_SUPERADMIN_USER;
-  const password = process.env.E2E_BASELINE_SUPERADMIN_PASSWORD;
+  const usuario =
+    process.env.E2E_BASELINE_SUPERADMIN_USER ??
+    process.env.E2E_QA_SUPERADMIN_USER;
+  const password =
+    process.env.E2E_BASELINE_SUPERADMIN_PASSWORD ?? process.env.E2E_QA_PASSWORD;
   if (!usuario || !password) {
     throw new Error(
-      "Define E2E_BASELINE_SUPERADMIN_USER y E2E_BASELINE_SUPERADMIN_PASSWORD.",
+      "Define E2E_BASELINE_* o E2E_QA_{SUPERADMIN_USER,PASSWORD}.",
     );
   }
   await page.goto("/login");

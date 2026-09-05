@@ -43,6 +43,13 @@ jobs:
       - name: Migrar el esquema
         run: npm run db:migrate
 
+      - name: Sembrar dataset determinista para E2E
+        run: npm run db:seed
+        env:
+          # Credencial efímera del Postgres de Actions; el seed queda sin
+          # cambio forzado de contraseña y las rutas pueden autenticarse.
+          SEED_PASSWORD: Temporal123
+
       - name: Typecheck, lint, formato y tests unitarios
         run: npm run check
 
@@ -56,6 +63,25 @@ jobs:
 
       - name: Presupuesto de JavaScript gzip
         run: npm run perf:budget
+
+      - name: Instalar Chromium para contratos de UI
+        run: npx playwright install --with-deps chromium
+
+      - name: Contrato móvil, PWA y no regresión desktop
+        run: npm run test:e2e:qa
+        env:
+          E2E_QA_SUPERADMIN_USER: admin
+          E2E_QA_ADMIN_USER: sc.admin
+          E2E_QA_VENDEDOR_USER: sc.vende1
+          E2E_QA_PASSWORD: Temporal123
+
+      - name: Publicar evidencia de Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-qa
+          path: artifacts/playwright
+          if-no-files-found: warn
 
       - name: Publicar reporte de bundles por ruta
         if: always()
