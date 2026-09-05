@@ -30,6 +30,7 @@ import { cn } from "@/lib/utils";
 import {
   CabeceraPagina,
   EstadoBadge,
+  EstadoSinResultados,
   Metrica,
 } from "@/components/shell/pagina-ui";
 import {
@@ -283,7 +284,12 @@ export function EmpleadosClient({
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {/* Las cuatro métricas apiladas a ancho completo eran, por sí solas,
+          buena parte de los 4,741px de la auditoría (issue #67): en móvil
+          se queda solo el resumen que no repite lo que ya dicen las tabs
+          de estado (Pendientes/Activos), y el resto vuelve en desktop —
+          mismo patrón que Ventas (`ventas-client.tsx`). */}
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
         <Metrica
           etiqueta="Total de empleados"
           valor={resumen.total}
@@ -296,6 +302,7 @@ export function EmpleadosClient({
           detalle={`${resumen.total ? Math.round((resumen.activos / resumen.total) * 100) : 0}% del total`}
           tono="success"
           icono={<Check className="size-4.5" />}
+          className="hidden lg:block"
         />
         <Metrica
           etiqueta="Pendientes"
@@ -303,6 +310,7 @@ export function EmpleadosClient({
           detalle="Requieren validación"
           tono="warning"
           icono={<Clock3 className="size-4.5" />}
+          className="hidden lg:block"
         />
         <Metrica
           etiqueta="Ventas últimos 30 días"
@@ -310,6 +318,7 @@ export function EmpleadosClient({
           detalle={`${formatearSoles(resumen.montoUltimos30d)} acumulado`}
           tono="neutral"
           icono={<ReceiptText className="size-4.5" />}
+          className="hidden lg:block"
         />
       </div>
 
@@ -438,37 +447,44 @@ export function EmpleadosClient({
           // empresa que aún no ha dado de alta a nadie: el usuario buscaba
           // un filtro inexistente en vez de crear el primer registro
           // (issue #56).
-          <div className="grid min-h-80 place-items-center px-5 text-center">
-            <div>
-              <span className="bg-primary/10 text-primary mx-auto grid size-14 place-items-center rounded-2xl">
-                {hayFiltros ? (
-                  <Search className="size-6" />
-                ) : (
-                  <UsersRound className="size-6" />
-                )}
-              </span>
-              <h2 className="mt-4 font-semibold">
-                {hayFiltros
-                  ? "No encontramos empleados"
-                  : "Aún no hay empleados"}
-              </h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {hayFiltros
-                  ? "Revisa el texto ingresado o cambia los filtros aplicados."
-                  : "Registra al primer empleado para que pueda acceder a los beneficios del convenio."}
-              </p>
-            </div>
-          </div>
+          <EstadoSinResultados
+            icono={
+              hayFiltros ? (
+                <Search className="size-6" />
+              ) : (
+                <UsersRound className="size-6" />
+              )
+            }
+            hayFiltros={hayFiltros}
+            inicial={{
+              titulo: "Aún no hay empleados",
+              descripcion:
+                "Registra al primer empleado para que pueda acceder a los beneficios del convenio.",
+            }}
+            filtrado={{
+              titulo: "No encontramos empleados",
+              descripcion:
+                "Revisa el texto ingresado o cambia los filtros aplicados.",
+            }}
+            className="min-h-80 rounded-none border-none"
+          />
         ) : (
           <>
+            {/* Móvil (issue #67): la tarjeta de dos botones (56–140px, según
+                si tenía teléfono o empresa) baja a una fila de 56–64px —
+                identidad, documento parcial, estado y actividad—, con toda
+                la fila como único target de 44px+ que abre el detalle. Ver
+                y editar dejan de ser botones propios: "editar" ya vive en
+                el pie del detalle, así que un segundo botón en la fila solo
+                repetía el mismo destino con más superficie táctil que
+                cuidar. */}
             <div className="divide-y lg:hidden">
               {pagina.items.map((empleado) => (
-                <TarjetaEmpleado
+                <FilaEmpleadoMovil
                   key={empleado.id}
                   empleado={empleado}
                   esSuperadmin={esSuperadmin}
                   alVer={() => setDialogo({ tipo: "detalle", empleado })}
-                  alEditar={() => setDialogo({ tipo: "editar", empleado })}
                 />
               ))}
             </div>
@@ -706,67 +722,65 @@ function FilaEmpleadoTabla({
   );
 }
 
-function TarjetaEmpleado({
+/** "···" + los últimos 4 dígitos: identidad reconocible sin ocupar la fila. */
+function documentoParcial(numero: string) {
+  return numero.length <= 4 ? numero : `···${numero.slice(-4)}`;
+}
+
+/**
+ * Fila compacta de empleado (issue #67, PWA-UI-05): 56–64px, identidad,
+ * documento parcial, estado y actividad en una sola línea de detalle. Toda
+ * la fila es el `<button>` que abre el sheet de detalle — ahí viven Editar,
+ * Verificar y Rechazar, así que no hace falta un segundo control aquí.
+ */
+function FilaEmpleadoMovil({
   empleado,
   esSuperadmin,
   alVer,
-  alEditar,
 }: {
   empleado: FilaEmpleado;
   esSuperadmin: boolean;
   alVer: () => void;
-  alEditar: () => void;
 }) {
   const nombre = `${empleado.nombres} ${empleado.apellidos}`;
   const iniciales = `${empleado.nombres[0] ?? ""}${empleado.apellidos[0] ?? ""}`;
   return (
-    <article className="p-4">
-      <div className="flex items-start gap-3">
-        <span className="from-primary/15 text-primary grid size-11 shrink-0 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 text-xs font-extrabold">
-          {iniciales}
+    <button
+      type="button"
+      onClick={alVer}
+      aria-label={`Ver detalle de ${nombre}, ${TEXTO_ESTADO[empleado.estado]}`}
+      className="hover:bg-primary/[0.025] flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left"
+    >
+      <span className="from-primary/15 text-primary grid size-10 shrink-0 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 text-xs font-extrabold">
+        {iniciales}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-sm font-bold uppercase">
+            {nombre}
+          </span>
+          <EstadoBadge
+            tono={TONO_ESTADO[empleado.estado]}
+            className="ml-auto shrink-0"
+          >
+            {TEXTO_ESTADO[empleado.estado]}
+          </EstadoBadge>
         </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <h3 className="truncate text-sm font-bold uppercase">{nombre}</h3>
-              <p className="text-muted-foreground mt-0.5 text-xs">
-                {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
-                {empleado.numeroDocumento}
-                {esSuperadmin ? ` · ${empleado.empresaNombre}` : ""}
-              </p>
-            </div>
-            <EstadoBadge
-              tono={TONO_ESTADO[empleado.estado]}
-              className="shrink-0"
-            >
-              {TEXTO_ESTADO[empleado.estado]}
-            </EstadoBadge>
-          </div>
-          <div className="text-muted-foreground mt-3 grid grid-cols-2 gap-2 text-xs">
-            <span className="bg-muted/60 rounded-lg px-2.5 py-2">
-              <strong className="text-foreground block text-sm">
-                {empleado.comprasUltimos30d}
-              </strong>
-              compras en 30 días
-            </span>
-            <span className="bg-muted/60 rounded-lg px-2.5 py-2">
-              <strong className="money text-foreground block truncate text-sm">
-                {formatearSoles(empleado.montoUltimos30d)}
-              </strong>
-              consumo
-            </span>
-          </div>
-          <div className="mt-3 flex gap-2">
-            <Button variant="outline" size="sm" onClick={alVer}>
-              <Eye className="size-3.5" /> Ver detalle
-            </Button>
-            <Button variant="ghost" size="sm" onClick={alEditar}>
-              <Pencil className="size-3.5" /> Editar
-            </Button>
-          </div>
-        </div>
-      </div>
-    </article>
+        <span className="text-muted-foreground mt-0.5 flex items-center gap-1 truncate text-xs">
+          {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
+          {documentoParcial(empleado.numeroDocumento)}
+          <span>·</span>
+          {empleado.comprasUltimos30d} compra
+          {empleado.comprasUltimos30d === 1 ? "" : "s"}
+          {esSuperadmin ? (
+            <>
+              <span>·</span>
+              <span className="truncate">{empleado.empresaNombre}</span>
+            </>
+          ) : null}
+        </span>
+      </span>
+    </button>
   );
 }
 
