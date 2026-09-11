@@ -718,7 +718,6 @@ export function VentasClient({
                 items={paginaVisible.items}
                 esAdmin={esAdmin}
                 direccion={direccion}
-                orden={orden}
                 hoy={hoy}
                 ayer={ayer}
                 pendiente={pendiente}
@@ -1023,7 +1022,6 @@ function ListaMovil({
   items,
   esAdmin,
   direccion,
-  orden,
   hoy,
   ayer,
   pendiente,
@@ -1033,59 +1031,32 @@ function ListaMovil({
   items: FilaVenta[];
   esAdmin: boolean;
   direccion: string;
-  orden: string;
   hoy: string;
   ayer: string;
   pendiente: boolean;
   urlRetorno: string;
   alAbrirDetalle: () => void;
 }) {
-  const agrupaPorDia = orden.startsWith("fecha");
-
-  const grupos = useMemo(() => {
-    if (!agrupaPorDia) {
-      return [{ etiqueta: null as string | null, items }];
-    }
-    const mapa = new Map<string, FilaVenta[]>();
-    for (const v of items) {
-      const lista = mapa.get(v.fechaVenta) ?? [];
-      lista.push(v);
-      mapa.set(v.fechaVenta, lista);
-    }
-    return [...mapa.entries()].map(([fecha, items]) => ({
-      etiqueta:
-        fecha === hoy
-          ? "Hoy"
-          : fecha === ayer
-            ? "Ayer"
-            : formatearFechaUI(fecha),
-      items,
-    }));
-  }, [items, agrupaPorDia, hoy, ayer]);
+  // La fecha va dentro de cada tarjeta (pedido del usuario, 2026-09), no
+  // como encabezado de grupo: cada venta se lee sola, en cualquier orden.
+  const etiquetaDia = (fecha: string) =>
+    fecha === hoy ? "Hoy" : fecha === ayer ? "Ayer" : formatearFechaUI(fecha);
 
   return (
     <div className="relative">
       <div
-        className={`flex flex-col transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
+        className={`mob-movimientos transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
       >
-        {grupos.map((grupo, i) => (
-          <div key={grupo.etiqueta ?? i}>
-            {grupo.etiqueta ? (
-              <h2 className="mob-grupo-titulo">{grupo.etiqueta}</h2>
-            ) : null}
-            <div className="mob-movimientos">
-              {grupo.items.map((v) => (
-                <TarjetaVenta
-                  key={v.id}
-                  venta={v}
-                  esAdmin={esAdmin}
-                  direccion={direccion}
-                  urlRetorno={urlRetorno}
-                  alAbrirDetalle={alAbrirDetalle}
-                />
-              ))}
-            </div>
-          </div>
+        {items.map((v) => (
+          <TarjetaVenta
+            key={v.id}
+            venta={v}
+            dia={etiquetaDia(v.fechaVenta)}
+            esAdmin={esAdmin}
+            direccion={direccion}
+            urlRetorno={urlRetorno}
+            alAbrirDetalle={alAbrirDetalle}
+          />
         ))}
       </div>
       {pendiente ? (
@@ -1099,12 +1070,15 @@ function ListaMovil({
 
 function TarjetaVenta({
   venta,
+  dia,
   esAdmin,
   direccion,
   urlRetorno,
   alAbrirDetalle,
 }: {
   venta: FilaVenta;
+  /** "Hoy", "Ayer" o la fecha: abre el chip de meta. */
+  dia: string;
   esAdmin: boolean;
   direccion: string;
   urlRetorno: string;
@@ -1113,8 +1087,9 @@ function TarjetaVenta({
   const anulada = venta.estado === "ANULADA";
   const contraparte = empresaContraparte(venta, direccion);
   // Rediseño PWA 2026-09: misma fila que la lista de movimientos del
-  // dashboard — iniciales en squircle, nombre, hora · contraparte · sede y
-  // el total pagado a la derecha con el descuento debajo.
+  // dashboard — iniciales en squircle, nombre, fecha y hora · contraparte ·
+  // sede (la fecha primero: el chip trunca por la derecha) y el total
+  // pagado a la derecha con el descuento debajo.
   return (
     <Link
       href={`/ventas/${venta.id}?volver=${encodeURIComponent(urlRetorno)}`}
@@ -1140,7 +1115,7 @@ function TarjetaVenta({
           )}
         </span>
         <span className="mob-movimiento-meta">
-          {formatearHoraLima(venta.createdAt)} · {contraparte.nombre} ·{" "}
+          {dia}, {formatearHoraLima(venta.createdAt)} · {contraparte.nombre} ·{" "}
           {venta.sede.nombre}
           {esAdmin
             ? ` · ${venta.vendedor.nombres} ${venta.vendedor.apellidos.split(" ")[0]}`

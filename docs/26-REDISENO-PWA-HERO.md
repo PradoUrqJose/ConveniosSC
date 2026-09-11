@@ -81,9 +81,9 @@ tocar la de escritorio:
   propio en Ventas—. La barra de filtros de escritorio queda `max-lg:hidden`.
 - Listas: `.mob-movimiento` en las tres (y en Empresas, Convenios y
   Usuarios vía `FilaCatalogoMovil`): iniciales en squircle para personas,
-  meta truncada y estado o importe a la derecha. Ventas agrupa por día con
-  `.mob-grupo-titulo` y muestra el descuento bajo el total; las anuladas se
-  tachan. En Empleados las tabs de estado pasan a chips con conteo que
+  meta truncada y estado o importe a la derecha. En Ventas la fecha ("Hoy",
+  "Ayer" o la fecha) abre el chip de cada tarjeta —sin encabezados de día—
+  y el descuento va bajo el total; las anuladas se tachan. En Empleados las tabs de estado pasan a chips con conteo que
   desplazan de lado.
 - Skeletons: `HeroListaEsqueleto` + filas del mismo alto.
 

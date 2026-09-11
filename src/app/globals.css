@@ -1227,16 +1227,6 @@
       margin-left: 0.375rem;
     }
 
-    /* Agrupador por día de la lista de ventas ("Hoy", "Ayer", fecha). */
-    .mob-grupo-titulo {
-      margin-top: 0.75rem;
-      color: var(--mob-superficie-tenue-foreground);
-      font-size: 0.75rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      text-transform: uppercase;
-    }
-
     .mob-chip-cuenta {
       margin-left: 0.375rem;
       font-variant-numeric: tabular-nums;
