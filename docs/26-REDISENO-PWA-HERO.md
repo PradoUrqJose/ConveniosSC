@@ -87,6 +87,28 @@ tocar la de escritorio:
   desplazan de lado.
 - Skeletons: `HeroListaEsqueleto` + filas del mismo alto.
 
+## Tarjeta de venta (v3)
+
+Referencia del usuario (HTML de "card de pago"), llevada a `.mob-venta*` en
+`ventas-client.tsx` y `src/lib/presentacion-venta.ts` (funciones puras con
+test):
+
+- Dos líneas: nombre + total pagado (azul, 18px); y fecha corta
+  ("Hoy, 16:11", "18 ago, 23:36" — `fechaCortaVenta`), contraparte en
+  píldora y sede. La meta envuelve en vez de truncar.
+- Inicial con color estable por persona (`tonoPersona`, hash del
+  documento) en seis tonos `--mob-tono-*` con variante oscura.
+- Etiqueta de descuento por tramo (`tramoDescuento` sobre `descuentoBps`):
+  hasta 10% verde, hasta 20% ámbar, más de 20% rojo; el porcentaje exacto
+  sale de `formatearPorcentaje` y el lector de pantalla oye "de descuento".
+- Pie con descuento y estado: a la derecha de la meta desde 640px; debajo
+  en teléfonos, para que la meta quede en una línea.
+- Más aire: 18px de padding, 14px entre tarjetas. "Requiere revisión"
+  suma una franja ámbar en el borde izquierdo; "Anulada" apaga la tarjeta.
+- Diferencia con la referencia: la fecha no usa #94A3B8 (≈2.6:1 sobre
+  blanco); toda la meta usa el gris secundario del sistema, que pasa AA.
+  Los siete tonos se miden en `contraste-movil.test.ts`.
+
 ## Barra inferior y status bar
 
 - El indicador pasó de barra corta a una píldora tenue del tamaño de la

@@ -59,6 +59,12 @@ import {
 } from "@/lib/fechas";
 import type { Pagina } from "@/lib/tipos";
 import { capitalizarNombre } from "@/lib/utils";
+import {
+  fechaCortaVenta,
+  formatearPorcentaje,
+  tonoPersona,
+  tramoDescuento,
+} from "@/lib/presentacion-venta";
 import type {
   ContraparteOpcion,
   FilaVenta,
@@ -1040,12 +1046,16 @@ function ListaMovil({
   // La fecha va dentro de cada tarjeta (pedido del usuario, 2026-09), no
   // como encabezado de grupo: cada venta se lee sola, en cualquier orden.
   const etiquetaDia = (fecha: string) =>
-    fecha === hoy ? "Hoy" : fecha === ayer ? "Ayer" : formatearFechaUI(fecha);
+    fecha === hoy
+      ? "Hoy"
+      : fecha === ayer
+        ? "Ayer"
+        : fechaCortaVenta(fecha, hoy);
 
   return (
     <div className="relative">
       <div
-        className={`mob-movimientos transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
+        className={`mob-ventas transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
       >
         {items.map((v) => (
           <TarjetaVenta
@@ -1085,57 +1095,83 @@ function TarjetaVenta({
   alAbrirDetalle: () => void;
 }) {
   const anulada = venta.estado === "ANULADA";
+  const revision = !anulada && venta.requiereRevision;
   const contraparte = empresaContraparte(venta, direccion);
-  // Rediseño PWA 2026-09: misma fila que la lista de movimientos del
-  // dashboard — iniciales en squircle, nombre, fecha y hora · contraparte ·
-  // sede (la fecha primero: el chip trunca por la derecha) y el total
-  // pagado a la derecha con el descuento debajo.
+  // Tarjeta de venta v3 (referencia del usuario, 2026-09): dos líneas —
+  // nombre y total; fecha, contraparte en píldora y sede, con la etiqueta
+  // del tramo de descuento. La inicial tiene un color estable por persona;
+  // "requiere revisión" marca el borde y "anulada" apaga la tarjeta.
   return (
     <Link
       href={`/ventas/${venta.id}?volver=${encodeURIComponent(urlRetorno)}`}
       onClick={() => {
-        // Lista → detalle (issue #70): la foto de esta fila se toma en el
-        // clic, antes de que la navegación reemplace la pantalla.
+        // Lista → detalle (issue #70): la foto de esta tarjeta se toma en
+        // el clic, antes de que la navegación reemplace la pantalla.
         iniciarTransicionMovil("adelante");
         alAbrirDetalle();
       }}
       data-anulada={anulada ? "true" : undefined}
-      className="mob-movimiento"
+      data-revision={revision ? "true" : undefined}
+      className="mob-venta"
     >
       <span
-        className="mob-movimiento-icono mob-movimiento-iniciales"
+        className="mob-venta-inicial"
+        data-tono={tonoPersona(venta.empleado.numeroDocumento)}
         aria-hidden="true"
       >
         {inicialesDe(venta.empleado.nombres, venta.empleado.apellidos)}
       </span>
-      <span className="min-w-0">
-        <span className="mob-movimiento-titulo">
-          {capitalizarNombre(
-            `${venta.empleado.nombres} ${venta.empleado.apellidos}`,
-          )}
-        </span>
-        <span className="mob-movimiento-meta">
-          {dia}, {formatearHoraLima(venta.createdAt)} · {contraparte.nombre} ·{" "}
-          {venta.sede.nombre}
-          {esAdmin
-            ? ` · ${venta.vendedor.nombres} ${venta.vendedor.apellidos.split(" ")[0]}`
-            : ""}
-        </span>
-        {anulada ? (
-          <span className="mob-pill mob-pill-error">Anulada</span>
-        ) : venta.requiereRevision ? (
-          <span className="mob-pill mob-pill-atencion">Requiere revisión</span>
-        ) : null}
-      </span>
-      <span className="mob-movimiento-derecha">
-        <span className="mob-movimiento-monto">
-          {formatearSoles(venta.montoFinalCentimos)}
-        </span>
-        {venta.montoDescuentoCentimos > 0 ? (
-          <span className="mob-movimiento-monto-detalle">
-            −{formatearSoles(venta.montoDescuentoCentimos)}
+      <span className="mob-venta-contenido">
+        <span className="mob-venta-fila">
+          <span className="mob-venta-nombre">
+            {capitalizarNombre(
+              `${venta.empleado.nombres} ${venta.empleado.apellidos}`,
+            )}
           </span>
-        ) : null}
+          <span className="mob-venta-monto">
+            {formatearSoles(venta.montoFinalCentimos)}
+          </span>
+        </span>
+        <span className="mob-venta-fila mob-venta-fila-meta">
+          <span className="mob-venta-meta">
+            <span className="mob-venta-fecha">
+              {dia}, {formatearHoraLima(venta.createdAt)}
+            </span>
+            <span className="mob-venta-empresa">{contraparte.nombre}</span>
+            <span>{venta.sede.nombre}</span>
+            {esAdmin ? (
+              <span>
+                por {venta.vendedor.nombres.split(" ")[0]}{" "}
+                {venta.vendedor.apellidos[0] ?? ""}.
+              </span>
+            ) : null}
+          </span>
+          {venta.montoDescuentoCentimos > 0 || anulada || revision ? (
+            // Pie: descuento y estado juntos. A la derecha de la meta cuando
+            // hay ancho; debajo de ella en teléfonos (< 640px).
+            <span className="mob-venta-pie">
+              {venta.montoDescuentoCentimos > 0 ? (
+                <span className="mob-venta-resta">
+                  <span
+                    className="mob-venta-etiqueta"
+                    data-tramo={tramoDescuento(venta.descuentoBps)}
+                  >
+                    {formatearPorcentaje(venta.descuentoBps)}
+                    <span className="sr-only"> de descuento</span>
+                  </span>
+                  <span>−{formatearSoles(venta.montoDescuentoCentimos)}</span>
+                </span>
+              ) : null}
+              {anulada ? (
+                <span className="mob-pill mob-pill-error">Anulada</span>
+              ) : revision ? (
+                <span className="mob-pill mob-pill-atencion">
+                  Requiere revisión
+                </span>
+              ) : null}
+            </span>
+          ) : null}
+        </span>
       </span>
     </Link>
   );

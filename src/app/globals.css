@@ -369,6 +369,25 @@
     --mob-shadow-tarjeta:
       0 12px 32px -14px oklch(0.25 0.08 262 / 28%),
       0 1px 2px oklch(0.25 0.08 262 / 6%);
+
+    /* Paleta de personas y de tramos de descuento — tarjeta de venta v3
+       (referencia del usuario). Fondo tenue + tinta del mismo tono; cada
+       par se mide en contraste-movil.test.ts. `rojo` solo marca el tramo
+       alto de descuento, nunca a una persona. */
+    --mob-tono-azul-bg: oklch(0.945 0.02 265);
+    --mob-tono-azul-fg: oklch(0.488 0.217 264);
+    --mob-tono-verde-bg: oklch(0.956 0.015 183);
+    --mob-tono-verde-fg: oklch(0.511 0.086 186);
+    --mob-tono-morado-bg: oklch(0.948 0.024 310);
+    --mob-tono-morado-fg: oklch(0.496 0.241 305);
+    --mob-tono-naranja-bg: oklch(0.959 0.018 40);
+    --mob-tono-naranja-fg: oklch(0.553 0.195 38);
+    --mob-tono-rosa-bg: oklch(0.948 0.022 355);
+    --mob-tono-rosa-fg: oklch(0.525 0.199 357);
+    --mob-tono-ambar-bg: oklch(0.973 0.034 88);
+    --mob-tono-ambar-fg: oklch(0.555 0.146 49);
+    --mob-tono-rojo-bg: oklch(0.945 0.02 25);
+    --mob-tono-rojo-fg: oklch(0.505 0.19 27);
   }
 
   /* El punto de venta cambia la barra inferior por un CTA fijo más alto
@@ -407,6 +426,22 @@
     --mob-hero: oklch(0.43 0.16 262);
     --mob-hero-oscuro: oklch(0.13 0.03 262);
     --mob-hero-profundo: oklch(0.24 0.1 265);
+
+    /* Tonos en oscuro: fondo profundo del mismo matiz, tinta clara. */
+    --mob-tono-azul-bg: oklch(0.3 0.07 264);
+    --mob-tono-azul-fg: oklch(0.82 0.1 264);
+    --mob-tono-verde-bg: oklch(0.3 0.05 186);
+    --mob-tono-verde-fg: oklch(0.82 0.1 186);
+    --mob-tono-morado-bg: oklch(0.3 0.08 305);
+    --mob-tono-morado-fg: oklch(0.82 0.11 305);
+    --mob-tono-naranja-bg: oklch(0.3 0.07 40);
+    --mob-tono-naranja-fg: oklch(0.82 0.11 45);
+    --mob-tono-rosa-bg: oklch(0.3 0.07 357);
+    --mob-tono-rosa-fg: oklch(0.82 0.1 357);
+    --mob-tono-ambar-bg: oklch(0.3 0.06 70);
+    --mob-tono-ambar-fg: oklch(0.85 0.12 80);
+    --mob-tono-rojo-bg: oklch(0.3 0.07 27);
+    --mob-tono-rojo-fg: oklch(0.8 0.12 27);
   }
 
   @layer components {
@@ -1333,6 +1368,240 @@
        no contrasta contra el casi-negro. */
     .mob-hero-cuadro .mob-punto-filtros {
       background: var(--mob-hero-foreground);
+    }
+
+    /* =================================================================
+       Tarjeta de venta móvil — rediseño PWA 2026-09, v3 (referencia del
+       usuario).
+
+       Dos líneas: nombre + total pagado; y fecha, contraparte en píldora
+       y sede, con la etiqueta del tramo de descuento a la derecha. La
+       inicial lleva un color estable por persona (`tonoPersona`). Más aire
+       que la fila genérica: 18px de padding y 14px entre tarjetas. La
+       meta envuelve en vez de truncar; nada se corta con "…".
+       ================================================================= */
+    .mob-ventas {
+      display: flex;
+      flex-direction: column;
+      gap: 0.875rem;
+      margin-top: 0.75rem;
+    }
+
+    .mob-venta {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      align-items: start;
+      gap: 0.875rem;
+      border-radius: 1.25rem;
+      background: var(--mob-superficie);
+      color: var(--mob-superficie-foreground);
+      padding: 1.125rem;
+      box-shadow: var(--mob-shadow-fila);
+      transition:
+        transform var(--duration-press) var(--ease-out),
+        box-shadow 180ms ease;
+    }
+
+    .mob-venta:active {
+      transform: scale(0.98);
+    }
+
+    @media (hover: hover) and (pointer: fine) {
+      .mob-venta:hover {
+        box-shadow: 0 4px 14px oklch(0.49 0.2 264 / 12%);
+      }
+    }
+
+    /* Requiere revisión: franja ámbar en el borde izquierdo, visible aun
+       antes de leer la pill. */
+    .mob-venta[data-revision="true"] {
+      box-shadow:
+        inset 0.1875rem 0 0 var(--warning),
+        var(--mob-shadow-fila);
+    }
+
+    .mob-venta-inicial {
+      display: grid;
+      width: 2.75rem;
+      height: 2.75rem;
+      place-items: center;
+      border-radius: 0.8125rem;
+      background: var(--mob-tono-azul-bg);
+      color: var(--mob-tono-azul-fg);
+      font-size: 0.875rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .mob-venta-inicial[data-tono="verde"] {
+      background: var(--mob-tono-verde-bg);
+      color: var(--mob-tono-verde-fg);
+    }
+
+    .mob-venta-inicial[data-tono="morado"] {
+      background: var(--mob-tono-morado-bg);
+      color: var(--mob-tono-morado-fg);
+    }
+
+    .mob-venta-inicial[data-tono="naranja"] {
+      background: var(--mob-tono-naranja-bg);
+      color: var(--mob-tono-naranja-fg);
+    }
+
+    .mob-venta-inicial[data-tono="rosa"] {
+      background: var(--mob-tono-rosa-bg);
+      color: var(--mob-tono-rosa-fg);
+    }
+
+    .mob-venta-inicial[data-tono="ambar"] {
+      background: var(--mob-tono-ambar-bg);
+      color: var(--mob-tono-ambar-fg);
+    }
+
+    .mob-venta-contenido {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .mob-venta-fila {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .mob-venta-fila-meta {
+      align-items: flex-start;
+    }
+
+    .mob-venta-nombre {
+      min-width: 0;
+      overflow: hidden;
+      font-size: 1.0625rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      line-height: 1.25;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mob-venta-monto {
+      flex: none;
+      color: var(--mob-acento);
+      font-size: 1.125rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* La fecha de la referencia (#94A3B8) no llegaba a 3:1 sobre blanco:
+       acá toda la meta usa el gris secundario del sistema (AA), y la
+       jerarquía la da la píldora de la contraparte. */
+    .mob-venta-meta {
+      display: flex;
+      min-width: 0;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.375rem;
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.8125rem;
+      line-height: 1.4;
+    }
+
+    .mob-venta-fecha {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mob-venta-empresa {
+      border-radius: 0.4375rem;
+      background: var(--mob-superficie-tenue);
+      padding: 0.125rem 0.5625rem;
+      font-weight: 500;
+    }
+
+    .mob-venta-resta {
+      display: flex;
+      flex: none;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.8125rem;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* Etiqueta de descuento por tramo: hasta 10% verde, hasta 20% ámbar,
+       más de 20% rojo (`tramoDescuento`). */
+    .mob-venta-etiqueta {
+      border-radius: 0.375rem;
+      background: var(--mob-tono-verde-bg);
+      color: var(--mob-tono-verde-fg);
+      padding: 0.1875rem 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .mob-venta-etiqueta[data-tramo="media"] {
+      background: var(--mob-tono-ambar-bg);
+      color: var(--mob-tono-ambar-fg);
+    }
+
+    .mob-venta-etiqueta[data-tramo="alta"] {
+      background: var(--mob-tono-rojo-bg);
+      color: var(--mob-tono-rojo-fg);
+    }
+
+    /* Pie de la tarjeta: descuento + estado (revisión / anulada). */
+    .mob-venta-pie {
+      display: flex;
+      flex: none;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+
+    .mob-venta-pie .mob-pill {
+      padding: 0.125rem 0.5rem;
+      font-size: 0.6875rem;
+    }
+
+    /* Anulada: la tarjeta se apaga — inicial neutra, nombre y total
+       tachados — pero sigue legible y tocable. */
+    .mob-venta[data-anulada="true"] .mob-venta-inicial {
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    .mob-venta[data-anulada="true"] .mob-venta-nombre,
+    .mob-venta[data-anulada="true"] .mob-venta-monto {
+      color: var(--mob-superficie-tenue-foreground);
+      text-decoration: line-through;
+    }
+
+    /* En teléfonos (< 640px) la meta y el pie no caben lado a lado: con
+       el pie a la derecha, la meta quedaba en ~144px y se apilaba en tres
+       líneas a 390px. La meta toma todo el ancho (una línea) y el pie
+       baja debajo, alineado a la izquierda. */
+    @media (max-width: 639.98px) {
+      .mob-venta-fila-meta {
+        flex-direction: column;
+        gap: 0.625rem;
+      }
+
+      .mob-venta-pie {
+        justify-content: flex-start;
+      }
+    }
+
+    @media (max-width: 359.98px) {
+      .mob-venta {
+        gap: 0.75rem;
+        padding: 1rem;
+      }
     }
 
     /* =================================================================

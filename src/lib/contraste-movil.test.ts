@@ -155,6 +155,15 @@ const PARES = [
     fondo: "var(--mob-hero-oscuro)",
     minimo: 4.5,
   },
+  // Tarjeta de venta v3: iniciales por persona y etiquetas de descuento.
+  ...["azul", "verde", "morado", "naranja", "rosa", "ambar", "rojo"].map(
+    (tono) => ({
+      que: `tinta del tono ${tono} sobre su fondo`,
+      frente: `var(--mob-tono-${tono}-fg)`,
+      fondo: `var(--mob-tono-${tono}-bg)`,
+      minimo: 4.5,
+    }),
+  ),
 ] as const;
 
 describe("contraste del sistema móvil (issue #55)", () => {
