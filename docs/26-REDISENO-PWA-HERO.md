@@ -1,0 +1,78 @@
+# Rediseño PWA — hero de pantallas raíz y movimiento (2026-09)
+
+Punto de partida: imagen de referencia del usuario (app financiera móvil) y
+las skills instaladas para esta fase — `emilkowalski/skills` (animación) y
+`mobile-app-ui-design` + `apple-web-app` (rediseño PWA). **Solo se rediseña
+la PWA (< 1024px)**; el escritorio conserva su composición aprobada. Las
+mejoras de animación sí aplican a los dos (ver commit
+`feat(motion): curvas fuertes…`).
+
+## Movimiento (móvil y escritorio)
+
+- Tokens globales en `:root`: `--ease-out` `cubic-bezier(0.23, 1, 0.32, 1)`,
+  `--ease-in-out` `cubic-bezier(0.77, 0, 0.175, 1)`, `--ease-drawer`
+  `cubic-bezier(0.32, 0.72, 0, 1)` y `--duration-press` 160ms. Van sin capa,
+  así que también reemplazan las curvas de las utilidades `ease-out` /
+  `ease-in-out` de Tailwind.
+- Pulsación única: `scale(0.97)` a 160ms `--ease-out`. La barra inferior
+  presiona instantáneo y suelta con transición (asimétrico).
+- Sin fundidos en skeletons ni en listas: la navegación instantánea (#58)
+  no paga 300–500ms de fade por visita. Nada anima por tecla (casillas DNI).
+- Sheet, navegación lateral (300ms) y pila multipágina con curva de drawer
+  iOS; los pasos de Nueva venta y las subpáginas del sheet entran según la
+  dirección con `@starting-style`.
+- Dialog de escritorio: salida 150ms `--ease-out` (antes `ease-in`), stagger
+  de 30ms. Hover con movimiento solo con puntero real.
+- Reduced motion: el sheet se funde en su lugar en vez de aparecer de golpe.
+
+`--mob-ease` (`cubic-bezier(0.2, 0, 0, 1)`, doc §11) se conserva para
+movimientos dentro de la pantalla (barra inferior, indicador).
+
+## Hero de pantalla raíz
+
+`src/components/shell/hero-movil.tsx` — reemplaza a `CabeceraMovil` en `/`
+(vendedor) y `/dashboard`:
+
+- Bloque `--mob-hero` a sangre (`-mx-4 sm:-mx-6`) que arranca bajo la status
+  bar y se funde a `--background`; con tarjeta destacada el fundido empieza
+  ~11rem antes del final para que el azul se apague detrás de ella.
+- Fila superior: avatar (el mismo `AccionCuentaMovil`, nombre accesible
+  "Tu cuenta: …"), saludo por hora de Lima (`src/lib/saludo.ts`) y nombre
+  como `h1` con `.mob-cabecera-titulo` (contrato e2e #52: no se trunca), más
+  el acceso a buscar ventas.
+- Cifra protagonista (`CifraHero`): el valor pesa más que la etiqueta; el
+  dashboard la hace llegar por streaming con un esqueleto de igual altura.
+- Acciones: `PildoraHero` blancas + un cuadro oscuro opcional (en el
+  dashboard, el disparador de filtros). A < 360px las píldoras pierden el
+  ícono para no recortar la etiqueta.
+- `TarjetaDestacadaMovil`: un único mensaje accionable, con el dato clave
+  en `<strong>` (nunca se parte "S/") y la acción dentro del bloque tenue.
+
+## Lista de movimientos
+
+`src/components/shell/lista-recientes-movil.tsx`: encabezado de sección,
+chips que filtran de verdad (Todas / Hoy, 36px visibles con área táctil de
+44px por `::after` y `data-toque="compacto"`) y filas sin tarjeta ni
+divisores, con ícono en squircle e importe a la derecha. Tocar una fila usa
+la transición lateral del #70.
+
+## Barra inferior y status bar
+
+- El indicador pasó de barra corta a una píldora tenue del tamaño de la
+  pestaña que se desliza detrás; el activo usa tinta plena y el acento queda
+  para el destino destacado (vender).
+- Con `black-translucent` el reloj de iOS es siempre blanco: `body::before`
+  pinta una franja fija del alto de `env(safe-area-inset-top)` en
+  `--mob-hero` para que siga legible al hacer scroll sobre contenido claro.
+  Con inset 0 (navegador, sin notch) no existe.
+
+## Contraste
+
+`src/lib/contraste-movil.test.ts` mide blanco y blanco 86% sobre
+`--mob-hero`, y el ícono sobre `--mob-hero-oscuro`, en claro y en oscuro.
+
+## Verificación pendiente en dispositivo
+
+Sin acceso a un iPhone con la PWA instalada: quedan **sin verificar** la
+franja de status bar con notch/Dynamic Island, el muestreo de color de
+Safari 26 y la sensación del sheet y la navegación lateral bajo el dedo.

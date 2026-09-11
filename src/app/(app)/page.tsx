@@ -17,11 +17,14 @@ import { formatearFechaUI, hoyLima } from "@/lib/fechas";
 import { resumirVentas, ultimasVentas } from "@/modules/ventas/query";
 import { HeroPagina, Metrica } from "@/components/shell/pagina-ui";
 import {
-  AccionCuentaMovil,
-  CabeceraMovil,
-  ContextoMovil,
-} from "@/components/shell/cabecera-movil";
+  CifraHero,
+  HeroMovil,
+  PildoraHero,
+  TarjetaDestacadaMovil,
+} from "@/components/shell/hero-movil";
+import { ListaRecientesMovil } from "@/components/shell/lista-recientes-movil";
 import { medirServidor } from "@/lib/observabilidad";
+import { saludoPorHora } from "@/lib/saludo";
 
 export default async function InicioPage() {
   let sesion;
@@ -57,16 +60,65 @@ export default async function InicioPage() {
 
   return (
     <section className="page-shell">
-      {/* Cabecera raíz móvil (issue #52): el h1 de la pantalla es el saludo
-          del hero, así que acá solo van contexto y cuenta — el acceso a
-          tema, contraseña, instalación y cierre de sesión que antes vivía
-          en el header global. */}
-      <CabeceraMovil
-        className="lg:hidden"
-        contexto={<ContextoMovil />}
-        acciones={<AccionCuentaMovil />}
-      />
+      {/* Hero móvil (rediseño PWA 2026-09): saludo, lo vendido en el mes y
+          las dos acciones del vendedor. Reemplaza a la cabecera raíz; el
+          avatar sigue siendo la entrada a la cuenta. */}
+      <HeroMovil
+        saludo={saludoPorHora()}
+        nombre={nombre}
+        resumen={
+          <CifraHero
+            etiqueta="Vendido este mes"
+            cifra={formatearSoles(resumenMes.sumaBruto)}
+            detalle={`${resumenMes.cantidad} ${resumenMes.cantidad === 1 ? "venta" : "ventas"} · ${formatearSoles(resumenMes.sumaDescuento)} en descuentos`}
+          />
+        }
+        acciones={
+          <>
+            <PildoraHero
+              href="/ventas/nueva"
+              icono={<Plus className="size-5" aria-hidden="true" />}
+            >
+              Nueva venta
+            </PildoraHero>
+            <PildoraHero
+              href="/ventas"
+              icono={<ReceiptText className="size-5" aria-hidden="true" />}
+            >
+              Mis ventas
+            </PildoraHero>
+          </>
+        }
+      >
+        <TarjetaDestacadaMovil
+          icono={<Sparkles className="size-4" />}
+          titulo="Tu mes en curso"
+          accion={
+            resumenMes.cantidad
+              ? { href: "/ventas", etiqueta: "Ver mis ventas del mes" }
+              : {
+                  href: "/ventas/nueva",
+                  etiqueta: "Registrar mi primera venta",
+                }
+          }
+        >
+          {resumenMes.cantidad ? (
+            <>
+              Los empleados con convenio pagaron{" "}
+              <strong>{formatearSoles(resumenMes.sumaFinal)}</strong> en total,
+              con <strong>{formatearSoles(resumenMes.sumaDescuento)}</strong> de
+              descuento.
+            </>
+          ) : (
+            <>
+              Todavía no registras ventas este mes. Empieza identificando al
+              empleado <strong>con su documento</strong>.
+            </>
+          )}
+        </TarjetaDestacadaMovil>
+      </HeroMovil>
       <HeroPagina
+        className="max-lg:hidden"
         kicker={
           <>
             <Sparkles className="size-4" /> Tu espacio de ventas
@@ -76,20 +128,6 @@ export default async function InicioPage() {
         descripcion="Todo listo para registrar la siguiente venta."
         accion={
           <>
-            {/* En móvil se hace visible dentro del primer viewport; la barra
-                inferior sigue siendo un segundo acceso, no el único CTA. */}
-            <Link
-              href="/ventas/nueva"
-              className="group flex min-h-12 items-center justify-between gap-4 rounded-xl bg-white px-4 text-sm font-bold text-blue-950 shadow-lg shadow-blue-950/20 transition active:translate-y-px lg:hidden"
-            >
-              <span className="flex items-center gap-2.5">
-                <span className="grid size-8 place-items-center rounded-lg bg-cyan-100 text-blue-800">
-                  <Plus className="size-4" />
-                </span>
-                Nueva venta
-              </span>
-              <ArrowRight className="size-4" />
-            </Link>
             <Link
               href="/ventas/nueva"
               className="group hidden min-h-16 items-center justify-between gap-5 rounded-2xl bg-white px-5 font-bold text-blue-950 shadow-xl shadow-blue-950/20 transition hover:-translate-y-0.5 hover:shadow-2xl active:translate-y-0 md:min-w-60 lg:flex"
@@ -148,46 +186,7 @@ export default async function InicioPage() {
         />
       </div>
 
-      <section
-        className="space-y-3 lg:hidden"
-        aria-label="Resumen de ventas del mes"
-      >
-        <article className="bg-primary text-primary-foreground shadow-primary/20 relative overflow-hidden rounded-[1.25rem] p-4 shadow-lg">
-          <ReceiptText
-            className="absolute -right-2 -bottom-3 size-24 opacity-15"
-            aria-hidden="true"
-          />
-          <p className="text-primary-foreground/70 text-xs font-bold tracking-[0.08em] uppercase">
-            Ventas este mes
-          </p>
-          <p className="mt-1 text-4xl leading-none font-bold tracking-tight tabular-nums">
-            {resumenMes.cantidad}
-          </p>
-          <p className="text-primary-foreground/80 mt-2 text-sm">
-            Operaciones registradas
-          </p>
-        </article>
-        <div className="grid grid-cols-2 gap-2.5">
-          <article className="bg-card ring-foreground/7 rounded-xl p-3 ring-1">
-            <p className="text-muted-foreground text-xs font-semibold">
-              Monto vendido
-            </p>
-            <p className="money mt-1 truncate text-base font-bold">
-              {formatearSoles(resumenMes.sumaBruto)}
-            </p>
-          </article>
-          <article className="bg-card ring-foreground/7 rounded-xl p-3 ring-1">
-            <p className="text-muted-foreground text-xs font-semibold">
-              Descuentos
-            </p>
-            <p className="money mt-1 truncate text-base font-bold">
-              {formatearSoles(resumenMes.sumaDescuento)}
-            </p>
-          </article>
-        </div>
-      </section>
-
-      <section className="surface-panel">
+      <section className="surface-panel max-lg:hidden">
         <header className="flex items-center justify-between gap-3 border-b px-4 py-3 sm:px-6 sm:py-4">
           <div>
             <h2 className="text-[0.9rem] font-bold tracking-tight sm:text-base">
@@ -246,6 +245,13 @@ export default async function InicioPage() {
           </div>
         )}
       </section>
+
+      <ListaRecientesMovil
+        titulo="Ventas recientes"
+        ventas={recientes}
+        hoy={hoy}
+        vacio="Aún no tienes ventas este mes. Tu primera operación aparecerá aquí."
+      />
     </section>
   );
 }

@@ -137,6 +137,24 @@ const PARES = [
     fondo: "var(--mob-destructivo)",
     minimo: 4.5,
   },
+  {
+    que: "saludo y cifra sobre el hero",
+    frente: "var(--mob-hero-foreground)",
+    fondo: "var(--mob-hero)",
+    minimo: 4.5,
+  },
+  {
+    que: "texto secundario sobre el hero",
+    frente: "var(--mob-hero-tenue-foreground)",
+    fondo: "var(--mob-hero)",
+    minimo: 4.5,
+  },
+  {
+    que: "ícono sobre el cuadro oscuro del hero",
+    frente: "var(--mob-hero-foreground)",
+    fondo: "var(--mob-hero-oscuro)",
+    minimo: 4.5,
+  },
 ] as const;
 
 describe("contraste del sistema móvil (issue #55)", () => {

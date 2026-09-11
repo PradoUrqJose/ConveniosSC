@@ -11,11 +11,14 @@ import { ultimasVentas } from "@/modules/ventas/query";
 import { db } from "@/db";
 import { medirConsultasServidor, medirServidor } from "@/lib/observabilidad";
 import { Suspense } from "react";
+import { ReceiptText, Users } from "lucide-react";
 import {
-  AccionCuentaMovil,
-  CabeceraMovil,
-  ContextoMovil,
-} from "@/components/shell/cabecera-movil";
+  CifraHeroEsqueleto,
+  HeroMovil,
+  PildoraHero,
+  TarjetaDestacadaEsqueleto,
+} from "@/components/shell/hero-movil";
+import { saludoPorHora } from "@/lib/saludo";
 import { DashboardControls, DashboardFiltrosMovil } from "./dashboard-client";
 import {
   DashboardDataRegion,
@@ -27,9 +30,12 @@ import {
   DashboardMetricas,
   DashboardRecientes,
   DashboardRankings,
+  DestacadaDashboard,
   EsqueletoBloque,
   EsqueletoMetricas,
   EsqueletoRankings,
+  ResumenHeroDashboard,
+  etiquetaCifraDashboard,
 } from "./dashboard-modules";
 
 export default async function DashboardPage({
@@ -64,14 +70,53 @@ export default async function DashboardPage({
   );
   return (
     <section className="page-shell">
-      {/* Cabecera raíz móvil (issue #52): el h1 lo pone el banner, acá van
-          el contexto de empresa y la entrada a la cuenta. */}
-      <CabeceraMovil
-        className="lg:hidden"
-        contexto={<ContextoMovil />}
-        acciones={<AccionCuentaMovil />}
-      />
       <DashboardTransition>
+        {/* Hero móvil (rediseño PWA 2026-09): reemplaza a la cabecera raíz,
+            a la tarjeta de periodo y a las métricas móviles. Va dentro de la
+            transición porque el cuadro de filtros navega con ella. El
+            escritorio conserva el banner de siempre. */}
+        <HeroMovil
+          saludo={saludoPorHora()}
+          nombre={sesion.nombres}
+          empresa={sesion.empresaNombre}
+          resumen={
+            <Suspense
+              fallback={
+                <CifraHeroEsqueleto
+                  etiqueta={etiquetaCifraDashboard(direccion)}
+                />
+              }
+            >
+              <ResumenHeroDashboard datos={datos} desde={desde} hasta={hasta} />
+            </Suspense>
+          }
+          acciones={
+            <>
+              <PildoraHero
+                href="/ventas"
+                icono={<ReceiptText className="size-5" aria-hidden="true" />}
+              >
+                Ventas
+              </PildoraHero>
+              <PildoraHero
+                href="/empleados"
+                icono={<Users className="size-5" aria-hidden="true" />}
+              >
+                Empleados
+              </PildoraHero>
+              <DashboardFiltrosMovil
+                desde={desde}
+                hasta={hasta}
+                direccion={direccion}
+                esAdmin={sesion.rol === "ADMIN_EMPRESA"}
+              />
+            </>
+          }
+        >
+          <Suspense fallback={<TarjetaDestacadaEsqueleto />}>
+            <DestacadaDashboard datos={datos} />
+          </Suspense>
+        </HeroMovil>
         <DashboardBanner
           nombre={sesion.nombres}
           empresa={sesion.empresaNombre ?? "Todas las empresas"}
@@ -84,12 +129,6 @@ export default async function DashboardPage({
               esAdmin={sesion.rol === "ADMIN_EMPRESA"}
             />
           }
-        />
-        <DashboardFiltrosMovil
-          desde={desde}
-          hasta={hasta}
-          direccion={direccion}
-          esAdmin={sesion.rol === "ADMIN_EMPRESA"}
         />
         <DashboardDataRegion>
           <div className="flex flex-col gap-3.5 sm:gap-5">
@@ -115,6 +154,7 @@ export default async function DashboardPage({
                   },
                   5,
                 )}
+                hoy={hoy}
               />
             </Suspense>
           </div>

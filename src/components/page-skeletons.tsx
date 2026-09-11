@@ -1,5 +1,6 @@
 import { EsqueletoDiferido } from "@/components/estados";
 import { Skeleton } from "@/components/ui/skeleton";
+import { HeroMovilEsqueleto } from "@/components/shell/hero-movil";
 
 type Variante =
   | "inicio"
@@ -81,8 +82,11 @@ function Dashboard() {
     // vez `LoadingRegion` (issue #56): repetirlos acá hacía que el lector
     // de pantalla anunciara la carga dos veces.
     <section className="page-shell space-y-5">
+      {/* Móvil: mismo hero del rediseño 2026-09; el banner y las métricas
+          de escritorio no existen por debajo de 1024px. */}
+      <HeroMovilEsqueleto />
       <div className="space-y-5">
-        <div className="bg-primary/10 relative grid gap-6 overflow-hidden rounded-[1.25rem] px-4 py-5 shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 md:grid-cols-[1fr_22rem] lg:px-9">
+        <div className="bg-primary/10 max-lg:hiddenshadow-[0_24px_65px_rgba(29,78,216,.22)] relative grid gap-6 overflow-hidden rounded-[1.25rem] px-4 py-5 sm:rounded-[1.75rem] sm:px-7 sm:py-8 md:grid-cols-[1fr_22rem] lg:px-9">
           <div>
             <Skeleton className="h-3 w-48" />
             <Skeleton className="mt-3 h-9 w-64 sm:h-10" />
@@ -93,7 +97,7 @@ function Dashboard() {
             <Skeleton className="h-24 w-full rounded-xl" />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 max-lg:hidden lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, index) => (
             <div
               key={index}
@@ -133,8 +137,9 @@ function InicioVendedor() {
   return (
     <section className="page-shell">
       <div className="contents">
+        <HeroMovilEsqueleto />
         {/* Hero: mismo radio, relleno y alto que src/app/(app)/page.tsx. */}
-        <div className="bg-primary/10 relative overflow-hidden rounded-[1.25rem] px-4 py-4 shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
+        <div className="bg-primary/10 max-lg:hiddenshadow-[0_24px_65px_rgba(29,78,216,.22)] relative overflow-hidden rounded-[1.25rem] px-4 py-4 sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
           <div className="relative grid items-center gap-6 md:grid-cols-[1fr_auto]">
             <div className="space-y-2 sm:space-y-3">
               <Skeleton className="hidden h-3.5 w-40 bg-white/25 sm:block" />
@@ -146,7 +151,7 @@ function InicioVendedor() {
         </div>
 
         {/* Cuatro métricas: misma grilla y card que <Metrica />. */}
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 max-lg:hidden lg:grid-cols-4">
           {Array.from({ length: 4 }, (_, index) => (
             <div
               key={index}

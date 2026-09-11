@@ -121,25 +121,17 @@ export function DashboardFiltrosMovil({
   }
 
   return (
-    <aside className="surface-panel flex items-center justify-between gap-3 px-3.5 py-3 lg:hidden">
-      <div className="min-w-0">
-        <p className="text-muted-foreground text-xs font-bold tracking-[0.08em] uppercase">
-          Periodo activo
-        </p>
-        <p
-          className="truncate text-sm font-semibold"
-          aria-label={`Filtros activos: ${resumen}`}
-        >
-          {resumen}
-        </p>
-      </div>
+    <>
+      {/* Rediseño PWA 2026-09: el disparador vive en la fila de acciones
+          del hero móvil; el periodo activo ya se lee en el detalle de la
+          cifra, y el nombre accesible lo repite para lector de pantalla. */}
       <button
         type="button"
         onClick={abrir}
-        aria-label="Modificar filtros del dashboard"
-        className="border-input hover:bg-muted grid size-11 shrink-0 place-items-center rounded-xl border transition-colors"
+        aria-label={`Modificar filtros del dashboard (${resumen})`}
+        className="mob-hero-cuadro"
       >
-        <SlidersHorizontal className="size-4" aria-hidden="true" />
+        <SlidersHorizontal className="size-5" aria-hidden="true" />
       </button>
       <MobileSheet
         abierto={abierto}
@@ -223,6 +215,6 @@ export function DashboardFiltrosMovil({
           </MobileSheetAcciones>
         </MobileSheetPagina>
       </MobileSheet>
-    </aside>
+    </>
   );
 }

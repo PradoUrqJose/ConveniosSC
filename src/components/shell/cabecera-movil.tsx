@@ -98,7 +98,12 @@ export function ContextoMovil() {
  * pestaña de perfil. Todas esas acciones secundarias viven ahora en
  * `/perfil`, y este avatar de 44x44 es el camino hacia allí.
  */
-export function AccionCuentaMovil() {
+export function AccionCuentaMovil({
+  className = "mob-cabecera-cuenta",
+}: {
+  /** El hero de las pantallas raíz (rediseño 2026-09) lo pinta como avatar. */
+  className?: string;
+}) {
   const cuenta = useCuentaMovil();
   if (!cuenta) return null;
   const { nombres, apellidos } = cuenta.perfil;
@@ -108,7 +113,7 @@ export function AccionCuentaMovil() {
     <Link
       href="/perfil"
       aria-label={`Tu cuenta: ${nombres} ${apellidos}`}
-      className="mob-cabecera-cuenta"
+      className={className}
     >
       <span aria-hidden="true">{iniciales}</span>
     </Link>

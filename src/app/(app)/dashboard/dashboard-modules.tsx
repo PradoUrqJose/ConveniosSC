@@ -5,6 +5,7 @@ import {
   ChartNoAxesCombined,
   LayoutDashboard,
   ReceiptText,
+  Users,
   WalletCards,
 } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +16,11 @@ import { formatearFechaUI } from "@/lib/fechas";
 import type { Dashboard } from "@/modules/metricas/query";
 import type { VentaReciente } from "@/modules/ventas/query";
 import { Metrica } from "@/components/shell/pagina-ui";
+import {
+  CifraHero,
+  TarjetaDestacadaMovil,
+} from "@/components/shell/hero-movil";
+import { ListaRecientesMovil } from "@/components/shell/lista-recientes-movil";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DashboardChartIsland } from "./dashboard-chart-island";
 
@@ -30,7 +36,7 @@ export function DashboardBanner({
   controles: ReactNode;
 }) {
   return (
-    <section className="from-primary via-primary elevation-floating relative isolate overflow-hidden rounded-[1.25rem] bg-linear-to-br to-blue-950 px-4 py-4 text-white sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
+    <section className="from-primary via-primary elevation-floating relative isolate overflow-hidden rounded-[1.25rem] bg-linear-to-br to-blue-950 px-4 py-4 text-white max-lg:hidden sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
       <div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 [background-image:radial-gradient(circle_at_1px_1px,white_1px,transparent_0)] [background-size:18px_18px] opacity-20"
@@ -112,10 +118,12 @@ export async function DashboardMetricas({
               tono="neutral"
             />
           </div>
-          <MetricasMovil dashboard={dashboard} />
         </>
       ) : (
-        <EstadoVacio texto="No hay ventas registradas en este periodo." />
+        // En móvil el vacío ya lo explica la tarjeta destacada del hero.
+        <div className="max-lg:hidden">
+          <EstadoVacio texto="No hay ventas registradas en este periodo." />
+        </div>
       )}
       {dashboard.anuladas.cantidad > 0 ? (
         <p className="text-muted-foreground text-sm">
@@ -130,66 +138,88 @@ export async function DashboardMetricas({
   );
 }
 
-function MetricasMovil({ dashboard }: { dashboard: Dashboard }) {
-  const secundarias =
-    dashboard.direccion === "compradas"
-      ? [
-          {
-            etiqueta: "Monto bruto",
-            valor: formatearSoles(dashboard.totales.sumaBrutoCentimos),
-          },
-          {
-            etiqueta: "Ticket promedio",
-            valor: formatearSoles(dashboard.totales.ticketPromedioCentimos),
-          },
-        ]
-      : [
-          {
-            etiqueta: "Monto bruto",
-            valor: formatearSoles(dashboard.totales.sumaBrutoCentimos),
-          },
-          {
-            etiqueta: "Descuentos",
-            valor: formatearSoles(dashboard.totales.sumaDescuentoCentimos),
-          },
-          {
-            etiqueta: "Ticket promedio",
-            valor: formatearSoles(dashboard.totales.ticketPromedioCentimos),
-          },
-        ];
+/** Etiqueta de la cifra del hero móvil según la dirección del dashboard. */
+export function etiquetaCifraDashboard(
+  direccion: "vendidas" | "compradas",
+): string {
+  return direccion === "vendidas"
+    ? "Vendido en el periodo"
+    : "Compraron tus empleados";
+}
+
+/** Cifra protagonista del hero móvil: el bruto del periodo activo. */
+export async function ResumenHeroDashboard({
+  datos,
+  desde,
+  hasta,
+}: {
+  datos: Promise<Dashboard>;
+  desde: string;
+  hasta: string;
+}) {
+  const dashboard = await datos;
+  const { cantidad } = dashboard.totales;
   return (
-    <section className="space-y-3 lg:hidden" aria-label="Resumen del periodo">
-      <article className="bg-primary text-primary-foreground shadow-primary/20 relative overflow-hidden rounded-[1.25rem] p-4 shadow-lg">
-        <ReceiptText
-          className="absolute -right-2 -bottom-3 size-24 opacity-15"
-          aria-hidden="true"
-        />
-        <p className="text-primary-foreground/70 text-xs font-bold tracking-[0.08em] uppercase">
-          Operaciones registradas
-        </p>
-        <p className="mt-1 text-4xl leading-none font-bold tracking-tight tabular-nums">
-          {dashboard.totales.cantidad}
-        </p>
-        <p className="text-primary-foreground/80 mt-2 text-sm">
-          Ventas en el periodo activo
-        </p>
-      </article>
-      <div className="grid grid-cols-2 gap-2.5">
-        {secundarias.map((metrica) => (
-          <article
-            key={metrica.etiqueta}
-            className="bg-card ring-foreground/7 min-w-0 rounded-xl p-3 ring-1"
-          >
-            <p className="text-muted-foreground truncate text-xs font-semibold">
-              {metrica.etiqueta}
-            </p>
-            <p className="money mt-1 truncate text-base font-bold">
-              {metrica.valor}
-            </p>
-          </article>
-        ))}
-      </div>
-    </section>
+    <CifraHero
+      etiqueta={etiquetaCifraDashboard(dashboard.direccion)}
+      cifra={formatearSoles(dashboard.totales.sumaBrutoCentimos)}
+      detalle={`${cantidad} ${cantidad === 1 ? "operación" : "operaciones"} · ${formatearFechaUI(desde)} – ${formatearFechaUI(hasta)}`}
+    />
+  );
+}
+
+/**
+ * Tarjeta destacada del hero móvil: el dato que más pesa según la dirección
+ * — beneficio entregado (vendí) o adopción del convenio (compraron).
+ */
+export async function DestacadaDashboard({
+  datos,
+}: {
+  datos: Promise<Dashboard>;
+}) {
+  const dashboard = await datos;
+  const { cantidad, sumaDescuentoCentimos, ticketPromedioCentimos } =
+    dashboard.totales;
+  if (!cantidad) {
+    return (
+      <TarjetaDestacadaMovil
+        icono={<ChartNoAxesCombined className="size-4" />}
+        titulo="Sin movimientos en el periodo"
+        accion={{ href: "/ventas", etiqueta: "Ir a ventas" }}
+      >
+        No hay ventas registradas entre estas fechas. Usa el botón de filtros
+        para revisar <strong>otro periodo</strong>.
+      </TarjetaDestacadaMovil>
+    );
+  }
+  if (dashboard.direccion === "compradas") {
+    const { empleadosQueCompraron, empleadosActivos, tasa } =
+      dashboard.adopcion;
+    return (
+      <TarjetaDestacadaMovil
+        icono={<Users className="size-4" />}
+        titulo="Adopción del beneficio"
+        accion={{ href: "/empleados", etiqueta: "Ver empleados" }}
+      >
+        <strong>
+          {empleadosQueCompraron} de {empleadosActivos}
+        </strong>{" "}
+        empleados activos usaron el convenio ({tasa}%). Ticket promedio:{" "}
+        <strong>{formatearSoles(ticketPromedioCentimos)}</strong>.
+      </TarjetaDestacadaMovil>
+    );
+  }
+  return (
+    <TarjetaDestacadaMovil
+      icono={<BadgePercent className="size-4" />}
+      titulo="Beneficio entregado"
+      accion={{ href: "/ventas", etiqueta: "Ver ventas" }}
+    >
+      Tu organización entregó{" "}
+      <strong>{formatearSoles(sumaDescuentoCentimos)}</strong> en descuentos. El
+      ticket promedio es{" "}
+      <strong>{formatearSoles(ticketPromedioCentimos)}</strong>.
+    </TarjetaDestacadaMovil>
   );
 }
 
@@ -286,7 +316,7 @@ export async function DashboardRankings({
 
 export function EsqueletoMetricas() {
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 max-lg:hidden lg:grid-cols-4">
       {Array.from({ length: 4 }, (_, i) => (
         <Skeleton key={i} className="h-24 rounded-[1.25rem] sm:h-28" />
       ))}
@@ -463,10 +493,29 @@ function Adopcion({
 
 export async function DashboardRecientes({
   ventas,
+  hoy,
 }: {
   ventas: Promise<VentaReciente[]>;
+  hoy: string;
 }) {
   const recientes = await ventas;
+  return (
+    <>
+      <ListaRecientesMovil
+        titulo="Operaciones recientes"
+        ventas={recientes}
+        hoy={hoy}
+        vacio="No hay operaciones recientes para este periodo."
+        className="mt-2"
+      />
+      <div className="max-lg:hidden">
+        <BloqueRecientes recientes={recientes} />
+      </div>
+    </>
+  );
+}
+
+function BloqueRecientes({ recientes }: { recientes: VentaReciente[] }) {
   return (
     <Bloque titulo="Operaciones recientes">
       {recientes.length ? (

@@ -347,6 +347,21 @@
        de abajo lo reemplaza por el alto del CTA. Un solo token: el toaster
        no sabe en qué ruta está y no tiene que saberlo. */
     --mob-hueco-avisos: var(--mob-bottom-bar-hueco);
+
+    /* Hero de pantalla raíz — rediseño PWA (2026-09). Azul de marca más
+       luminoso que `--primary` para que el bloque se lea como superficie y
+       no como botón. El blanco encima se mide en contraste-movil.test.ts. */
+    --mob-hero: oklch(0.51 0.19 262);
+    --mob-hero-foreground: oklch(1 0 0);
+    --mob-hero-tenue-foreground: oklch(1 0 0 / 86%);
+    /* Acción secundaria del hero (el cuadro de filtros): contrasta contra
+       el azul y contra el blanco de las píldoras vecinas. */
+    --mob-hero-oscuro: oklch(0.2 0.035 262);
+    /* Única sombra de contenido del rediseño: la tarjeta destacada que se
+       apoya sobre el fundido del hero. Teñida de azul, nunca gris puro. */
+    --mob-shadow-tarjeta:
+      0 12px 32px -14px oklch(0.25 0.08 262 / 28%),
+      0 1px 2px oklch(0.25 0.08 262 / 6%);
   }
 
   /* El punto de venta cambia la barra inferior por un CTA fijo más alto
@@ -379,6 +394,11 @@
        L 0.58 —mismo tono, misma saturación— y llega a 4.74:1 sin tocar el
        token de escritorio. */
     --mob-destructivo: oklch(0.58 0.2 25);
+
+    /* El hero baja de luminosidad para no deslumbrar sobre la página
+       oscura; el blanco encima sigue pasando AA. */
+    --mob-hero: oklch(0.43 0.16 262);
+    --mob-hero-oscuro: oklch(0.13 0.03 262);
   }
 
   @layer components {
@@ -656,6 +676,429 @@
     }
 
     /* =================================================================
+       Hero de pantalla raíz — rediseño PWA (2026-09).
+
+       Reemplaza a la cabecera raíz en inicio y dashboard: bloque azul a
+       sangre que arranca bajo la status bar (la PWA usa
+       `black-translucent`), saludo con avatar, una cifra protagonista,
+       acciones en píldora y una tarjeta destacada apoyada sobre el
+       fundido. El degradado termina en `--background` a media altura de
+       la tarjeta: el azul se apaga detrás de ella en vez de cortarse.
+       ================================================================= */
+    .mob-hero {
+      --mob-hero-fundido: 2.5rem;
+      position: relative;
+      isolation: isolate;
+      display: flex;
+      flex-direction: column;
+      padding-top: max(0.75rem, calc(var(--mob-safe-top) + 0.5rem));
+      padding-bottom: 2.75rem;
+      color: var(--mob-hero-foreground);
+    }
+
+    /* Con tarjeta destacada el fundido empieza más arriba: su mitad
+       inferior ya descansa sobre el fondo de la página. */
+    .mob-hero:has(.mob-destacada) {
+      --mob-hero-fundido: 11rem;
+      padding-bottom: 0.5rem;
+    }
+
+    .mob-hero::before {
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      content: "";
+      background: linear-gradient(
+        180deg,
+        var(--mob-hero) 0%,
+        var(--mob-hero) calc(100% - var(--mob-hero-fundido) - 2rem),
+        color-mix(in oklab, var(--mob-hero) 28%, var(--background))
+          calc(100% - var(--mob-hero-fundido) * 0.45),
+        var(--background) 100%
+      );
+    }
+
+    .mob-hero-barra {
+      display: flex;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .mob-hero-avatar {
+      display: inline-flex;
+      width: var(--mob-toque-min);
+      height: var(--mob-toque-min);
+      flex-shrink: 0;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--mob-radius-pill);
+      background: oklch(1 0 0 / 18%);
+      box-shadow: inset 0 0 0 1.5px oklch(1 0 0 / 38%);
+      color: var(--mob-hero-foreground);
+      font-size: 0.875rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .mob-hero-saludo {
+      font-size: 0.8125rem;
+      font-weight: 500;
+      line-height: 1.2;
+      color: var(--mob-hero-tenue-foreground);
+    }
+
+    /* También lleva `.mob-cabecera-titulo` (contrato e2e del #52: el
+       título de pantalla nunca se trunca); este selector más específico
+       le da la escala del hero. */
+    .mob-hero .mob-hero-nombre {
+      font-size: 1.125rem;
+      line-height: 1.25;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .mob-hero-boton-icono {
+      display: inline-grid;
+      width: var(--mob-toque-min);
+      height: var(--mob-toque-min);
+      flex-shrink: 0;
+      place-items: center;
+      border-radius: var(--mob-radius-pill);
+      background: oklch(1 0 0 / 16%);
+      color: var(--mob-hero-foreground);
+      transition:
+        background-color var(--mob-duration) var(--mob-ease),
+        transform var(--duration-press) var(--ease-out);
+    }
+
+    .mob-hero-boton-icono:active {
+      transform: scale(0.96);
+      background: oklch(1 0 0 / 26%);
+    }
+
+    .mob-hero-contexto {
+      display: inline-flex;
+      max-width: 100%;
+      align-items: center;
+      align-self: flex-start;
+      gap: 0.375rem;
+      margin-top: 1.5rem;
+      border-radius: var(--mob-radius-pill);
+      background: oklch(1 0 0 / 14%);
+      padding: 0.25rem 0.625rem;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .mob-hero-contexto > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mob-hero-resumen {
+      margin-top: 1.5rem;
+    }
+
+    .mob-hero-contexto + .mob-hero-resumen {
+      margin-top: 0.875rem;
+    }
+
+    .mob-hero-etiqueta {
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--mob-hero-tenue-foreground);
+    }
+
+    /* El valor manda sobre la etiqueta. Tamaño fluido para que un importe
+       de siete cifras entre en una línea a 320px. */
+    .mob-hero-cifra {
+      margin-top: 0.25rem;
+      font-size: clamp(2rem, 10.5vw, 2.625rem);
+      line-height: 1.05;
+      font-weight: 700;
+      letter-spacing: -0.035em;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    .mob-hero-cifra-esqueleto {
+      display: block;
+      height: 2.625rem;
+      width: 12rem;
+      margin-top: 0.25rem;
+      border-radius: var(--mob-radius-control);
+      background: oklch(1 0 0 / 18%);
+    }
+
+    .mob-hero-detalle {
+      margin-top: 0.5rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--mob-hero-tenue-foreground);
+    }
+
+    .mob-hero-acciones {
+      display: flex;
+      gap: 0.625rem;
+      margin-top: 1.5rem;
+    }
+
+    .mob-hero-pildora {
+      display: inline-flex;
+      min-width: 0;
+      min-height: 3rem;
+      flex: 1 1 0;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      border-radius: 1.125rem;
+      background: oklch(1 0 0);
+      color: oklch(0.2 0.035 262);
+      padding-inline: 1rem;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      box-shadow: 0 8px 20px -10px oklch(0.2 0.1 262 / 45%);
+      transition: transform var(--duration-press) var(--ease-out);
+    }
+
+    .mob-hero-pildora:active {
+      transform: scale(0.97);
+    }
+
+    /* A 320px dos píldoras + el cuadro dejan ~110px por píldora: con ícono,
+       "Empleados" se recortaba. La etiqueta es la que no se negocia. */
+    @media (max-width: 359.98px) {
+      .mob-hero-pildora {
+        padding-inline: 0.5rem;
+        font-size: 0.875rem;
+      }
+
+      .mob-hero-pildora > svg {
+        display: none;
+      }
+    }
+
+    .mob-hero-cuadro {
+      display: inline-grid;
+      width: 3rem;
+      height: 3rem;
+      flex: none;
+      place-items: center;
+      border-radius: 1.125rem;
+      background: var(--mob-hero-oscuro);
+      color: var(--mob-hero-foreground);
+      transition: transform var(--duration-press) var(--ease-out);
+    }
+
+    .mob-hero-cuadro:active {
+      transform: scale(0.96);
+    }
+
+    /* Tarjeta destacada: un único mensaje accionable por pantalla, con su
+       dato clave resaltado y la acción dentro del bloque tenue. */
+    .mob-destacada {
+      margin-top: 1.5rem;
+      border-radius: var(--mob-radius-tarjeta);
+      background: var(--mob-superficie);
+      color: var(--mob-superficie-foreground);
+      padding: 1rem;
+      box-shadow: var(--mob-shadow-tarjeta);
+    }
+
+    .mob-destacada-encabezado {
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      font-size: 0.9375rem;
+      font-weight: 700;
+    }
+
+    .mob-destacada-icono {
+      display: grid;
+      width: 1.75rem;
+      height: 1.75rem;
+      flex: none;
+      place-items: center;
+      border-radius: var(--mob-squircle);
+      background: color-mix(in oklab, var(--mob-acento) 12%, transparent);
+      color: var(--mob-acento);
+    }
+
+    .mob-destacada-cuerpo {
+      margin-top: 0.75rem;
+      border-radius: var(--mob-radius-bloque);
+      background: var(--mob-superficie-tenue);
+      padding: 0.875rem;
+      font-size: 0.875rem;
+      line-height: 1.375rem;
+      color: var(--mob-superficie-tenue-foreground);
+    }
+
+    /* El dato resaltado es casi siempre un importe: "S/" nunca se separa
+       de su número en el salto de línea. */
+    .mob-destacada-cuerpo strong {
+      color: var(--mob-superficie-foreground);
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .mob-destacada-accion {
+      display: flex;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      margin-top: 0.75rem;
+      border-radius: var(--mob-radius-control);
+      background: var(--mob-superficie);
+      color: var(--mob-superficie-foreground);
+      font-size: 0.875rem;
+      font-weight: 600;
+      transition: transform var(--duration-press) var(--ease-out);
+    }
+
+    .mob-destacada-accion:active {
+      transform: scale(0.97);
+    }
+
+    /* =================================================================
+       Lista de movimientos — rediseño PWA (2026-09).
+
+       Filas sin tarjeta ni divisores: el ícono en squircle y el importe a
+       la derecha ya ordenan la lectura. Los chips filtran de verdad (no
+       son decoración): el activo se invierte a tinta sólida.
+       ================================================================= */
+    .mob-seccion-encabezado {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .mob-seccion-titulo {
+      font-size: 1.0625rem;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+    }
+
+    .mob-seccion-enlace {
+      display: inline-flex;
+      min-height: var(--mob-toque-min);
+      align-items: center;
+      gap: 0.25rem;
+      color: var(--mob-acento);
+      font-size: 0.875rem;
+      font-weight: 600;
+    }
+
+    .mob-chips {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.25rem;
+    }
+
+    /* 36px visibles; el `::after` extiende el área táctil a 44px sin
+       engordar el dibujo (misma técnica que checkbox y switch, #55). */
+    .mob-chip {
+      position: relative;
+      display: inline-flex;
+      min-height: 2.25rem;
+      align-items: center;
+      border-radius: var(--mob-radius-pill);
+      background: var(--mob-superficie-tenue);
+      color: var(--mob-superficie-tenue-foreground);
+      padding-inline: 0.875rem;
+      font-size: 0.8125rem;
+      font-weight: 600;
+      transition:
+        background-color var(--mob-duration) var(--mob-ease),
+        color var(--mob-duration) var(--mob-ease);
+    }
+
+    .mob-chip::after {
+      position: absolute;
+      inset: -0.25rem -0.125rem;
+      content: "";
+    }
+
+    .mob-chip[aria-pressed="true"] {
+      background: var(--mob-superficie-foreground);
+      color: var(--mob-superficie);
+    }
+
+    .mob-movimientos {
+      display: flex;
+      flex-direction: column;
+      margin-top: 0.5rem;
+    }
+
+    .mob-movimiento {
+      display: grid;
+      min-height: 4rem;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 0.875rem;
+      padding-block: 0.5rem;
+      transition: transform var(--duration-press) var(--ease-out);
+    }
+
+    .mob-movimiento:active {
+      transform: scale(0.98);
+    }
+
+    .mob-movimiento-icono {
+      display: grid;
+      width: var(--mob-toque-min);
+      height: var(--mob-toque-min);
+      place-items: center;
+      border-radius: var(--mob-squircle);
+      background: color-mix(
+        in oklab,
+        var(--mob-acento) 9%,
+        var(--mob-superficie)
+      );
+      color: var(--mob-acento);
+    }
+
+    .mob-movimiento-titulo,
+    .mob-movimiento-meta {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .mob-movimiento-titulo {
+      font-size: 0.9375rem;
+      font-weight: 600;
+    }
+
+    .mob-movimiento-meta {
+      margin-top: 0.125rem;
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.8125rem;
+    }
+
+    .mob-movimiento-monto {
+      font-size: 0.9375rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+
+    .mob-movimientos-vacio {
+      padding-block: 1.5rem;
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.875rem;
+      text-align: center;
+    }
+
+    /* =================================================================
        Barra inferior flotante — issue #53 (PWA-MOB-03), doc §3.
 
        Píldora separada del borde (no barra pegada), etiqueta siempre
@@ -733,6 +1176,8 @@
       font-weight: 600;
       letter-spacing: -0.01em;
       color: inherit;
+      /* Por encima de la píldora del indicador, que va después en el DOM. */
+      z-index: 1;
       /* Pulsación asimétrica: al tocar, `:active` anula la duración y la
          escala se pinta en el mismo frame del toque; al soltar, vuelve con
          la transición de pulsación. Respuesta instantánea, salida suave. */
@@ -746,8 +1191,11 @@
       transition-duration: 0ms;
     }
 
+    /* Rediseño 2026-09: el activo se marca con la píldora tenue que se
+       desliza detrás y con tinta plena; el acento queda para el destino
+       destacado (vender). */
     .mob-barra-inferior-tab[data-activo="true"] {
-      color: var(--mob-acento);
+      color: var(--mob-superficie-foreground);
     }
 
     .mob-barra-inferior-icono {
@@ -785,23 +1233,22 @@
       }
     }
 
-    /* Indicador deslizante — doc §3: barra corta anclada al borde
-       inferior de la píldora, del ancho del ícono. Se posiciona por
-       índice (las pestañas son de ancho igual), así no hace falta medir
-       el DOM ni esperar a la hidratación. */
+    /* Indicador deslizante — rediseño 2026-09: una píldora tenue del
+       tamaño de la pestaña, detrás del ícono y la etiqueta. Se posiciona
+       por índice (las pestañas son de ancho igual), así no hace falta
+       medir el DOM ni esperar a la hidratación. El inset la separa del
+       borde para que en los extremos no la coma la curva de la barra. */
     .mob-barra-inferior-indicador {
       position: absolute;
-      /* Pegado al borde inferior, pero lo justo para que en los destinos
-         de los extremos no lo coma la curva de la píldora. */
-      bottom: 0.22rem;
+      inset-block: 0.3125rem;
       left: 0;
+      z-index: 0;
       display: flex;
-      height: 0.1875rem;
       width: calc(100% / var(--destinos));
-      justify-content: center;
+      padding-inline: 0.3125rem;
       pointer-events: none;
       transform: translateX(calc(var(--indice) * 100%));
-      transition: transform var(--mob-duration) var(--mob-ease);
+      transition: transform 260ms var(--mob-ease);
     }
 
     .mob-barra-inferior-indicador[data-visible="false"] {
@@ -810,11 +1257,10 @@
 
     .mob-barra-inferior-indicador::after {
       content: "";
-      width: 1.1rem;
+      width: 100%;
       height: 100%;
       border-radius: var(--mob-radius-pill);
-      background: var(--mob-acento);
-      box-shadow: 0 -6px 16px -2px var(--mob-acento);
+      background: var(--mob-superficie-tenue);
     }
 
     /* Espacio inferior del contenido — doc §3. Un único lugar coordina
@@ -1619,6 +2065,22 @@
       transform: translateX(-24%);
       opacity: 0;
     }
+  }
+
+  /* Status bar de la PWA instalada (apple-web-app, theme-color-and-
+     status-bar): con `black-translucent` el reloj de iOS es siempre blanco
+     y la página se dibuja debajo. Una franja fija del alto exacto del safe
+     area, del azul del hero, lo mantiene legible cuando el contenido claro
+     sube por debajo. Sin notch o en el navegador el inset es 0 y la franja
+     no existe; es un pseudo-elemento, no chrome con contenido. */
+  body::before {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: var(--z-nav-movil);
+    height: var(--mob-safe-top);
+    content: "";
+    background: var(--mob-hero);
+    pointer-events: none;
   }
 
   /* ===================================================================
