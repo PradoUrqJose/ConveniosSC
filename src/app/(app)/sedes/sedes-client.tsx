@@ -22,6 +22,11 @@ import { FiltrosMovil } from "@/components/ui/filtros-movil";
 import type { GrupoFiltro } from "@/lib/capas-movil";
 import { SelectorLocal } from "@/components/selector-local";
 import { FilaCatalogoMovil } from "@/components/shell/catalogo-movil";
+import { CifraHero } from "@/components/shell/hero-movil";
+import {
+  BuscadorHero,
+  HeroListaMovil,
+} from "@/components/shell/hero-lista-movil";
 import { FormSede } from "./form-sede";
 import {
   CabeceraPagina,
@@ -145,6 +150,55 @@ export function SedesClient({
           )
         }
         icono={<Store className="size-5" />}
+        // Rediseño PWA 2026-09: hero con las sedes activas, buscador y
+        // filtros (estado y empresa) en la fila de acciones.
+        movil={
+          <HeroListaMovil
+            titulo="Sedes"
+            accion={
+              puedeGestionar ? (
+                <button
+                  type="button"
+                  aria-label="Nueva sede"
+                  onClick={() => setDialogo({ modo: "crear" })}
+                  className="mob-hero-boton-icono"
+                  data-tono="solido"
+                >
+                  <Plus className="size-5" aria-hidden="true" />
+                </button>
+              ) : undefined
+            }
+            resumen={
+              <CifraHero
+                etiqueta="Sedes activas"
+                cifra={activas}
+                detalle={`${totalVentas} ${totalVentas === 1 ? "venta" : "ventas"} en 30 días · ${sedes.length - activas} inactivas`}
+              />
+            }
+            buscador={
+              <BuscadorHero
+                valor={consulta}
+                alCambiar={setConsulta}
+                placeholder="Sede o dirección"
+                etiqueta="Buscar por sede o dirección"
+              />
+            }
+            filtros={
+              <FiltrosMovil
+                variante="hero"
+                grupos={gruposFiltro}
+                valores={filtrosAplicados}
+                alAplicar={(valores) => {
+                  setEmpresaSeleccionada(valores.empresa ?? "");
+                  actualizarFiltros({
+                    empresa: valores.empresa ?? null,
+                    estado: valores.estado ?? null,
+                  });
+                }}
+              />
+            }
+          />
+        }
         acciones={
           puedeGestionar ? (
             <Button onClick={() => setDialogo({ modo: "crear" })}>
@@ -155,7 +209,7 @@ export function SedesClient({
         }
       />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 max-lg:hidden">
         <Metrica
           etiqueta="Sedes activas"
           valor={activas}
@@ -173,7 +227,7 @@ export function SedesClient({
 
       <div
         role="search"
-        className={`control-bar grid gap-2 ${
+        className={`control-bar grid gap-2 max-lg:hidden ${
           esSuperadmin
             ? "lg:grid-cols-[minmax(0,1fr)_23rem_23rem]"
             : "lg:grid-cols-[minmax(0,1fr)_23rem]"
@@ -190,20 +244,6 @@ export function SedesClient({
               className="bg-muted/70 h-11 w-full rounded-xl border-0 pl-9"
             />
           </div>
-          {/* Móvil (issue #54): empresa y estado dejan de ser dos ruedas
-              nativas del sistema y pasan al sheet único de filtros. En
-              escritorio siguen siendo los mismos controles de siempre. */}
-          <FiltrosMovil
-            grupos={gruposFiltro}
-            valores={filtrosAplicados}
-            alAplicar={(valores) => {
-              setEmpresaSeleccionada(valores.empresa ?? "");
-              actualizarFiltros({
-                empresa: valores.empresa ?? null,
-                estado: valores.estado ?? null,
-              });
-            }}
-          />
         </div>
         {esSuperadmin ? (
           <SelectorLocal
@@ -267,7 +307,7 @@ export function SedesClient({
               compacta de 64px —nombre, empresa (superadmin), dirección y
               estado— que abre el detalle. "Editar" ya no es un botón de la
               fila: vive en el pie del detalle, igual que en Empleados. */}
-          <div className="divide-y lg:hidden">
+          <div className="mob-movimientos lg:hidden">
             {sedes.map((sede) => (
               <FilaCatalogoMovil
                 key={sede.id}

@@ -147,7 +147,9 @@ test.describe("shell móvil y cabeceras por pantalla (issue #52)", () => {
     await page.goto("/ventas", { waitUntil: "networkidle" });
 
     const padding = await page
-      .locator(".mob-cabecera")
+      // Desde el rediseño 2026-09 las pantallas raíz de listado llevan el
+      // hero (`.mob-hero`) en lugar de la cabecera; los dos pagan el inset.
+      .locator(".mob-cabecera, .mob-hero")
       .first()
       .evaluate((el) => getComputedStyle(el).paddingTop);
     // Sin notch el `max()` cae en el mínimo del sistema (8px); con notch, en
@@ -238,7 +240,7 @@ test.describe("shell móvil y cabeceras por pantalla (issue #52)", () => {
     await page.goto("/ventas", { waitUntil: "networkidle" });
 
     // Siguen en el DOM (`lg:hidden`), pero no se pintan a 1024px.
-    await expect(page.locator(".mob-cabecera").first()).toBeHidden();
+    await expect(page.locator(".mob-cabecera, .mob-hero").first()).toBeHidden();
     await expect(
       page.getByRole("heading", { level: 1, name: "Ventas" }),
     ).toBeVisible();

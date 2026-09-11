@@ -92,6 +92,11 @@ import {
   PanelSuperficie,
 } from "@/components/shell/pagina-ui";
 import { SalesDirectionTabs } from "@/components/shell/sales-direction-tabs";
+import { CifraHero } from "@/components/shell/hero-movil";
+import {
+  BuscadorHero,
+  HeroListaMovil,
+} from "@/components/shell/hero-lista-movil";
 
 const OPCIONES_ORDEN: { value: string; label: string }[] = [
   { value: "fecha_desc", label: "Más recientes primero" },
@@ -393,6 +398,51 @@ export function VentasClient({
         })()
       : null;
 
+  const { cantidad, sumaFinal, sumaDescuento } = paginaVisible.resumen;
+
+  // Filtros móviles: el disparador vive en el hero (rediseño 2026-09), como
+  // el cuadro de filtros del dashboard. El contenido es el mismo formulario
+  // de escritorio dentro de un sheet inferior.
+  const filtrosMovil = (
+    <Sheet
+      open={sheetAbierto}
+      onOpenChange={(abierto) => {
+        setSheetAbierto(abierto);
+        if (abierto) asegurarCatalogos();
+      }}
+    >
+      <SheetTrigger
+        render={<button type="button" className="mob-hero-cuadro relative" />}
+        aria-label={`Filtros${filtrosActivos.length > 0 ? ` (${filtrosActivos.length} aplicados)` : ""}`}
+      >
+        <Filter className="size-5" aria-hidden="true" />
+        {filtrosActivos.length > 0 ? (
+          <span className="mob-punto-filtros" aria-hidden="true" />
+        ) : null}
+      </SheetTrigger>
+      <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Filtros</SheetTitle>
+        </SheetHeader>
+        <div className="px-4 pb-6">
+          <FiltrosVenta
+            sp={spVisible}
+            esAdmin={esAdmin}
+            direccion={direccion}
+            empresas={catalogos?.empresas ?? []}
+            vendedores={catalogos?.vendedores ?? []}
+            sedes={catalogos?.sedes ?? []}
+            cargandoCatalogos={direccionCatalogoCargando === direccion}
+            onAplicar={(c) => {
+              aplicarFiltros(c);
+              setSheetAbierto(false);
+            }}
+          />
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+
   return (
     <section className="page-shell">
       <CabeceraPagina
@@ -404,6 +454,33 @@ export function VentasClient({
             : "Consulta tus operaciones, montos y descuentos entregados."
         }
         icono={<Receipt className="size-5" />}
+        movil={
+          <HeroListaMovil
+            titulo={esAdmin ? "Ventas" : "Mis ventas"}
+            resumen={
+              <CifraHero
+                etiqueta={
+                  spVisible.estado === "ANULADA"
+                    ? "Total anulado"
+                    : spVisible.estado === "TODAS"
+                      ? "Total pagado, con anuladas"
+                      : "Total pagado"
+                }
+                cifra={formatearSoles(sumaFinal)}
+                detalle={`${cantidad} ${cantidad === 1 ? "operación" : "operaciones"} · ${formatearSoles(sumaDescuento)} en descuentos`}
+              />
+            }
+            buscador={
+              <BuscadorHero
+                valor={texto}
+                alCambiar={setTexto}
+                placeholder="Documento o nombre"
+                etiqueta="Buscar ventas por documento o nombre del empleado"
+              />
+            }
+            filtros={filtrosMovil}
+          />
+        }
         acciones={
           puedeCrear ? (
             <Link
@@ -452,7 +529,7 @@ export function VentasClient({
         />
       ) : null}
 
-      <div className="control-bar flex items-center gap-2">
+      <div className="control-bar flex items-center gap-2 max-lg:hidden">
         <div className="relative flex-1">
           <Search className="text-muted-foreground absolute top-1/2 left-3 size-4 -translate-y-1/2" />
           <Input
@@ -492,54 +569,6 @@ export function VentasClient({
               />
             </PopoverContent>
           </Popover>
-        </div>
-
-        <div className="lg:hidden">
-          <Sheet
-            open={sheetAbierto}
-            onOpenChange={(abierto) => {
-              setSheetAbierto(abierto);
-              if (abierto) asegurarCatalogos();
-            }}
-          >
-            <SheetTrigger
-              render={<Button variant="outline" className="relative size-11" />}
-              aria-label={`Filtros${filtrosActivos.length > 0 ? ` (${filtrosActivos.length} aplicados)` : ""}`}
-            >
-              <Filter className="size-4" />
-              {filtrosActivos.length > 0 ? (
-                <span
-                  className="bg-primary text-primary-foreground absolute -top-1 -right-1 grid size-4 place-items-center rounded-full text-[10px]"
-                  aria-hidden="true"
-                >
-                  {filtrosActivos.length}
-                </span>
-              ) : null}
-            </SheetTrigger>
-            <SheetContent
-              side="bottom"
-              className="max-h-[85vh] overflow-y-auto"
-            >
-              <SheetHeader>
-                <SheetTitle>Filtros</SheetTitle>
-              </SheetHeader>
-              <div className="px-4 pb-6">
-                <FiltrosVenta
-                  sp={spVisible}
-                  esAdmin={esAdmin}
-                  direccion={direccion}
-                  empresas={catalogos?.empresas ?? []}
-                  vendedores={catalogos?.vendedores ?? []}
-                  sedes={catalogos?.sedes ?? []}
-                  cargandoCatalogos={direccionCatalogoCargando === direccion}
-                  onAplicar={(c) => {
-                    aplicarFiltros(c);
-                    setSheetAbierto(false);
-                  }}
-                />
-              </div>
-            </SheetContent>
-          </Sheet>
         </div>
       </div>
 
@@ -595,7 +624,8 @@ export function VentasClient({
         />
       ) : null}
 
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+      {/* En móvil el resumen ya es la cifra del hero. */}
+      <div className="grid grid-cols-1 gap-3 max-lg:hidden lg:grid-cols-4">
         <Metrica
           etiqueta="Operaciones"
           valor={paginaVisible.resumen.cantidad}
@@ -1036,25 +1066,25 @@ function ListaMovil({
   return (
     <div className="relative">
       <div
-        className={`flex flex-col gap-3 transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
+        className={`flex flex-col transition-opacity duration-200 ${pendiente ? "pointer-events-none opacity-40" : ""}`}
       >
         {grupos.map((grupo, i) => (
-          <div key={grupo.etiqueta ?? i} className="flex flex-col gap-3">
+          <div key={grupo.etiqueta ?? i}>
             {grupo.etiqueta ? (
-              <h2 className="text-muted-foreground pt-1 text-xs font-semibold tracking-wide uppercase">
-                {grupo.etiqueta}
-              </h2>
+              <h2 className="mob-grupo-titulo">{grupo.etiqueta}</h2>
             ) : null}
-            {grupo.items.map((v) => (
-              <TarjetaVenta
-                key={v.id}
-                venta={v}
-                esAdmin={esAdmin}
-                direccion={direccion}
-                urlRetorno={urlRetorno}
-                alAbrirDetalle={alAbrirDetalle}
-              />
-            ))}
+            <div className="mob-movimientos">
+              {grupo.items.map((v) => (
+                <TarjetaVenta
+                  key={v.id}
+                  venta={v}
+                  esAdmin={esAdmin}
+                  direccion={direccion}
+                  urlRetorno={urlRetorno}
+                  alAbrirDetalle={alAbrirDetalle}
+                />
+              ))}
+            </div>
           </div>
         ))}
       </div>
@@ -1082,63 +1112,56 @@ function TarjetaVenta({
 }) {
   const anulada = venta.estado === "ANULADA";
   const contraparte = empresaContraparte(venta, direccion);
+  // Rediseño PWA 2026-09: misma fila que la lista de movimientos del
+  // dashboard — iniciales en squircle, nombre, hora · contraparte · sede y
+  // el total pagado a la derecha con el descuento debajo.
   return (
     <Link
       href={`/ventas/${venta.id}?volver=${encodeURIComponent(urlRetorno)}`}
       onClick={() => {
-        // Lista → detalle (issue #70): la foto de esta tarjeta se toma en
-        // el clic, antes de que la navegación reemplace la pantalla.
+        // Lista → detalle (issue #70): la foto de esta fila se toma en el
+        // clic, antes de que la navegación reemplace la pantalla.
         iniciarTransicionMovil("adelante");
         alAbrirDetalle();
       }}
-      className={`bg-card/90 ring-foreground/7 hover:bg-card active:bg-card flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition-[transform,box-shadow,background-color] duration-(--duration-press) ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] active:shadow-sm ${
-        venta.requiereRevision && !anulada ? "ring-warning/35 bg-warning/5" : ""
-      }`}
+      data-anulada={anulada ? "true" : undefined}
+      className="mob-movimiento"
     >
-      {venta.requiereRevision && !anulada ? (
-        <p className="text-warning text-xs font-medium">⚠ Requiere revisión</p>
-      ) : null}
-      <div className="flex items-center justify-between gap-2">
-        <p
-          className={`font-semibold ${anulada ? "text-muted-foreground line-through" : ""}`}
-        >
+      <span
+        className="mob-movimiento-icono mob-movimiento-iniciales"
+        aria-hidden="true"
+      >
+        {inicialesDe(venta.empleado.nombres, venta.empleado.apellidos)}
+      </span>
+      <span className="min-w-0">
+        <span className="mob-movimiento-titulo">
           {capitalizarNombre(
             `${venta.empleado.nombres} ${venta.empleado.apellidos}`,
           )}
-        </p>
-        {anulada ? (
-          <EstadoBadge tono="destructive" className="shrink-0">
-            Anulada
-          </EstadoBadge>
-        ) : null}
-      </div>
-      <p className="text-muted-foreground text-sm">
-        {venta.empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
-        {venta.empleado.numeroDocumento} · {contraparte.nombre}
-      </p>
-      <p className="text-muted-foreground text-sm">
-        {formatearHoraLima(venta.createdAt)} · {venta.sede.nombre}
-        {esAdmin
-          ? ` · ${venta.vendedor.nombres} ${venta.vendedor.apellidos.split(" ")[0]}`
-          : ""}
-      </p>
-      <div className="mt-2 flex items-center justify-end gap-3 border-t pt-3">
-        <span className="text-muted-foreground text-xs">
-          Bruto{" "}
-          <span className="money">
-            {formatearSoles(venta.montoBrutoCentimos)}
-          </span>{" "}
-          −{" "}
-          <span className="money">
-            {formatearSoles(venta.montoDescuentoCentimos)}
-          </span>
         </span>
-        <span
-          className={`money font-bold ${anulada ? "text-muted-foreground line-through" : ""}`}
-        >
+        <span className="mob-movimiento-meta">
+          {formatearHoraLima(venta.createdAt)} · {contraparte.nombre} ·{" "}
+          {venta.sede.nombre}
+          {esAdmin
+            ? ` · ${venta.vendedor.nombres} ${venta.vendedor.apellidos.split(" ")[0]}`
+            : ""}
+        </span>
+        {anulada ? (
+          <span className="mob-pill mob-pill-error">Anulada</span>
+        ) : venta.requiereRevision ? (
+          <span className="mob-pill mob-pill-atencion">Requiere revisión</span>
+        ) : null}
+      </span>
+      <span className="mob-movimiento-derecha">
+        <span className="mob-movimiento-monto">
           {formatearSoles(venta.montoFinalCentimos)}
         </span>
-      </div>
+        {venta.montoDescuentoCentimos > 0 ? (
+          <span className="mob-movimiento-monto-detalle">
+            −{formatearSoles(venta.montoDescuentoCentimos)}
+          </span>
+        ) : null}
+      </span>
     </Link>
   );
 }

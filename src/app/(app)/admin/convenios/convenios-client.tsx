@@ -285,7 +285,7 @@ export function ConveniosClient({
               direcciones del descuento (el "elide direcciones" del issue),
               porque una empresa larga cortada a mitad de frase no dice
               quién otorga y quién recibe. */}
-          <div className="divide-y lg:hidden">
+          <div className="mob-movimientos lg:hidden">
             {convenios.map((c) => (
               <FilaCatalogoMovil
                 key={c.id}

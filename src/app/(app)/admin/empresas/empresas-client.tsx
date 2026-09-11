@@ -225,7 +225,7 @@ export function EmpresasClient({
           {/* Móvil (issue #68): mismo patrón de fila compacta de Sedes y
               Empleados — identidad, RUC, resumen y estado en 64px, toda la
               fila abre el detalle; "Editar" se muda al pie de ese sheet. */}
-          <div className="divide-y lg:hidden">
+          <div className="mob-movimientos lg:hidden">
             {pagina.items.map((empresa) => (
               <FilaCatalogoMovil
                 key={empresa.id}

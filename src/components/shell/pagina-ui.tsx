@@ -34,6 +34,7 @@ export function CabeceraPagina({
   accionesMovil,
   atras,
   contextoMovil = true,
+  movil,
   className,
 }: {
   titulo: string;
@@ -47,25 +48,32 @@ export function CabeceraPagina({
   atras?: AtrasMovil;
   /** Context pill de empresa/alcance. Se apaga donde no decide nada. */
   contextoMovil?: boolean;
+  /**
+   * Reemplaza la cabecera móvil por un hero propio (`HeroListaMovil`,
+   * rediseño PWA 2026-09). Debe traer su propio `lg:hidden`.
+   */
+  movil?: ReactNode;
   className?: string;
 }) {
   const esRaiz = !atras;
   return (
     <>
-      <div className="lg:hidden">
-        <CabeceraMovil
-          titulo={titulo}
-          variante={esRaiz ? "raiz" : "secundaria"}
-          atras={atras}
-          contexto={esRaiz && contextoMovil ? <ContextoMovil /> : undefined}
-          acciones={
-            <>
-              {accionesMovil ?? acciones}
-              {esRaiz ? <AccionCuentaMovil /> : null}
-            </>
-          }
-        />
-      </div>
+      {movil ?? (
+        <div className="lg:hidden">
+          <CabeceraMovil
+            titulo={titulo}
+            variante={esRaiz ? "raiz" : "secundaria"}
+            atras={atras}
+            contexto={esRaiz && contextoMovil ? <ContextoMovil /> : undefined}
+            acciones={
+              <>
+                {accionesMovil ?? acciones}
+                {esRaiz ? <AccionCuentaMovil /> : null}
+              </>
+            }
+          />
+        </div>
+      )}
       <header
         className={cn(
           // En móvil (PWA) la cabecera se reduce a una línea: título + acciones.

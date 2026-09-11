@@ -1026,7 +1026,8 @@
       content: "";
     }
 
-    .mob-chip[aria-pressed="true"] {
+    .mob-chip[aria-pressed="true"],
+    .mob-chip[aria-current="page"] {
       background: var(--mob-superficie-foreground);
       color: var(--mob-superficie);
     }
@@ -1096,6 +1097,158 @@
       color: var(--mob-superficie-tenue-foreground);
       font-size: 0.875rem;
       text-align: center;
+    }
+
+    /* Personas (ventas, empleados): iniciales en el squircle en vez de un
+       ícono genérico. */
+    .mob-movimiento-iniciales {
+      font-size: 0.8125rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .mob-movimiento-derecha {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.125rem;
+    }
+
+    .mob-movimiento-monto-detalle {
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.75rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .mob-movimiento[data-anulada="true"] .mob-movimiento-titulo,
+    .mob-movimiento[data-anulada="true"] .mob-movimiento-monto {
+      color: var(--mob-superficie-tenue-foreground);
+      text-decoration: line-through;
+    }
+
+    /* Estado dentro de la fila: pill más baja para no engordar la fila. */
+    .mob-movimiento .mob-pill {
+      margin-top: 0.25rem;
+      padding: 0.125rem 0.5rem;
+      font-size: 0.6875rem;
+    }
+
+    /* Agrupador por día de la lista de ventas ("Hoy", "Ayer", fecha). */
+    .mob-grupo-titulo {
+      margin-top: 0.75rem;
+      color: var(--mob-superficie-tenue-foreground);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .mob-chip-cuenta {
+      margin-left: 0.375rem;
+      font-variant-numeric: tabular-nums;
+      opacity: 0.7;
+    }
+
+    /* Chips de estado (empleados): una sola fila que desplaza de lado en
+       vez de envolver en dos. */
+    .mob-chips-desplazable {
+      overflow-x: auto;
+      padding-block: 0.25rem;
+      scrollbar-width: none;
+    }
+
+    .mob-chips-desplazable::-webkit-scrollbar {
+      display: none;
+    }
+
+    .mob-chips-desplazable .mob-chip {
+      flex: none;
+      white-space: nowrap;
+    }
+
+    /* =================================================================
+       Hero de listas raíz (Ventas, Empleados, Sedes) — rediseño 2026-09.
+
+       Mismo bloque que el del dashboard, con el título de la pantalla en
+       lugar del saludo y el buscador como píldora blanca junto al cuadro
+       de filtros. Ver `hero-lista-movil.tsx`.
+       ================================================================= */
+    .mob-hero-contexto-linea {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 0.375rem;
+    }
+
+    /* Acción primaria de la pantalla (nuevo empleado, nueva sede): el mismo
+       círculo de la barra del hero, sólido para que se lea primero. */
+    .mob-hero-boton-icono[data-tono="solido"] {
+      background: oklch(1 0 0);
+      color: var(--mob-hero);
+    }
+
+    .mob-hero-boton-icono[data-tono="solido"]:active {
+      background: oklch(0.94 0.02 262);
+    }
+
+    .mob-hero-buscador {
+      display: flex;
+      min-width: 0;
+      min-height: 3rem;
+      flex: 1 1 auto;
+      align-items: center;
+      gap: 0.5rem;
+      border-radius: 1.125rem;
+      background: oklch(1 0 0);
+      color: oklch(0.45 0.03 262);
+      padding-left: 0.875rem;
+      box-shadow: 0 8px 20px -10px oklch(0.2 0.1 262 / 45%);
+    }
+
+    /* El anillo va en la píldora, no en el `<input>`: blanco sobre el azul
+       del hero, visible en claro y en oscuro. */
+    .mob-hero-buscador:focus-within {
+      outline: 2px solid var(--mob-hero-foreground);
+      outline-offset: 2px;
+    }
+
+    .mob-hero-buscador-campo {
+      min-width: 0;
+      height: 3rem;
+      flex: 1 1 auto;
+      border: 0;
+      background: transparent;
+      color: oklch(0.2 0.035 262);
+      font-size: 1rem;
+      outline: none;
+      appearance: none;
+    }
+
+    .mob-hero-buscador-campo:focus-visible {
+      outline: none;
+    }
+
+    .mob-hero-buscador-campo::placeholder {
+      color: oklch(0.5 0.03 262);
+    }
+
+    .mob-hero-buscador-campo::-webkit-search-cancel-button {
+      display: none;
+    }
+
+    .mob-hero-buscador-limpiar {
+      display: grid;
+      width: var(--mob-toque-min);
+      height: 3rem;
+      flex: none;
+      place-items: center;
+      color: oklch(0.45 0.03 262);
+    }
+
+    /* Punto de "filtros activos" sobre el cuadro oscuro: blanco, el acento
+       no contrasta contra el casi-negro. */
+    .mob-hero-cuadro .mob-punto-filtros {
+      background: var(--mob-hero-foreground);
     }
 
     /* =================================================================

@@ -1,6 +1,25 @@
 import { EsqueletoDiferido } from "@/components/estados";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HeroMovilEsqueleto } from "@/components/shell/hero-movil";
+import { HeroListaEsqueleto } from "@/components/shell/hero-lista-movil";
+
+/** Filas de la lista móvil (rediseño 2026-09), sin tarjeta ni divisores. */
+function FilasMovilEsqueleto({ filas = 6 }: { filas?: number }) {
+  return (
+    <div className="mob-movimientos lg:hidden">
+      {Array.from({ length: filas }, (_, index) => (
+        <div key={index} className="mob-movimiento">
+          <span className="mob-movimiento-icono" />
+          <span className="space-y-2">
+            <Skeleton className="h-4 w-40 max-w-full" />
+            <Skeleton className="h-3 w-28" />
+          </span>
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 type Variante =
   | "inicio"
@@ -330,14 +349,22 @@ function Login() {
   );
 }
 
-function CabeceraPaginaSkeleton({ accion = true }: { accion?: boolean }) {
+function CabeceraPaginaSkeleton({
+  accion = true,
+  conHeroMovil = false,
+}: {
+  accion?: boolean;
+  /** La pantalla usa `HeroListaMovil`: el hero reemplaza a la cabecera. */
+  conHeroMovil?: boolean;
+}) {
   return (
     <>
       {/* Móvil: la geometría de `CabeceraMovil` (issue #52) — pill de
-          contexto, título que envuelve y controles de 44px. Si el esqueleto
-          conservara la cabecera de escritorio, la pantalla saltaría al
-          hidratar. */}
-      <header className="mob-cabecera lg:hidden">
+          contexto, título que envuelve y controles de 44px — o el hero de
+          listado del rediseño 2026-09. Si el esqueleto conservara otra
+          cabecera, la pantalla saltaría al hidratar. */}
+      {conHeroMovil ? <HeroListaEsqueleto /> : null}
+      <header className={conHeroMovil ? "hidden" : "mob-cabecera lg:hidden"}>
         <div className="mob-cabecera-texto">
           <Skeleton className="h-4 w-32 rounded-full" />
           <Skeleton className="h-7 w-44" />
@@ -502,15 +529,21 @@ function Catalogo({
   }[tipo];
   return (
     <section className="page-shell space-y-5">
-      <CabeceraPaginaSkeleton accion={config.accion} />
-      {tipo === "sedes" ? <MetricasSkeleton columnas="" /> : null}
+      <CabeceraPaginaSkeleton
+        accion={config.accion}
+        conHeroMovil={tipo === "sedes"}
+      />
+      {tipo === "sedes" ? <MetricasSkeleton columnas="max-lg:hidden" /> : null}
+      {tipo === "sedes" ? <FilasMovilEsqueleto /> : null}
       {config.buscador ? (
         <div className="control-bar flex gap-2">
           <Skeleton className="h-11 flex-1 rounded-xl" />
           <Skeleton className="h-11 w-24 rounded-xl" />
         </div>
       ) : null}
-      <div className={`grid grid-cols-1 gap-4 ${config.grid}`}>
+      <div
+        className={`grid grid-cols-1 gap-4 ${config.grid} ${tipo === "sedes" ? "max-lg:hidden" : ""}`}
+      >
         {Array.from({ length: 6 }, (_, index) => (
           <TarjetaCatalogo key={index} tipo={config.tarjeta} />
         ))}
@@ -522,19 +555,13 @@ function Catalogo({
 function Ventas() {
   return (
     <section className="page-shell space-y-5">
-      <CabeceraPaginaSkeleton />
-      <div className="control-bar flex gap-2">
+      <CabeceraPaginaSkeleton conHeroMovil />
+      <div className="control-bar flex gap-2 max-lg:hidden">
         <Skeleton className="h-11 flex-1 rounded-xl" />
         <Skeleton className="h-11 w-11 rounded-xl" />
       </div>
-      <MetricasSkeleton />
-      <div className="lg:hidden">
-        <div className="space-y-3">
-          {Array.from({ length: 6 }, (_, index) => (
-            <TarjetaCatalogo key={index} tipo="usuario" />
-          ))}
-        </div>
-      </div>
+      <MetricasSkeleton columnas="lg:grid-cols-4 max-lg:hidden" />
+      <FilasMovilEsqueleto />
       <div className="hidden overflow-hidden rounded-2xl border lg:block">
         <div className="bg-muted/45 h-12 border-b" />
         {Array.from({ length: 7 }, (_, index) => (
@@ -558,23 +585,24 @@ function Ventas() {
 function Empleados() {
   return (
     <section className="page-shell space-y-5">
-      <CabeceraPaginaSkeleton />
-      <MetricasSkeleton columnas="sm:grid-cols-2 xl:grid-cols-4" />
-      <div className="bg-card overflow-hidden rounded-2xl border">
-        <div className="space-y-3 border-b p-4 lg:flex lg:items-center lg:justify-between lg:space-y-0">
+      <CabeceraPaginaSkeleton conHeroMovil />
+      <MetricasSkeleton columnas="sm:grid-cols-2 xl:grid-cols-4 max-lg:hidden" />
+      <div className="bg-card overflow-hidden rounded-2xl border max-lg:border-0 max-lg:bg-transparent">
+        <div className="space-y-3 border-b p-4 max-lg:hidden lg:flex lg:items-center lg:justify-between lg:space-y-0">
           <Skeleton className="h-10 w-full lg:w-[360px]" />
           <Skeleton className="h-10 w-32" />
         </div>
-        <div className="flex h-12 gap-6 border-b px-4">
+        <div className="flex h-12 gap-6 border-b px-4 max-lg:hidden">
           <Skeleton className="h-4 w-20 self-center" />
           <Skeleton className="h-4 w-20 self-center" />
           <Skeleton className="h-4 w-20 self-center" />
         </div>
-        <div className="divide-y lg:hidden">
-          {Array.from({ length: 5 }, (_, index) => (
-            <TarjetaCatalogo key={index} tipo="usuario" />
-          ))}
+        <div className="mob-chips lg:hidden">
+          <Skeleton className="h-9 w-24 rounded-full" />
+          <Skeleton className="h-9 w-28 rounded-full" />
+          <Skeleton className="h-9 w-24 rounded-full" />
         </div>
+        <FilasMovilEsqueleto />
         <div className="hidden lg:block">
           <div className="bg-muted/45 h-12" />
           {Array.from({ length: 7 }, (_, index) => (

@@ -26,7 +26,12 @@ import {
 } from "lucide-react";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { capitalizarNombre, cn } from "@/lib/utils";
+import { CifraHero } from "@/components/shell/hero-movil";
+import {
+  BuscadorHero,
+  HeroListaMovil,
+} from "@/components/shell/hero-lista-movil";
 import {
   CabeceraPagina,
   EstadoBadge,
@@ -282,6 +287,57 @@ export function EmpleadosClient({
             <Plus className="size-5" />
           </Button>
         }
+        // Rediseño PWA 2026-09: hero con la cifra del padrón, buscador y
+        // filtros (actividad y orden) en la fila de acciones.
+        movil={
+          <HeroListaMovil
+            titulo="Empleados"
+            accion={
+              <button
+                type="button"
+                aria-label="Nuevo empleado"
+                onClick={() => setDialogo({ tipo: "crear" })}
+                className="mob-hero-boton-icono"
+                data-tono="solido"
+              >
+                <Plus className="size-5" aria-hidden="true" />
+              </button>
+            }
+            resumen={
+              <CifraHero
+                etiqueta="Empleados registrados"
+                cifra={resumen.total}
+                detalle={`${resumen.activos} activos · ${resumen.pendientes} por validar`}
+              />
+            }
+            buscador={
+              <BuscadorHero
+                valor={texto}
+                alCambiar={setTexto}
+                placeholder="Nombre o documento"
+                etiqueta="Buscar empleados por nombre o documento"
+              />
+            }
+            filtros={
+              <FiltrosMovil
+                variante="hero"
+                grupos={gruposFiltro}
+                valores={{ actividad: actividad ?? "all", orden }}
+                alAplicar={(valores) =>
+                  router.push(
+                    urlDe({
+                      actividad:
+                        valores.actividad === "all"
+                          ? null
+                          : (valores.actividad ?? null),
+                      orden: valores.orden ?? null,
+                    }),
+                  )
+                }
+              />
+            }
+          />
+        }
       />
 
       {/* Las cuatro métricas apiladas a ancho completo eran, por sí solas,
@@ -289,7 +345,7 @@ export function EmpleadosClient({
           se queda solo el resumen que no repite lo que ya dicen las tabs
           de estado (Pendientes/Activos), y el resto vuelve en desktop —
           mismo patrón que Ventas (`ventas-client.tsx`). */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 max-lg:hidden lg:grid-cols-4">
         <Metrica
           etiqueta="Total de empleados"
           valor={resumen.total}
@@ -322,9 +378,11 @@ export function EmpleadosClient({
         />
       </div>
 
-      <div className="bg-card overflow-hidden rounded-2xl border shadow-[0_12px_30px_rgba(16,24,40,0.07)]">
-        <div className="flex flex-col gap-3 border-b p-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-col gap-2 md:flex-row">
+      {/* En móvil el panel se disuelve: sin borde ni fondo, las filas
+          quedan sobre la página como en el dashboard (rediseño 2026-09). */}
+      <div className="bg-card overflow-hidden rounded-2xl border shadow-[0_12px_30px_rgba(16,24,40,0.07)] max-lg:overflow-visible max-lg:rounded-none max-lg:border-0 max-lg:bg-transparent max-lg:shadow-none">
+        <div className="flex flex-col gap-3 border-b p-4 max-lg:border-0 max-lg:px-0 max-lg:pt-0 max-lg:pb-1 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-col gap-2 max-lg:hidden md:flex-row">
             <div className="flex min-w-0 items-center gap-2 md:w-[360px]">
               <div className="relative min-w-0 flex-1">
                 <Search className="text-muted-foreground pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2" />
@@ -345,25 +403,6 @@ export function EmpleadosClient({
                   </button>
                 ) : null}
               </div>
-              {/* Móvil (issue #54): actividad y orden dejan de abrir la rueda
-                  nativa del sistema —una capa distinta por cada criterio— y
-                  pasan al sheet único de filtros, con subpágina por grupo.
-                  En escritorio siguen siendo los mismos `select`. */}
-              <FiltrosMovil
-                grupos={gruposFiltro}
-                valores={{ actividad: actividad ?? "all", orden }}
-                alAplicar={(valores) =>
-                  router.push(
-                    urlDe({
-                      actividad:
-                        valores.actividad === "all"
-                          ? null
-                          : (valores.actividad ?? null),
-                      orden: valores.orden ?? null,
-                    }),
-                  )
-                }
-              />
             </div>
             <select
               value={actividad ?? "all"}
@@ -422,9 +461,28 @@ export function EmpleadosClient({
           </div>
         </div>
 
+        {/* Móvil (rediseño 2026-09): los estados son chips con conteo, el
+            mismo lenguaje que los filtros de la lista del dashboard. */}
         <nav
           aria-label="Estados de empleados"
-          className="flex overflow-x-auto border-b px-4"
+          className="mob-chips mob-chips-desplazable -mx-4 px-4 sm:-mx-6 sm:px-6 lg:hidden"
+        >
+          {TABS.map((item) => (
+            <Link
+              key={item.id}
+              href={urlDe({ tab: item.id === "todos" ? null : item.id })}
+              aria-current={tab === item.id ? "page" : undefined}
+              data-toque="compacto"
+              className="mob-chip"
+            >
+              {item.label}
+              <span className="mob-chip-cuenta">{resumen[item.resumen]}</span>
+            </Link>
+          ))}
+        </nav>
+        <nav
+          aria-label="Estados de empleados"
+          className="flex overflow-x-auto border-b px-4 max-lg:hidden"
         >
           {TABS.map((item) => (
             <Link
@@ -478,7 +536,7 @@ export function EmpleadosClient({
                 el pie del detalle, así que un segundo botón en la fila solo
                 repetía el mismo destino con más superficie táctil que
                 cuidar. */}
-            <div className="divide-y lg:hidden">
+            <div className="mob-movimientos lg:hidden">
               {pagina.items.map((empleado) => (
                 <FilaEmpleadoMovil
                   key={empleado.id}
@@ -516,7 +574,7 @@ export function EmpleadosClient({
           </>
         )}
 
-        <footer className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs">
+        <footer className="flex min-h-16 flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-xs max-lg:px-0">
           <span className="text-muted-foreground">
             Mostrando <strong className="text-foreground">{desde}</strong> a{" "}
             <strong className="text-foreground">{hasta}</strong> de{" "}
@@ -743,43 +801,39 @@ function FilaEmpleadoMovil({
   alVer: () => void;
 }) {
   const nombre = `${empleado.nombres} ${empleado.apellidos}`;
-  const iniciales = `${empleado.nombres[0] ?? ""}${empleado.apellidos[0] ?? ""}`;
+  const iniciales =
+    `${empleado.nombres[0] ?? ""}${empleado.apellidos[0] ?? ""}`.toUpperCase();
+  const compras = empleado.comprasUltimos30d;
+  // Rediseño PWA 2026-09: fila del lenguaje del dashboard — iniciales en
+  // squircle, nombre en tipo de oración (el padrón suele venir en
+  // mayúsculas) y el estado a la derecha.
   return (
     <button
       type="button"
       onClick={alVer}
       aria-label={`Ver detalle de ${nombre}, ${TEXTO_ESTADO[empleado.estado]}`}
-      className="hover:bg-primary/[0.025] flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left"
+      className="mob-movimiento w-full text-left"
     >
-      <span className="from-primary/15 text-primary grid size-10 shrink-0 place-items-center rounded-xl bg-linear-to-br to-cyan-400/15 text-xs font-extrabold">
+      <span
+        className="mob-movimiento-icono mob-movimiento-iniciales"
+        aria-hidden="true"
+      >
         {iniciales}
       </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate text-sm font-bold uppercase">
-            {nombre}
-          </span>
-          <EstadoBadge
-            tono={TONO_ESTADO[empleado.estado]}
-            className="ml-auto shrink-0"
-          >
-            {TEXTO_ESTADO[empleado.estado]}
-          </EstadoBadge>
+      <span className="min-w-0">
+        <span className="mob-movimiento-titulo">
+          {capitalizarNombre(nombre)}
         </span>
-        <span className="text-muted-foreground mt-0.5 flex items-center gap-1 truncate text-xs">
+        <span className="mob-movimiento-meta">
           {empleado.tipoDocumento === "DNI" ? "DNI" : "CE"}{" "}
-          {documentoParcial(empleado.numeroDocumento)}
-          <span>·</span>
-          {empleado.comprasUltimos30d} compra
-          {empleado.comprasUltimos30d === 1 ? "" : "s"}
-          {esSuperadmin ? (
-            <>
-              <span>·</span>
-              <span className="truncate">{empleado.empresaNombre}</span>
-            </>
-          ) : null}
+          {documentoParcial(empleado.numeroDocumento)} · {compras} compra
+          {compras === 1 ? "" : "s"}
+          {esSuperadmin ? ` · ${empleado.empresaNombre}` : ""}
         </span>
       </span>
+      <EstadoBadge tono={TONO_ESTADO[empleado.estado]} className="shrink-0">
+        {TEXTO_ESTADO[empleado.estado]}
+      </EstadoBadge>
     </button>
   );
 }

@@ -362,7 +362,7 @@ export function UsuariosClient({
               Editar/Restablecer/Bloquear/Desactivar en un solo pie: el "···"
               de 28px de escritorio no tiene equivalente táctil aquí porque
               ya no compite con nada más en la fila. */}
-          <div className="divide-y lg:hidden">
+          <div className="mob-movimientos lg:hidden">
             {pagina.items.map((u) => (
               <FilaCatalogoMovil
                 key={u.id}

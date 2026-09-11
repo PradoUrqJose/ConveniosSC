@@ -56,6 +56,30 @@ chips que filtran de verdad (Todas / Hoy, 36px visibles con área táctil de
 divisores, con ícono en squircle e importe a la derecha. Tocar una fila usa
 la transición lateral del #70.
 
+## Pantallas raíz de listado (Ventas, Empleados, Sedes)
+
+`src/components/shell/hero-lista-movil.tsx` — el mismo bloque del
+dashboard con el título de la pantalla en lugar del saludo. Se pasa a
+`CabeceraPagina` por la prop `movil`, que reemplaza a la cabecera móvil sin
+tocar la de escritorio:
+
+- Alcance (empresa o "Todas las empresas") sobre el título y el avatar de
+  cuenta a la izquierda; a la derecha, la acción primaria como círculo
+  sólido (`data-tono="solido"`: nuevo empleado, nueva sede).
+- Cifra: total pagado (ventas), empleados registrados, sedes activas. Las
+  métricas de escritorio quedan `max-lg:hidden`.
+- Fila de acciones: `BuscadorHero` (píldora blanca, mismo estado que el
+  buscador de escritorio) y el cuadro oscuro de filtros —
+  `FiltrosMovil variante="hero"` en Empleados y Sedes, el sheet de filtros
+  propio en Ventas—. La barra de filtros de escritorio queda `max-lg:hidden`.
+- Listas: `.mob-movimiento` en las tres (y en Empresas, Convenios y
+  Usuarios vía `FilaCatalogoMovil`): iniciales en squircle para personas,
+  meta truncada y estado o importe a la derecha. Ventas agrupa por día con
+  `.mob-grupo-titulo` y muestra el descuento bajo el total; las anuladas se
+  tachan. En Empleados las tabs de estado pasan a chips con conteo que
+  desplazan de lado.
+- Skeletons: `HeroListaEsqueleto` + filas del mismo alto.
+
 ## Barra inferior y status bar
 
 - El indicador pasó de barra corta a una píldora tenue del tamaño de la

@@ -43,12 +43,15 @@ export function FiltrosMovil({
   valores,
   alAplicar,
   className,
+  variante = "barra",
 }: {
   grupos: GrupoFiltro[];
   /** Lo que está aplicado hoy (normalmente derivado de la URL). */
   valores: ValoresFiltro;
   alAplicar: (valores: ValoresFiltro) => void;
   className?: string;
+  /** `hero`: cuadro oscuro de la fila de acciones del hero (2026-09). */
+  variante?: "barra" | "hero";
 }) {
   const [abierto, setAbierto] = React.useState(false);
   const [borrador, setBorrador] = React.useState<ValoresFiltro>(valores);
@@ -73,11 +76,16 @@ export function FiltrosMovil({
             : "Filtros"
         }
         className={cn(
-          "border-input hover:bg-muted relative grid size-11 place-items-center rounded-lg border lg:hidden",
+          variante === "hero"
+            ? "mob-hero-cuadro relative lg:hidden"
+            : "border-input hover:bg-muted relative grid size-11 place-items-center rounded-lg border lg:hidden",
           className,
         )}
       >
-        <SlidersHorizontal className="size-4" aria-hidden="true" />
+        <SlidersHorizontal
+          className={variante === "hero" ? "size-5" : "size-4"}
+          aria-hidden="true"
+        />
         {activos > 0 ? (
           <span className="mob-punto-filtros" aria-hidden="true" />
         ) : null}
