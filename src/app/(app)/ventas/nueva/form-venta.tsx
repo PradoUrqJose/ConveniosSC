@@ -112,6 +112,16 @@ export function FormVenta({
   // cuál se muestra en móvil. Así el flujo tiene una única decisión por vista
   // sin desmontar los campos ya cargados al avanzar o retroceder.
   const [pasoActual, setPasoActual] = useState<1 | 2 | 3>(1);
+  // Sentido del último cambio de paso: en móvil el paso nuevo entra
+  // deslizando en esa dirección (doc §11). `null` en la carga, al restaurar
+  // un borrador y al empezar otra venta: ahí no hay "desde dónde" venir.
+  const [direccionPaso, setDireccionPaso] = useState<
+    "adelante" | "atras" | null
+  >(null);
+  const irAPaso = (paso: 1 | 2 | 3) => {
+    setDireccionPaso(paso > pasoActual ? "adelante" : "atras");
+    setPasoActual(paso);
+  };
 
   const [sedeId, setSedeId] = useState(sedePorDefectoId ?? sedes[0]?.id ?? "");
   const [fechaVenta, setFechaVenta] = useState(hoy);
@@ -473,6 +483,7 @@ export function FormVenta({
     setNotaArchivosRestaurados(null);
     setDocumentoKey((k) => k + 1);
     setEvidenciasKey((k) => k + 1);
+    setDireccionPaso(null);
     setPasoActual(1);
   };
 
@@ -552,7 +563,7 @@ export function FormVenta({
             type="button"
             variant="ghost"
             size="sm"
-            onClick={() => setPasoActual((pasoActual - 1) as 1 | 2)}
+            onClick={() => irAPaso((pasoActual - 1) as 1 | 2)}
             className="shrink-0 rounded-full px-3 font-semibold"
           >
             Anterior
@@ -594,6 +605,7 @@ export function FormVenta({
       <form
         id="form-venta"
         action={formAction}
+        data-direccion-paso={direccionPaso ?? undefined}
         className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_372px]"
       >
         <input type="hidden" name="ventaId" value={ventaId} />
@@ -676,10 +688,10 @@ export function FormVenta({
                           key={`${tipoDocumento}-${indice}`}
                           className={
                             caracter
-                              ? "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-[var(--venta-azul-borde)] bg-[var(--venta-azul-humo)] font-mono text-lg font-bold text-[var(--venta-azul-hondo)] transition-all duration-200 sm:rounded-2xl sm:text-xl"
+                              ? "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-[var(--venta-azul-borde)] bg-[var(--venta-azul-humo)] font-mono text-lg font-bold text-[var(--venta-azul-hondo)] sm:rounded-2xl sm:text-xl"
                               : esCursor
-                                ? "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-[var(--venta-azul)] bg-[var(--venta-papel)] shadow-[0_0_0_4px_rgba(0,71,255,0.12)] transition-all duration-200 sm:rounded-2xl"
-                                : "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-transparent bg-[var(--venta-hueco)] transition-all duration-200 sm:rounded-2xl"
+                                ? "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-[var(--venta-azul)] bg-[var(--venta-papel)] shadow-[0_0_0_4px_rgba(0,71,255,0.12)] sm:rounded-2xl"
+                                : "flex min-w-0 items-center justify-center rounded-[13px] border-2 border-transparent bg-[var(--venta-hueco)] sm:rounded-2xl"
                           }
                         >
                           {caracter ??
@@ -1101,8 +1113,8 @@ export function FormVenta({
                 : !puedeGuardar)
           }
           onClick={() => {
-            if (pasoActual === 1) setPasoActual(2);
-            else if (pasoActual === 2) setPasoActual(3);
+            if (pasoActual === 1) irAPaso(2);
+            else if (pasoActual === 2) irAPaso(3);
             else setResumenAbierto(true);
           }}
           className="h-14 w-full rounded-full bg-[var(--venta-azul)] text-base font-semibold text-white shadow-[var(--venta-azul)]/20 shadow-lg hover:bg-[var(--venta-azul-hondo)] disabled:bg-[var(--venta-hueco)] disabled:text-[var(--venta-gris-claro)]"
@@ -1209,7 +1221,7 @@ function PasoTarjeta({
       // `inert` (no solo `pointer-events`) también saca el paso del foco por
       // teclado y del árbol de accesibilidad; los `input` se siguen enviando.
       inert={bloqueado}
-      className={`${visibleEnMovil ? "block" : "hidden"} rounded-[26px] border-2 bg-[var(--venta-papel)] p-5 transition-[border-color,opacity] duration-200 sm:p-7 lg:block ${
+      className={`mob-paso ${visibleEnMovil ? "block" : "hidden"} rounded-[26px] border-2 bg-[var(--venta-papel)] p-5 transition-[border-color,opacity] duration-200 sm:p-7 lg:block ${
         activo && !bloqueado
           ? "border-[var(--venta-azul-borde)]"
           : "border-transparent"

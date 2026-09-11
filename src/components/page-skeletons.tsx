@@ -80,7 +80,7 @@ function Dashboard() {
     // `aria-busy`, el aviso sonoro y el `aria-hidden` los pone una sola
     // vez `LoadingRegion` (issue #56): repetirlos acá hacía que el lector
     // de pantalla anunciara la carga dos veces.
-    <section className="page-shell animate-in fade-in-0 space-y-5 duration-300 motion-reduce:animate-none">
+    <section className="page-shell space-y-5">
       <div className="space-y-5">
         <div className="bg-primary/10 relative grid gap-6 overflow-hidden rounded-[1.25rem] px-4 py-5 shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 md:grid-cols-[1fr_22rem] lg:px-9">
           <div>
@@ -131,7 +131,7 @@ function Dashboard() {
 
 function InicioVendedor() {
   return (
-    <section className="page-shell animate-in fade-in-0 duration-300 motion-reduce:animate-none">
+    <section className="page-shell">
       <div className="contents">
         {/* Hero: mismo radio, relleno y alto que src/app/(app)/page.tsx. */}
         <div className="bg-primary/10 relative overflow-hidden rounded-[1.25rem] px-4 py-4 shadow-[0_24px_65px_rgba(29,78,216,.22)] sm:rounded-[1.75rem] sm:px-7 sm:py-8 lg:px-9">
@@ -212,7 +212,7 @@ function TarjetaPasoSkeleton({ children }: { children: React.ReactNode }) {
 
 function NuevaVenta() {
   return (
-    <section className="venta-shell animate-in fade-in-0 flex flex-col gap-6 pb-6 duration-300">
+    <section className="venta-shell flex flex-col gap-6 pb-6">
       <div className="contents">
         {/* ── Barra superior: mismo layout que el <header> real. ── */}
         <header className="flex flex-wrap items-center justify-between gap-4">

@@ -132,6 +132,18 @@
   --duration-base: 220ms;
   --duration-slow: 300ms;
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Curvas fuertes (emilkowalski/skills · emil-design-eng). Las easings
+     nativas de CSS son demasiado blandas para UI: `--ease-out` para lo que
+     entra o sale, `--ease-in-out` para lo que se mueve dentro de la
+     pantalla y `--ease-drawer` (curva de drawer de iOS) para capas que
+     deslizan desde un borde. Van sin capa, así que también le ganan al
+     `--ease-out`/`--ease-in-out` del tema de Tailwind: las utilidades
+     `ease-out` y `ease-in-out` del proyecto usan estas mismas curvas. */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  /* Feedback de pulsación (100–160ms), siempre con `--ease-out`. */
+  --duration-press: 160ms;
 
   /* Radios de referencia por rol — docs/09-GUIA-REDISENO-UI-DESKTOP.md §4.
      `--radius` (0.75rem) sigue siendo la base de la escala `--radius-*` de
@@ -300,6 +312,10 @@
        `--ease-standard` de desktop. */
     --mob-duration: 200ms;
     --mob-ease: cubic-bezier(0.2, 0, 0, 1);
+    /* Navegación lateral lista ↔ detalle (issue #70). Un desplazamiento de
+       pantalla completa necesita más recorrido que un control: con la
+       curva de drawer de iOS se lee como un push nativo y no como un salto. */
+    --mob-duration-navegacion: 300ms;
 
     /* Safe areas — doc §3 y §12: la barra flotante usa `margin`, nunca
        `padding`, para no duplicar el hueco en algunas plataformas. */
@@ -471,7 +487,7 @@
       padding-inline: 1.5rem;
       font-weight: 600;
       transition:
-        transform var(--mob-duration) var(--mob-ease),
+        transform var(--duration-press) var(--ease-out),
         background-color var(--mob-duration) var(--mob-ease);
     }
 
@@ -717,13 +733,17 @@
       font-weight: 600;
       letter-spacing: -0.01em;
       color: inherit;
-      /* `transform` queda fuera de la transición a propósito: el feedback
-         pressed tiene que pintarse en el mismo frame del toque. */
-      transition: color var(--mob-duration) var(--mob-ease);
+      /* Pulsación asimétrica: al tocar, `:active` anula la duración y la
+         escala se pinta en el mismo frame del toque; al soltar, vuelve con
+         la transición de pulsación. Respuesta instantánea, salida suave. */
+      transition:
+        color var(--mob-duration) var(--mob-ease),
+        transform var(--duration-press) var(--ease-out);
     }
 
     .mob-barra-inferior-tab:active {
-      transform: scale(0.94);
+      transform: scale(0.96);
+      transition-duration: 0ms;
     }
 
     .mob-barra-inferior-tab[data-activo="true"] {
@@ -869,7 +889,10 @@
       box-shadow: var(--mob-shadow-sheet);
       outline: none;
       transform: translateY(var(--drawer-swipe-movement-y, 0px));
-      transition: transform 420ms var(--mob-ease);
+      /* Curva de drawer de iOS: arranca rápido y frena largo. `--mob-ease`
+         empieza con velocidad cero y, en un recorrido del 70% de la
+         pantalla, eso se sentía como un retraso antes de subir. */
+      transition: transform 420ms var(--ease-drawer);
       will-change: transform;
     }
 
@@ -908,6 +931,36 @@
        gana a `[hidden]` por especificidad, así que hay que decirlo. */
     .mob-sheet-pagina[hidden] {
       display: none;
+    }
+
+    /* Pila multipágina (doc §5): la subpágina entra empujando desde la
+       derecha y, al volver, la de abajo reaparece desde la izquierda.
+       `data-direccion` sólo existe después de un push/pop: al abrir, la
+       primera página no desliza (ya sube con el sheet). Es
+       `@starting-style`, así que corre cuando la página pasa de `hidden` a
+       visible o se monta, sin JS de animación. */
+    .mob-sheet-contenido[data-direccion] {
+      overflow-x: clip;
+    }
+
+    .mob-sheet-contenido[data-direccion] .mob-sheet-pagina {
+      transition:
+        transform 320ms var(--ease-drawer),
+        opacity 200ms var(--ease-out);
+    }
+
+    @starting-style {
+      .mob-sheet-contenido[data-direccion="adelante"]
+        .mob-sheet-pagina:not([hidden]) {
+        transform: translateX(30%);
+        opacity: 0;
+      }
+
+      .mob-sheet-contenido[data-direccion="atras"]
+        .mob-sheet-pagina:not([hidden]) {
+        transform: translateX(-30%);
+        opacity: 0;
+      }
     }
 
     .mob-sheet-agarradera {
@@ -1223,7 +1276,7 @@
       color: var(--mob-superficie-tenue-foreground);
       transition:
         background-color var(--mob-duration) var(--mob-ease),
-        transform var(--mob-duration) var(--mob-ease);
+        transform var(--duration-press) var(--ease-out);
     }
 
     .mob-boton-icono[data-tono="plano"] {
@@ -1231,7 +1284,7 @@
     }
 
     .mob-boton-icono:active {
-      transform: scale(0.94);
+      transform: scale(0.96);
       background: color-mix(in oklab, var(--foreground) 12%, transparent);
     }
 
@@ -1254,7 +1307,7 @@
       color: var(--mob-superficie-tenue-foreground);
       transition:
         background-color var(--mob-duration) var(--mob-ease),
-        transform var(--mob-duration) var(--mob-ease);
+        transform var(--duration-press) var(--ease-out);
     }
 
     .mob-enlace-accion[data-tono="acento"] {
@@ -1542,6 +1595,32 @@
     cursor: progress;
   }
 
+  /* Pasos del formulario de venta (doc §11, "Formularios por pasos"): el
+     paso nuevo entra deslizando en el mismo sentido que la navegación.
+     `form-venta.tsx` marca `data-direccion-paso` al avanzar o volver; sin
+     el atributo (carga, borrador restaurado) el paso aparece quieto. Va
+     sin capa porque tiene que ganarle a la utilidad
+     `transition-[border-color,opacity]` del paso, y por eso repite
+     `border-color`. */
+  .mob-paso {
+    transition:
+      transform 320ms var(--ease-drawer),
+      opacity 200ms var(--ease-out),
+      border-color 200ms ease;
+  }
+
+  @starting-style {
+    [data-direccion-paso="adelante"] .mob-paso {
+      transform: translateX(24%);
+      opacity: 0;
+    }
+
+    [data-direccion-paso="atras"] .mob-paso {
+      transform: translateX(-24%);
+      opacity: 0;
+    }
+  }
+
   /* ===================================================================
      Transición lateral de navegación — issue #70 (PWA-MOTION-01), doc §11.
 
@@ -1560,9 +1639,11 @@
       pointer-events: none;
     }
 
-    &::view-transition-group(root) {
-      animation-duration: var(--mob-duration);
-      animation-timing-function: var(--mob-ease);
+    &::view-transition-group(root),
+    &::view-transition-old(root),
+    &::view-transition-new(root) {
+      animation-duration: var(--mob-duration-navegacion);
+      animation-timing-function: var(--ease-drawer);
     }
 
     /* La barra inferior es chrome persistente (vive en lista y detalle):
@@ -1660,13 +1741,20 @@
     }
 
     /* El sheet sigue entrando y saliendo (aparecer/desaparecer no es
-       decorativo: es la capa), pero sin desplazamiento animado. */
-    .mob-sheet {
-      transition-duration: 1ms;
+       decorativo: es la capa), pero sin desplazamiento: se funde en su
+       lugar. Movimiento reducido es menos movimiento, no cero feedback —
+       la opacidad no marea. Clase + `!important` le gana a la política
+       global `*` de más abajo, que también es `!important` pero con
+       especificidad cero. */
+    .mob-sheet,
+    .mob-sheet[data-ending-style] {
+      transition: opacity 200ms ease !important;
     }
 
+    .mob-sheet[data-starting-style],
     .mob-sheet[data-ending-style] {
-      transition-duration: 1ms;
+      transform: none;
+      opacity: 0;
     }
 
     /* Red de seguridad: `puedeTransicionarMovil()` ya evita marcar
@@ -1737,7 +1825,7 @@
 @keyframes modal-field-rise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -1784,11 +1872,11 @@
 
 .dialog-note {
   overflow: hidden;
-  animation: modal-note-in 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: modal-note-in 240ms var(--ease-out) both;
 }
 
 .dialog-segment-content {
-  animation: modal-segment-content-in 240ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: modal-segment-content-in 200ms var(--ease-out) both;
 }
 
 .dialog-caret {
@@ -1811,8 +1899,8 @@
 .dialog-popup {
   box-shadow: var(--modal-shadow);
   transition:
-    opacity 420ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 420ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 220ms var(--ease-out),
+    transform 300ms var(--ease-out);
 }
 
 .dialog-popup::before {
@@ -1847,19 +1935,25 @@
 .dialog-popup[data-ending-style] {
   opacity: 0;
   transform: translateY(6px) scale(0.985);
-  transition-duration: 170ms;
-  transition-timing-function: cubic-bezier(0.4, 0, 1, 1);
+  /* Salida más corta que la entrada y nunca con `ease-in`: el usuario ya
+     decidió cerrar, la respuesta tiene que ser inmediata. */
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-out);
 }
 
 .dialog-close {
   transition:
     color 160ms ease,
     background-color 160ms ease,
-    transform 200ms ease;
+    transform 200ms var(--ease-out);
 }
 
-.dialog-close:hover:not(:disabled) {
-  transform: rotate(90deg);
+/* Solo con puntero real: en táctil el hover se dispara con el toque y la X
+   quedaba girada después de cerrar. */
+@media (hover: hover) and (pointer: fine) {
+  .dialog-close:hover:not(:disabled) {
+    transform: rotate(90deg);
+  }
 }
 
 [data-slot="dialog-content"] > form,
@@ -1872,37 +1966,41 @@
   scrollbar-gutter: stable;
 }
 
+/* Stagger de 30ms (rango 30–80ms): antes arrancaba en 90ms con pasos de
+   45ms y 380ms de duración, así que el octavo campo terminaba de aparecer
+   a los ~785ms — con el foco ya puesto en un campo todavía invisible. Ahora
+   el último termina a los ~530ms y el primero es visible casi de entrada. */
 .dialog-stagger > * {
-  animation: modal-field-rise 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: var(--dialog-stagger-delay, 90ms);
+  animation: modal-field-rise 300ms var(--ease-out) both;
+  animation-delay: var(--dialog-stagger-delay, 20ms);
 }
 
 .dialog-stagger > :nth-child(2) {
-  --dialog-stagger-delay: 135ms;
+  --dialog-stagger-delay: 50ms;
 }
 
 .dialog-stagger > :nth-child(3) {
-  --dialog-stagger-delay: 180ms;
+  --dialog-stagger-delay: 80ms;
 }
 
 .dialog-stagger > :nth-child(4) {
-  --dialog-stagger-delay: 225ms;
+  --dialog-stagger-delay: 110ms;
 }
 
 .dialog-stagger > :nth-child(5) {
-  --dialog-stagger-delay: 270ms;
+  --dialog-stagger-delay: 140ms;
 }
 
 .dialog-stagger > :nth-child(6) {
-  --dialog-stagger-delay: 315ms;
+  --dialog-stagger-delay: 170ms;
 }
 
 .dialog-stagger > :nth-child(7) {
-  --dialog-stagger-delay: 360ms;
+  --dialog-stagger-delay: 200ms;
 }
 
 .dialog-stagger > :nth-child(8) {
-  --dialog-stagger-delay: 405ms;
+  --dialog-stagger-delay: 230ms;
 }
 
 [data-slot="dialog-content"] [data-slot="label"] {
@@ -1981,7 +2079,7 @@
   font-weight: 600;
   letter-spacing: -0.01em;
   transition:
-    transform 140ms ease,
+    transform var(--duration-press) var(--ease-out),
     box-shadow 180ms ease,
     background-color 160ms ease,
     color 160ms ease;
@@ -2015,7 +2113,7 @@
 }
 
 [data-slot="dialog-footer"] [data-slot="button"]:active:not(:disabled) {
-  transform: translateY(1px) scale(0.99);
+  transform: scale(0.97);
 }
 
 @media (min-width: 640px) {
@@ -2100,7 +2198,9 @@
     color-mix(in oklab, var(--background) 55%, transparent),
     transparent
   );
-  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  /* Movimiento constante: `linear`, no una curva que acelera y frena en
+     cada barrido. */
+  animation: skeleton-shimmer 1.4s linear infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2122,9 +2222,13 @@
 }
 
 @utility elevation-hover {
-  &:hover {
-    box-shadow: var(--shadow-elevation-2);
-    transform: translateY(-2px);
+  /* Solo con puntero real: en táctil el toque dispara un hover falso que
+     deja la tarjeta levantada. */
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      box-shadow: var(--shadow-elevation-2);
+      transform: translateY(-2px);
+    }
   }
 }
 

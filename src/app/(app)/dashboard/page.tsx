@@ -63,7 +63,7 @@ export default async function DashboardPage({
     ),
   );
   return (
-    <section className="page-shell animate-in fade-in-0 duration-500 motion-reduce:animate-none">
+    <section className="page-shell">
       {/* Cabecera raíz móvil (issue #52): el h1 lo pone el banner, acá van
           el contexto de empresa y la entrada a la cuenta. */}
       <CabeceraMovil

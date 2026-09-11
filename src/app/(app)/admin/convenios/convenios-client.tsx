@@ -308,7 +308,7 @@ export function ConveniosClient({
             {convenios.map((c) => (
               <Card
                 key={c.id}
-                className="bg-card/90 h-full rounded-[1.4rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                className="bg-card/90 h-full rounded-[1.4rem] shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl"
               >
                 <CardContent className="flex h-full flex-col gap-4 p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-3">

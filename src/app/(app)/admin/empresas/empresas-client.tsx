@@ -254,7 +254,7 @@ export function EmpresasClient({
             {pagina.items.map((empresa) => (
               <Card
                 key={empresa.id}
-                className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl"
               >
                 <CardContent className="flex h-full flex-col gap-3 p-5">
                   <div className="flex items-start justify-between gap-3">

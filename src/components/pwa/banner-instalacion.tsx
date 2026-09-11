@@ -175,7 +175,7 @@ export function BannerInstalacion() {
     <div
       role="status"
       aria-label="Sugerencia para instalar Convenios"
-      className="border-border/80 bg-card/96 fixed inset-x-3 bottom-[calc(var(--mob-hueco-avisos,4.2rem)+0.5rem)] z-[var(--z-pwa)] mx-auto max-w-md overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_24px_70px_rgba(15,23,42,.24)] backdrop-blur-xl lg:right-5 lg:bottom-5 lg:left-auto"
+      className="border-border/80 bg-card/96 fixed inset-x-3 bottom-[calc(var(--mob-hueco-avisos,4.2rem)+0.5rem)] z-[var(--z-pwa)] mx-auto max-w-md overflow-hidden rounded-[1.4rem] border p-4 shadow-[0_24px_70px_rgba(15,23,42,.24)] backdrop-blur-xl transition-[opacity,transform] duration-300 ease-out lg:right-5 lg:bottom-5 lg:left-auto starting:translate-y-3 starting:opacity-0"
     >
       <div className="flex items-start gap-3">
         <div className="from-primary/15 text-primary flex size-11 shrink-0 items-center justify-center rounded-[1rem] bg-linear-to-br to-cyan-400/15 ring-1 ring-current/10">

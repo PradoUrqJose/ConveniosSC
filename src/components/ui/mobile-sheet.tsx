@@ -81,6 +81,13 @@ export function MobileSheet({
   children: React.ReactNode;
 }) {
   const [pila, setPila] = React.useState<string[]>([paginaInicial]);
+  // Sentido del último movimiento de la pila: la página que queda arriba
+  // entra desde ese lado (doc §5, transición lateral). `null` hasta el
+  // primer push, para que la página inicial no deslice mientras el sheet
+  // ya está subiendo.
+  const [direccion, setDireccion] = React.useState<"adelante" | "atras" | null>(
+    null,
+  );
   const [cambiosInternos, setCambiosInternos] = React.useState(false);
   const confirmando = pila[pila.length - 1] === PAGINA_CONFIRMAR;
   const cambios = hayCambios || cambiosInternos;
@@ -95,15 +102,18 @@ export function MobileSheet({
     setAbiertoPrevio(abierto);
     if (!abierto) {
       setPila([paginaInicial]);
+      setDireccion(null);
       setCambiosInternos(false);
     }
   }
 
   const abrirPagina = React.useCallback((id: string) => {
+    setDireccion("adelante");
     setPila((actual) => [...actual, id]);
   }, []);
 
   const volver = React.useCallback(() => {
+    setDireccion("atras");
     setPila((actual) => (actual.length > 1 ? actual.slice(0, -1) : actual));
   }, []);
 
@@ -159,7 +169,10 @@ export function MobileSheet({
           <Drawer.Backdrop className="mob-sheet-fondo" />
           <Drawer.Viewport className="mob-sheet-viewport">
             <Drawer.Popup className="mob-sheet" data-altura={altura} role={rol}>
-              <Drawer.Content className="mob-sheet-contenido">
+              <Drawer.Content
+                className="mob-sheet-contenido"
+                data-direccion={direccion ?? undefined}
+              >
                 {agarradera ? (
                   <span className="mob-sheet-agarradera" aria-hidden="true" />
                 ) : null}

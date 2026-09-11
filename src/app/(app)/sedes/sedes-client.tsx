@@ -303,7 +303,7 @@ export function SedesClient({
             {sedes.map((sede) => (
               <Card
                 key={sede.id}
-                className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                className="bg-card/90 h-full rounded-[1.35rem] shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl"
               >
                 <CardContent className="flex h-full min-h-64 flex-col gap-4 p-5">
                   <div className="flex items-start justify-between gap-3">

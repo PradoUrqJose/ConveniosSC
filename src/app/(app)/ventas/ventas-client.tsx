@@ -1091,7 +1091,7 @@ function TarjetaVenta({
         iniciarTransicionMovil("adelante");
         alAbrirDetalle();
       }}
-      className={`bg-card/90 ring-foreground/7 hover:bg-card active:bg-card animate-in fade-in-0 flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition duration-300 hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.98] active:shadow-sm active:duration-75 ${
+      className={`bg-card/90 ring-foreground/7 hover:bg-card active:bg-card flex flex-col gap-1.5 rounded-[1.2rem] p-4 shadow-sm ring-1 transition-[transform,box-shadow,background-color] duration-(--duration-press) ease-out hover:-translate-y-0.5 hover:shadow-lg active:scale-[0.97] active:shadow-sm ${
         venta.requiereRevision && !anulada ? "ring-warning/35 bg-warning/5" : ""
       }`}
     >
@@ -1220,7 +1220,7 @@ function TablaVentas({
               return (
                 <TableRow
                   key={v.id}
-                  className={`animate-in fade-in-0 h-[72px] cursor-pointer duration-300 ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
+                  className={`h-[72px] cursor-pointer ${v.requiereRevision && !anulada ? "bg-warning/5" : ""}`}
                   onClick={() => {
                     alAbrirDetalle();
                     router.push(

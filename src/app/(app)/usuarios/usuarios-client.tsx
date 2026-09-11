@@ -405,7 +405,7 @@ export function UsuariosClient({
               return (
                 <Card
                   key={u.id}
-                  className="bg-card/90 rounded-[1.35rem] p-5 shadow-sm transition duration-300 hover:-translate-y-0.5 hover:shadow-xl"
+                  className="bg-card/90 rounded-[1.35rem] p-5 shadow-sm transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-0.5 hover:shadow-xl"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-start gap-3">
