@@ -41,12 +41,7 @@ export function HeroListaMovil({
   const empresa = cuenta?.perfil.empresaNombre ?? null;
   const IconoEmpresa = empresa ? Building2 : Globe2;
   return (
-    <section
-      className={cn(
-        "mob-hero -mx-4 px-4 sm:-mx-6 sm:px-6 lg:hidden",
-        className,
-      )}
-    >
+    <section className={cn("mob-hero lg:hidden", className)}>
       <div className="mob-hero-barra">
         <AccionCuentaMovil className="mob-hero-avatar" />
         <div className="min-w-0 flex-1">
@@ -115,10 +110,7 @@ export function BuscadorHero({
 /** Skeleton del hero de listado para los `loading.tsx`. */
 export function HeroListaEsqueleto() {
   return (
-    <div
-      className="mob-hero -mx-4 px-4 sm:-mx-6 sm:px-6 lg:hidden"
-      aria-hidden="true"
-    >
+    <div className="mob-hero lg:hidden" aria-hidden="true">
       <div className="mob-hero-barra">
         <span className="mob-hero-avatar" />
         <span className="mob-hero-cifra-esqueleto mt-0 h-9 w-36" />

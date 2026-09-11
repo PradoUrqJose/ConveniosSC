@@ -110,6 +110,17 @@ const TEXTO_ESTADO: Record<FilaEmpleado["estado"], string> = {
   INACTIVO: "Inactivo",
 };
 
+/** Tinte del ícono de la fila móvil: el activo usa el acento por defecto. */
+const TONO_ICONO: Record<
+  FilaEmpleado["estado"],
+  "atencion" | "error" | "neutro" | undefined
+> = {
+  ACTIVO: undefined,
+  PENDIENTE_VERIFICACION: "atencion",
+  RECHAZADO: "error",
+  INACTIVO: "neutro",
+};
+
 export function EmpleadosClient({
   pagina,
   tab,
@@ -816,6 +827,7 @@ function FilaEmpleadoMovil({
     >
       <span
         className="mob-movimiento-icono mob-movimiento-iniciales"
+        data-tono={TONO_ICONO[empleado.estado]}
         aria-hidden="true"
       >
         {iniciales}

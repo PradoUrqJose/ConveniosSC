@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Globe2, Search } from "lucide-react";
+import { ArrowRight, Building2, Globe2 } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
@@ -9,10 +9,10 @@ import { AccionCuentaMovil } from "@/components/shell/cabecera-movil";
  * Hero de pantalla raíz — rediseño PWA (2026-09).
  *
  * Reemplaza a `CabeceraMovil` en las pantallas de inicio (vendedor y
- * dashboard): bloque azul a sangre que arranca bajo la status bar, saludo
+ * dashboard): tarjeta azul con la piel del banner de escritorio, saludo
  * con avatar (la entrada a la cuenta, mismo nombre accesible "Tu cuenta:"
- * que la cabecera raíz), una cifra protagonista, acciones en píldora y, como
- * `children`, una tarjeta destacada que se apoya sobre el fundido.
+ * que la cabecera raíz), una cifra protagonista y acciones en píldora. Los
+ * `children` (la tarjeta destacada) se pintan debajo, como tarjeta propia.
  *
  * Solo móvil (`lg:hidden`): el escritorio conserva su `HeroPagina` /
  * `DashboardBanner`. La piel vive en `globals.css` (`.mob-hero*`).
@@ -38,38 +38,28 @@ export function HeroMovil({
 }) {
   const IconoEmpresa = empresa ? Building2 : Globe2;
   return (
-    <section
-      className={cn(
-        "mob-hero -mx-4 px-4 sm:-mx-6 sm:px-6 lg:hidden",
-        className,
-      )}
-    >
-      <div className="mob-hero-barra">
-        <AccionCuentaMovil className="mob-hero-avatar" />
-        <div className="min-w-0 flex-1">
-          <p className="mob-hero-saludo">
-            {saludo} <span aria-hidden="true">👋</span>
-          </p>
-          <h1 className="mob-cabecera-titulo mob-hero-nombre">{nombre}</h1>
+    <>
+      <section className={cn("mob-hero lg:hidden", className)}>
+        <div className="mob-hero-barra">
+          <AccionCuentaMovil className="mob-hero-avatar" />
+          <div className="min-w-0 flex-1">
+            <p className="mob-hero-saludo">
+              {saludo} <span aria-hidden="true">👋</span>
+            </p>
+            <h1 className="mob-cabecera-titulo mob-hero-nombre">{nombre}</h1>
+          </div>
         </div>
-        <Link
-          href="/ventas"
-          aria-label="Buscar ventas"
-          className="mob-hero-boton-icono"
-        >
-          <Search className="size-5" aria-hidden="true" />
-        </Link>
-      </div>
-      {empresa !== undefined ? (
-        <p className="mob-hero-contexto">
-          <IconoEmpresa className="size-3 shrink-0" aria-hidden="true" />
-          <span>{empresa ?? "Todas las empresas"}</span>
-        </p>
-      ) : null}
-      <div className="mob-hero-resumen">{resumen}</div>
-      {acciones ? <div className="mob-hero-acciones">{acciones}</div> : null}
-      {children}
-    </section>
+        {empresa !== undefined ? (
+          <p className="mob-hero-contexto">
+            <IconoEmpresa className="size-3 shrink-0" aria-hidden="true" />
+            <span>{empresa ?? "Todas las empresas"}</span>
+          </p>
+        ) : null}
+        <div className="mob-hero-resumen">{resumen}</div>
+        {acciones ? <div className="mob-hero-acciones">{acciones}</div> : null}
+      </section>
+      {children ? <div className="lg:hidden">{children}</div> : null}
+    </>
   );
 }
 
@@ -164,22 +154,23 @@ export function TarjetaDestacadaEsqueleto() {
 /** Skeleton del hero para los `loading.tsx` de las pantallas raíz. */
 export function HeroMovilEsqueleto() {
   return (
-    <div
-      className="mob-hero -mx-4 px-4 sm:-mx-6 sm:px-6 lg:hidden"
-      aria-hidden="true"
-    >
-      <div className="mob-hero-barra">
-        <span className="mob-hero-avatar" />
-        <span className="mob-hero-cifra-esqueleto mt-0 h-9 w-36" />
+    <>
+      <div className="mob-hero lg:hidden" aria-hidden="true">
+        <div className="mob-hero-barra">
+          <span className="mob-hero-avatar" />
+          <span className="mob-hero-cifra-esqueleto mt-0 h-9 w-36" />
+        </div>
+        <div className="mob-hero-resumen">
+          <span className="mob-hero-cifra-esqueleto" />
+        </div>
+        <div className="mob-hero-acciones">
+          <span className="mob-hero-pildora" />
+          <span className="mob-hero-pildora" />
+        </div>
       </div>
-      <div className="mob-hero-resumen">
-        <span className="mob-hero-cifra-esqueleto" />
+      <div className="lg:hidden">
+        <TarjetaDestacadaEsqueleto />
       </div>
-      <div className="mob-hero-acciones">
-        <span className="mob-hero-pildora" />
-        <span className="mob-hero-pildora" />
-      </div>
-      <TarjetaDestacadaEsqueleto />
-    </div>
+    </>
   );
 }

@@ -33,18 +33,20 @@ movimientos dentro de la pantalla (barra inferior, indicador).
 `src/components/shell/hero-movil.tsx` — reemplaza a `CabeceraMovil` en `/`
 (vendedor) y `/dashboard`:
 
-- Bloque `--mob-hero` a sangre (`-mx-4 sm:-mx-6`) que arranca bajo la status
-  bar y se funde a `--background`; con tarjeta destacada el fundido empieza
-  ~11rem antes del final para que el azul se apague detrás de ella.
+- **v2 (a pedido del usuario):** tarjeta redondeada con la piel del banner
+  de escritorio — diagonal de `--mob-hero` a `--mob-hero-profundo`, trama de
+  puntos y halo cian —, ya no un bloque a sangre que se funde con el fondo.
+  La tarjeta destacada se pinta debajo, como tarjeta propia. El margen
+  superior de la tarjeta paga el safe area.
 - Fila superior: avatar (el mismo `AccionCuentaMovil`, nombre accesible
   "Tu cuenta: …"), saludo por hora de Lima (`src/lib/saludo.ts`) y nombre
-  como `h1` con `.mob-cabecera-titulo` (contrato e2e #52: no se trunca), más
-  el acceso a buscar ventas.
+  como `h1` con `.mob-cabecera-titulo` (contrato e2e #52: no se trunca). Sin
+  buscador en el dashboard (se quitó en la v2).
 - Cifra protagonista (`CifraHero`): el valor pesa más que la etiqueta; el
   dashboard la hace llegar por streaming con un esqueleto de igual altura.
 - Acciones: `PildoraHero` blancas + un cuadro oscuro opcional (en el
-  dashboard, el disparador de filtros). A < 360px las píldoras pierden el
-  ícono para no recortar la etiqueta.
+  dashboard, el disparador de filtros). A < 400px las píldoras se compactan
+  y a < 360px pierden el ícono, para no recortar la etiqueta.
 - `TarjetaDestacadaMovil`: un único mensaje accionable, con el dato clave
   en `<strong>` (nunca se parte "S/") y la acción dentro del bloque tenue.
 
@@ -52,9 +54,14 @@ movimientos dentro de la pantalla (barra inferior, indicador).
 
 `src/components/shell/lista-recientes-movil.tsx`: encabezado de sección,
 chips que filtran de verdad (Todas / Hoy, 36px visibles con área táctil de
-44px por `::after` y `data-toque="compacto"`) y filas sin tarjeta ni
-divisores, con ícono en squircle e importe a la derecha. Tocar una fila usa
-la transición lateral del #70.
+44px por `::after` y `data-toque="compacto"`) y filas `.mob-movimiento`.
+Tocar una fila usa la transición lateral del #70.
+
+**v2:** cada fila es una tarjeta blanca (`--mob-shadow-fila`) con ícono en
+squircle tintado (`data-tono` atencion / error / neutro según el estado),
+título en negrita con la meta en un chip tenue debajo, e importe en píldora
+azul con el dato secundario (descuento) bajo ella. Aplica a todas las
+listas móviles: operaciones recientes, ventas, empleados y catálogos.
 
 ## Pantallas raíz de listado (Ventas, Empleados, Sedes)
 
