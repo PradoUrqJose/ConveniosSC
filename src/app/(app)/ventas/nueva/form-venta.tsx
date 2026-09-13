@@ -6,6 +6,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -1096,10 +1097,11 @@ export function FormVenta({
         </aside>
       </form>
 
-      {/* ── Barra inferior móvil (PWA) ── */}
+      {/* ── CTA fijo (PWA): flota sobre la barra inferior, que sigue viva.
+             Geometría y posición en `globals.css` (`.mob-cta-fijo`). ── */}
       <div
-        style={{ bottom: tecladoInset }}
-        className="border-border bg-background/95 fixed inset-x-0 z-[var(--z-cta-movil)] border-t p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+        style={{ "--mob-teclado-inset": `${tecladoInset}px` } as CSSProperties}
+        className="mob-cta-fijo lg:hidden"
       >
         <Button
           type="button"

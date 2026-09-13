@@ -318,7 +318,18 @@ export function EmpleadosClient({
               <CifraHero
                 etiqueta="Empleados registrados"
                 cifra={resumen.total}
-                detalle={`${resumen.activos} activos · ${resumen.pendientes} por validar`}
+                metricas={[
+                  {
+                    icono: <UserRound className="size-4.25" aria-hidden="true" />,
+                    etiqueta: "Activos",
+                    valor: resumen.activos,
+                  },
+                  {
+                    icono: <Clock3 className="size-4.25" aria-hidden="true" />,
+                    etiqueta: "Por validar",
+                    valor: resumen.pendientes,
+                  },
+                ]}
               />
             }
             buscador={

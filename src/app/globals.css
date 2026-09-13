@@ -350,16 +350,20 @@
 
     /* Hero de pantalla raíz — rediseño PWA (2026-09). Azul de marca más
        luminoso que `--primary` para que el bloque se lea como superficie y
-       no como botón. El blanco encima se mide en contraste-movil.test.ts. */
+       no como botón. El blanco encima se mide en contraste-movil.test.ts.
+       Cuatro paradas de la diagonal (referencia del usuario), de más clara
+       (arriba-izquierda) a más oscura (abajo-derecha). */
+    --mob-hero-inicio: oklch(0.56 0.19 262);
     --mob-hero: oklch(0.51 0.19 262);
+    --mob-hero-medio: oklch(0.42 0.17 264);
     --mob-hero-foreground: oklch(1 0 0);
     --mob-hero-tenue-foreground: oklch(1 0 0 / 86%);
     /* Acción secundaria del hero (el cuadro de filtros): contrasta contra
        el azul y contra el blanco de las píldoras vecinas. */
-    --mob-hero-oscuro: oklch(0.2 0.035 262);
+    --mob-hero-oscuro: oklch(0.16 0.035 258);
     /* Extremo profundo de la diagonal del hero (≈ blue-950 del banner de
        escritorio). El blanco encima contrasta más que sobre `--mob-hero`. */
-    --mob-hero-profundo: oklch(0.32 0.13 265);
+    --mob-hero-profundo: oklch(0.28 0.11 265);
     /* Sombra de las filas-tarjeta de las listas: suave y teñida. */
     --mob-shadow-fila:
       0 6px 18px -10px oklch(0.25 0.06 262 / 22%),
@@ -390,12 +394,12 @@
     --mob-tono-rojo-fg: oklch(0.505 0.19 27);
   }
 
-  /* El punto de venta cambia la barra inferior por un CTA fijo más alto
-     (`.mob-espacio-inferior-cta` en el <main>). Sin esto, el toast de
+  /* En el punto de venta el CTA fijo se apila sobre la barra inferior
+     (`.mob-cta-fijo` en el formulario). Sin esto, el toast de
      "venta registrada" caía justo encima del botón Guardar. */
-  :root:has(.mob-espacio-inferior-cta) {
+  :root:has(.mob-cta-fijo) {
     --mob-hueco-avisos: calc(
-      var(--mob-cta-flotante) + var(--mob-bottom-bar-margen)
+      var(--mob-bottom-bar-hueco) + var(--mob-cta-flotante)
     );
   }
 
@@ -423,9 +427,11 @@
 
     /* El hero baja de luminosidad para no deslumbrar sobre la página
        oscura; el blanco encima sigue pasando AA. */
+    --mob-hero-inicio: oklch(0.48 0.15 262);
     --mob-hero: oklch(0.43 0.16 262);
-    --mob-hero-oscuro: oklch(0.13 0.03 262);
-    --mob-hero-profundo: oklch(0.24 0.1 265);
+    --mob-hero-medio: oklch(0.35 0.13 264);
+    --mob-hero-oscuro: oklch(0.11 0.025 258);
+    --mob-hero-profundo: oklch(0.22 0.09 265);
 
     /* Tonos en oscuro: fondo profundo del mismo matiz, tinta clara. */
     --mob-tono-azul-bg: oklch(0.3 0.07 264);
@@ -719,65 +725,69 @@
     }
 
     /* =================================================================
-       Hero de pantalla raíz — rediseño PWA (2026-09, v2).
-
-       Tarjeta azul redondeada con la misma piel que el banner de
-       escritorio (`DashboardBanner`): diagonal de `--mob-hero` a
-       `--mob-hero-profundo`, trama de puntos y un halo cian arriba a la
-       derecha. Ya no va a sangre ni se funde con el fondo: la tarjeta
-       destacada vive debajo, como tarjeta propia. El margen superior
-       paga el safe area (la PWA usa `black-translucent`).
+       Hero de pantalla raíz — rediseño PWA (2026-09, v3, referencia del
+       usuario). Tarjeta azul redondeada: diagonal de cuatro paradas
+       (`--mob-hero-inicio` a `--mob-hero-profundo`) con una trama de
+       puntos horneada en el mismo fondo. Ya no va a sangre ni se funde
+       con la página: la tarjeta destacada vive debajo, como tarjeta
+       propia. El margen superior paga el safe area (la PWA usa
+       `black-translucent`).
        ================================================================= */
     .mob-hero {
       position: relative;
-      isolation: isolate;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       margin-top: max(0.75rem, calc(var(--mob-safe-top) + 0.5rem));
-      border-radius: var(--mob-radius-tarjeta);
-      background: linear-gradient(
-        135deg,
-        var(--mob-hero) 0%,
-        var(--mob-hero) 40%,
-        var(--mob-hero-profundo) 100%
-      );
+      border-radius: 1.75rem;
+      /* Misma piel que `DashboardBanner` (escritorio): resplandor ambiental
+         arriba-derecha, trama de puntos y la diagonal de marca como base
+         — referencia del usuario. `background-image` (no el shorthand
+         `background`): Lightning CSS duplica el shorthand dentro de un
+         `@supports (color: lab(...))` para el fallback de color y ese
+         duplicado resetea `background-size`/`-repeat` a `auto`/`repeat`
+         si se declaran por separado — con el longhand no lo toca. */
+      background-image:
+        radial-gradient(
+          circle at 92% 2%,
+          oklch(0.88 0.12 200 / 55%) 0%,
+          oklch(0.88 0.12 200 / 28%) 18%,
+          transparent 48%
+        ),
+        radial-gradient(
+          circle at 1px 1px,
+          oklch(1 0 0 / 24%) 1px,
+          transparent 0
+        ),
+        linear-gradient(
+          135deg,
+          var(--mob-hero-inicio) 0%,
+          var(--mob-hero) 38%,
+          var(--mob-hero-medio) 68%,
+          var(--mob-hero-profundo) 100%
+        );
+      background-repeat: no-repeat, repeat, no-repeat;
+      background-size:
+        100% 100%,
+        18px 18px,
+        100% 100%;
       color: var(--mob-hero-foreground);
-      padding: 1rem 1rem 1.25rem;
+      padding: 1.375rem 1.25rem;
       box-shadow: 0 24px 50px -26px oklch(0.35 0.16 262 / 60%);
-    }
-
-    .mob-hero::before {
-      position: absolute;
-      inset: 0;
-      z-index: -1;
-      content: "";
-      background-image: radial-gradient(
-        circle at 1px 1px,
-        oklch(1 0 0 / 22%) 1px,
-        transparent 0
-      );
-      background-size: 18px 18px;
-      pointer-events: none;
-    }
-
-    .mob-hero::after {
-      position: absolute;
-      top: -5rem;
-      right: -4rem;
-      z-index: -1;
-      width: 16rem;
-      height: 16rem;
-      border-radius: var(--mob-radius-pill);
-      background: oklch(0.86 0.12 210 / 25%);
-      filter: blur(48px);
-      content: "";
-      pointer-events: none;
     }
 
     .mob-hero-barra {
       display: flex;
       min-height: var(--mob-toque-min);
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+
+    .mob-hero-identidad {
+      display: flex;
+      min-width: 0;
+      flex: 1 1 auto;
       align-items: center;
       gap: 0.75rem;
     }
@@ -835,23 +845,25 @@
       background: oklch(1 0 0 / 26%);
     }
 
-    .mob-hero-contexto {
+    /* Empresa activa: vive en la barra, junto al saludo (antes iba debajo,
+       como línea propia). Botón visual — no navega, solo informa. */
+    .mob-hero-empresa {
       display: inline-flex;
-      max-width: 100%;
+      max-width: 60%;
+      flex-shrink: 0;
       align-items: center;
-      align-self: flex-start;
       gap: 0.375rem;
-      margin-top: 1.5rem;
+      height: 2.25rem;
       border-radius: var(--mob-radius-pill);
-      background: oklch(1 0 0 / 14%);
-      padding: 0.25rem 0.625rem;
+      border: 1px solid oklch(1 0 0 / 10%);
+      background: oklch(1 0 0 / 15%);
+      backdrop-filter: blur(8px);
+      padding-inline: 0.75rem;
       font-size: 0.6875rem;
       font-weight: 700;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
     }
 
-    .mob-hero-contexto > span {
+    .mob-hero-empresa > span {
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
@@ -861,14 +873,27 @@
       margin-top: 1.5rem;
     }
 
-    .mob-hero-contexto + .mob-hero-resumen {
-      margin-top: 0.875rem;
+    /* Modificador de `HeroMovil` (la cifra protagonista): centrada, más
+       grande que la de `HeroListaMovil` (que sigue a la izquierda, junto
+       al título de la lista). */
+    .mob-hero-resumen-protagonista {
+      margin-top: 1.75rem;
+      text-align: center;
     }
 
     .mob-hero-etiqueta {
       font-size: 0.875rem;
       font-weight: 500;
       color: var(--mob-hero-tenue-foreground);
+    }
+
+    .mob-hero-resumen-protagonista .mob-hero-etiqueta {
+      margin-bottom: 0.5rem;
+      font-size: 0.6875rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      color: oklch(1 0 0 / 65%);
     }
 
     /* El valor manda sobre la etiqueta. Tamaño fluido para que un importe
@@ -881,6 +906,14 @@
       letter-spacing: -0.035em;
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+    }
+
+    .mob-hero-resumen-protagonista .mob-hero-cifra {
+      margin-top: 0;
+      font-size: clamp(2.25rem, 13vw, 3.25rem);
+      line-height: 0.95;
+      font-weight: 900;
+      letter-spacing: -0.05em;
     }
 
     .mob-hero-cifra-esqueleto {
@@ -899,6 +932,56 @@
       color: var(--mob-hero-tenue-foreground);
     }
 
+    /* Métricas del hero protagonista (p. ej. operaciones y periodo):
+       reemplazan al detalle de una línea cuando el dato pesa más que una
+       frase — dos tarjetas de vidrio con ícono, a la izquierda de nuevo. */
+    .mob-hero-metricas {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      text-align: left;
+    }
+
+    .mob-hero-metrica {
+      display: flex;
+      min-height: 3.625rem;
+      align-items: center;
+      gap: 0.625rem;
+      border-radius: 1rem;
+      border: 1px solid oklch(1 0 0 / 10%);
+      background: oklch(1 0 0 / 10%);
+      padding: 0.625rem 0.75rem;
+    }
+
+    .mob-hero-metrica-icono {
+      display: inline-grid;
+      width: 2rem;
+      height: 2rem;
+      flex-shrink: 0;
+      place-items: center;
+      border-radius: 0.625rem;
+      background: oklch(1 0 0 / 10%);
+    }
+
+    .mob-hero-metrica-etiqueta {
+      display: block;
+      font-size: 0.5625rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: oklch(1 0 0 / 55%);
+    }
+
+    .mob-hero-metrica-valor {
+      display: block;
+      margin-top: 0.125rem;
+      font-size: 0.8125rem;
+      line-height: 1.2;
+      font-weight: 800;
+      overflow-wrap: break-word;
+    }
+
     .mob-hero-acciones {
       display: flex;
       gap: 0.625rem;
@@ -908,19 +991,27 @@
     .mob-hero-pildora {
       display: inline-flex;
       min-width: 0;
-      min-height: 3rem;
+      min-height: 3.375rem;
       flex: 1 1 0;
       align-items: center;
       justify-content: center;
       gap: 0.5rem;
-      border-radius: 1.125rem;
+      border-radius: 1rem;
       background: oklch(1 0 0);
       color: oklch(0.2 0.035 262);
       padding-inline: 1rem;
-      font-size: 0.9375rem;
-      font-weight: 600;
+      font-size: 0.8125rem;
+      font-weight: 800;
       box-shadow: 0 8px 20px -10px oklch(0.2 0.1 262 / 45%);
       transition: transform var(--duration-press) var(--ease-out);
+    }
+
+    /* Acción secundaria de la fila (p. ej. "Empleados" junto a "Ventas"):
+       misma forma, un peldaño menos de énfasis — sin sombra, algo más
+       traslúcida. */
+    .mob-hero-pildora[data-tono="secundario"] {
+      background: oklch(1 0 0 / 90%);
+      box-shadow: none;
     }
 
     .mob-hero-pildora:active {
@@ -934,7 +1025,7 @@
       .mob-hero-pildora {
         gap: 0.375rem;
         padding-inline: 0.625rem;
-        font-size: 0.875rem;
+        font-size: 0.75rem;
       }
     }
 
@@ -943,7 +1034,7 @@
     @media (max-width: 359.98px) {
       .mob-hero-pildora {
         padding-inline: 0.5rem;
-        font-size: 0.875rem;
+        font-size: 0.75rem;
       }
 
       .mob-hero-pildora > svg {
@@ -953,18 +1044,18 @@
 
     .mob-hero-cuadro {
       display: inline-grid;
-      width: 3rem;
-      height: 3rem;
+      width: 3.25rem;
+      height: 3.25rem;
       flex: none;
       place-items: center;
-      border-radius: 1.125rem;
+      border-radius: 1rem;
       background: var(--mob-hero-oscuro);
       color: var(--mob-hero-foreground);
       transition: transform var(--duration-press) var(--ease-out);
     }
 
     .mob-hero-cuadro:active {
-      transform: scale(0.96);
+      transform: scale(0.95);
     }
 
     /* Tarjeta destacada: un único mensaje accionable por pantalla, con su
@@ -1778,9 +1869,48 @@
       );
     }
 
-    .mob-espacio-inferior-cta {
+    /* Punto de venta (`/ventas/nueva`): el CTA fijo y la barra de
+       pestañas conviven — el botón flota justo encima de la píldora de
+       navegación —, así que el contenido reserva los dos altos.
+
+       Va por CSS y no por una rama en el layout de `(app)`: los layouts
+       compartidos no se vuelven a renderizar en una navegación de cliente,
+       así que entrar al punto de venta desde otra pantalla dejaba la barra
+       (z-index mayor) encima del botón y sin cabecera de vuelta. La marca
+       `.mob-cta-fijo` la pone el propio formulario, que sí se monta en cada
+       navegación. */
+    .mob-cta-fijo {
+      position: fixed;
+      inset-inline: 0;
+      /* Justo encima de la píldora de navegación: las dos conviven. El
+         teclado virtual lo publica el formulario como `--mob-teclado-inset`
+         (0 con el teclado cerrado). */
+      bottom: calc(var(--mob-teclado-inset, 0px) + var(--mob-bottom-bar-hueco));
+      z-index: var(--z-cta-movil);
+      display: flex;
+      justify-content: center;
+      padding-block: 0.5rem;
+      padding-left: calc(
+        var(--mob-margen-pantalla) + env(safe-area-inset-left, 0px)
+      );
+      padding-right: calc(
+        var(--mob-margen-pantalla) + env(safe-area-inset-right, 0px)
+      );
+      /* Como la barra: solo el botón recibe toques; por los lados pasa el
+         scroll al contenido. */
+      pointer-events: none;
+    }
+
+    /* Mismo ancho que la píldora de la barra, para que se lean apilados. */
+    .mob-cta-fijo > * {
+      width: 100%;
+      max-width: 28rem;
+      pointer-events: auto;
+    }
+
+    main:has(.mob-cta-fijo) {
       padding-bottom: calc(
-        var(--mob-cta-flotante) + var(--mob-safe-bottom) +
+        var(--mob-bottom-bar-hueco) + var(--mob-cta-flotante) +
           var(--mob-gap-tarjeta)
       );
     }
@@ -2781,6 +2911,27 @@
   .animate-pulse,
   .animate-spin {
     animation: none !important;
+  }
+}
+
+/* =====================================================================
+   Punto de venta (`/ventas/nueva`): el <main> toma la geometría del flujo
+   concentrado — una columna angosta en móvil y tablet, y el lienzo ancho
+   del escritorio aprobado. Antes lo decidía una rama por ruta en el layout
+   de `(app)`, que no se reevalúa en una navegación de cliente; la marca
+   `.mob-cta-fijo` la pone el formulario, que sí se monta siempre. El CTA
+   es `lg:hidden`, pero sigue en el DOM: `:has()` también acierta acá.
+   ===================================================================== */
+main:has(.mob-cta-fijo) {
+  max-width: 36rem;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 1024px) {
+  main:has(.mob-cta-fijo) {
+    max-width: 1500px;
+    padding-block: 30px 52px;
+    padding-inline: 2.25rem;
   }
 }
 

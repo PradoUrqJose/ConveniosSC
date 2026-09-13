@@ -84,6 +84,7 @@ export default async function DashboardPage({
               fallback={
                 <CifraHeroEsqueleto
                   etiqueta={etiquetaCifraDashboard(direccion)}
+                  metricas={2}
                 />
               }
             >
@@ -101,6 +102,7 @@ export default async function DashboardPage({
               <PildoraHero
                 href="/empleados"
                 icono={<Users className="size-5" aria-hidden="true" />}
+                tono="secundario"
               >
                 Empleados
               </PildoraHero>

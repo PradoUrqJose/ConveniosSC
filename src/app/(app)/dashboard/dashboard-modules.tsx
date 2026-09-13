@@ -12,7 +12,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { formatearSoles } from "@/lib/dinero";
-import { formatearFechaUI } from "@/lib/fechas";
+import { formatearFechaCortaMovil, formatearFechaUI } from "@/lib/fechas";
 import type { Dashboard } from "@/modules/metricas/query";
 import type { VentaReciente } from "@/modules/ventas/query";
 import { Metrica } from "@/components/shell/pagina-ui";
@@ -163,7 +163,18 @@ export async function ResumenHeroDashboard({
     <CifraHero
       etiqueta={etiquetaCifraDashboard(dashboard.direccion)}
       cifra={formatearSoles(dashboard.totales.sumaBrutoCentimos)}
-      detalle={`${cantidad} ${cantidad === 1 ? "operación" : "operaciones"} · ${formatearFechaUI(desde)} – ${formatearFechaUI(hasta)}`}
+      metricas={[
+        {
+          icono: <ReceiptText className="size-4.25" aria-hidden="true" />,
+          etiqueta: "Operaciones",
+          valor: `${cantidad} ${cantidad === 1 ? "operación" : "operaciones"}`,
+        },
+        {
+          icono: <CalendarDays className="size-4.25" aria-hidden="true" />,
+          etiqueta: "Periodo",
+          valor: `${formatearFechaCortaMovil(desde)} – ${formatearFechaCortaMovil(hasta)}`,
+        },
+      ]}
     />
   );
 }

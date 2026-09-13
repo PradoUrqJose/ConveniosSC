@@ -109,6 +109,29 @@ test):
   blanco); toda la meta usa el gris secundario del sistema, que pasa AA.
   Los siete tonos se miden en `contraste-movil.test.ts`.
 
+## Punto de venta (`/ventas/nueva`)
+
+El CTA fijo y la barra inferior **conviven**: el botón flota justo encima de
+la píldora de navegación, con su mismo ancho (28rem) y 8px de separación, y
+el `<main>` reserva los dos altos
+(`--mob-bottom-bar-hueco` + `--mob-cta-flotante`). Los toasts se apilan
+sobre el CTA (`--mob-hueco-avisos`).
+
+Nada de esto lo decide el layout de `(app)`: un layout compartido **no se
+vuelve a renderizar en una navegación de cliente**, así que la rama por ruta
+que había antes quedaba congelada con la ruta de la primera carga — al
+entrar con la pestaña "Vender" no aparecía la cabecera de vuelta y la barra
+(z-index mayor) tapaba el botón, que no se podía tocar. Ahora:
+
+- `ventas/nueva/layout.tsx` (layout del segmento, se monta al entrar) pinta
+  `CabeceraPuntoVenta`.
+- El formulario marca su CTA con `.mob-cta-fijo`; `globals.css` resuelve con
+  `:has()` la posición del botón, el hueco del contenido, el offset de los
+  toasts y la geometría del `<main>` (columna angosta en móvil, lienzo de
+  1500px con 36px laterales en escritorio, como estaba aprobado).
+- El teclado virtual llega como `--mob-teclado-inset` desde el formulario
+  (Visual Viewport), y el CTA sube con él.
+
 ## Barra inferior y status bar
 
 - El indicador pasó de barra corta a una píldora tenue del tamaño de la

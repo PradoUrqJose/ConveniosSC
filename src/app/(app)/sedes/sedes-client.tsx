@@ -172,7 +172,18 @@ export function SedesClient({
               <CifraHero
                 etiqueta="Sedes activas"
                 cifra={activas}
-                detalle={`${totalVentas} ${totalVentas === 1 ? "venta" : "ventas"} en 30 días · ${sedes.length - activas} inactivas`}
+                metricas={[
+                  {
+                    icono: <Activity className="size-4.25" aria-hidden="true" />,
+                    etiqueta: "Ventas",
+                    valor: `${totalVentas} en 30 días`,
+                  },
+                  {
+                    icono: <MapPin className="size-4.25" aria-hidden="true" />,
+                    etiqueta: "Inactivas",
+                    valor: sedes.length - activas,
+                  },
+                ]}
               />
             }
             buscador={

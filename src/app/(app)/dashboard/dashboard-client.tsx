@@ -122,9 +122,10 @@ export function DashboardFiltrosMovil({
 
   return (
     <>
-      {/* Rediseño PWA 2026-09: el disparador vive en la fila de acciones
-          del hero móvil; el periodo activo ya se lee en el detalle de la
-          cifra, y el nombre accesible lo repite para lector de pantalla. */}
+      {/* Rediseño PWA 2026-09 (v3): el disparador vive en la fila de
+          acciones del hero móvil; el periodo activo ya se lee en la
+          tarjeta "Periodo" del hero, y el nombre accesible lo repite
+          para lector de pantalla. */}
       <button
         type="button"
         onClick={abrir}

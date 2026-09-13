@@ -10,7 +10,6 @@ import {
 } from "@/lib/auth/perfil";
 import { navegacionPorRol } from "@/lib/navegacion";
 import { Sidebar } from "@/components/shell/sidebar";
-import { CabeceraPuntoVenta } from "@/components/shell/cabecera-punto-venta";
 import { ProveedorCuentaMovil } from "@/components/shell/contexto-cuenta-movil";
 import { TabBarMovil } from "@/components/shell/tab-bar-movil";
 import { BannerOffline } from "@/components/shell/banner-offline";
@@ -61,7 +60,6 @@ export default async function AppLayout({
         )
       : Promise.resolve(0);
   const nav = navegacionPorRol(sesion.rol);
-  const esPuntoVenta = pathname === "/ventas/nueva";
 
   return (
     <ProveedorCuentaMovil perfil={perfil} rol={sesion.rol}>
@@ -85,32 +83,33 @@ export default async function AppLayout({
           pelearse con el padding responsive del <main>. */}
         <div className="flex min-w-0 flex-1 flex-col pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] lg:pr-0 lg:pl-0">
           <BannerOffline />
+          {/* Un solo <main> para todas las rutas: los layouts compartidos
+              no se vuelven a renderizar en una navegación de cliente, así
+              que cualquier rama por ruta acá queda congelada con la ruta de
+              la primera carga. El punto de venta trae su propio layout
+              (`ventas/nueva/layout.tsx`) y su hueco lo resuelve
+              `globals.css` con `:has(.mob-cta-fijo)`. */}
           <main
             data-perf-shell
-            className={
-              esPuntoVenta
-                ? "mob-espacio-inferior-cta mx-auto w-full max-w-xl flex-1 px-4 lg:max-w-[1500px] lg:px-9 lg:pt-[30px] lg:pb-[52px]"
-                : "mob-espacio-inferior mx-auto w-full max-w-[1600px] flex-1 px-4 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12 xl:px-10"
-            }
+            className="mob-espacio-inferior mx-auto w-full max-w-[1600px] flex-1 px-4 sm:px-6 lg:px-8 lg:pt-8 lg:pb-12 xl:px-10"
           >
-            {esPuntoVenta ? <CabeceraPuntoVenta /> : null}
             {children}
             <TransicionMovilResolver />
           </main>
         </div>
-        {!esPuntoVenta ? (
-          <TabBarMovil
-            rol={sesion.rol}
-            pendientesEmpleados={
-              <Suspense fallback={null}>
-                <BadgePendientes
-                  pendientes={pendientesEmpleados}
-                  variante="movil"
-                />
-              </Suspense>
-            }
-          />
-        ) : null}
+        {/* La barra se pinta siempre; el punto de venta la oculta por CSS
+            (`body:has(.mob-cta-fijo)`), que sí reacciona a la navegación. */}
+        <TabBarMovil
+          rol={sesion.rol}
+          pendientesEmpleados={
+            <Suspense fallback={null}>
+              <BadgePendientes
+                pendientes={pendientesEmpleados}
+                variante="movil"
+              />
+            </Suspense>
+          }
+        />
       </div>
     </ProveedorCuentaMovil>
   );

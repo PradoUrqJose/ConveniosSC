@@ -103,7 +103,7 @@ function Dashboard() {
     <section className="page-shell space-y-5">
       {/* Móvil: mismo hero del rediseño 2026-09; el banner y las métricas
           de escritorio no existen por debajo de 1024px. */}
-      <HeroMovilEsqueleto />
+      <HeroMovilEsqueleto conEmpresa conFiltro />
       <div className="space-y-5">
         <div className="bg-primary/10 max-lg:hiddenshadow-[0_24px_65px_rgba(29,78,216,.22)] relative grid gap-6 overflow-hidden rounded-[1.25rem] px-4 py-5 sm:rounded-[1.75rem] sm:px-7 sm:py-8 md:grid-cols-[1fr_22rem] lg:px-9">
           <div>

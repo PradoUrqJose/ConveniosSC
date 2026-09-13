@@ -66,6 +66,31 @@ export function formatearFechaUI(fecha: string): string {
   return `${dia}/${mes}/${anio}`;
 }
 
+const MESES_CORTOS = [
+  "ene",
+  "feb",
+  "mar",
+  "abr",
+  "may",
+  "jun",
+  "jul",
+  "ago",
+  "sep",
+  "oct",
+  "nov",
+  "dic",
+];
+
+/**
+ * `YYYY-MM-DD` → `d mmm` (p. ej. `13 ago`), sin año. Solo para las tarjetas
+ * de métrica del hero móvil, donde `formatearFechaUI` (con año y barras) no
+ * entra en el ancho disponible — no reemplaza al formato de escritorio.
+ */
+export function formatearFechaCortaMovil(fecha: string): string {
+  const [, mes, dia] = fecha.split("-");
+  return `${Number(dia)} ${MESES_CORTOS[Number(mes) - 1]}`;
+}
+
 /** `TIMESTAMPTZ` (Date o ISO string) → `dd/mm/aaaa HH:mm`, formateado a Lima. */
 export function formatearFechaHoraLima(marca: Date | string): string {
   return formatInTimeZone(marca, ZONA, "dd/MM/yyyy HH:mm");
