@@ -56,3 +56,5 @@ AGENTS.local
 
 # fuentes de pdf.js copiadas por scripts/copiar-fuentes-pdf.mjs
 /public/pdfjs
+
+/.claude
